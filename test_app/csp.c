@@ -16,6 +16,27 @@
 #define TIMEOUT_CLEAR_ERROR  (2*TASK_FREQUENCY)
 #define TARGET_POSITION      0
 
+#define Bool int
+#define false 0
+#define true 1
+#define ETHERCAT_STATUS_OP  0x08
+#define STATUS_SERVO_ENABLE_BIT (0x04)
+
+//master status define.
+typedef enum _SysWorkingStatus
+{
+    SYS_WORKING_POWER_ON,
+    SYS_WORKING_SAFE_MODE,
+    SYS_WORKING_OPMODE,
+    SYS_WORKING_LINK_DOWN,
+    SYS_WORKING_IDLE_STATUS,
+}ZSysWorkingStatus;
+typedef struct _GSysRunningParam
+{
+    ZSysWorkingStatus m_gWorkStatus;
+}GSysRunningParam;
+GSysRunningParam gSysRunning;
+int ecstate=0;
 //Status Word(0x6041,uint16)
 //bit11:Internal Limit Active.This bit is set when one of the amplifier limits active.(current,voltage,velocity or position).
 //bit9:Set when the amplifier is being controlled by the CANopen interface.
@@ -63,14 +84,24 @@
 
 /* EtherCAT */
 static ec_master_t *master = NULL;
-static ec_domain_t *domain1 = NULL;
-static uint8_t *domain1_pd = NULL; /* process data */
-static ec_slave_config_t *sc_copley = NULL; /* Copley slave configuration */
+static ec_master_state_t master_state={};
 
-#define CopleySlavePos    0,0  /* EtherCAT address on the bus */
+static ec_domain_t *domainInput = NULL;
+static ec_domain_state_t domainInput_state={};
+static uint8_t *domainInput_pd = NULL; /* process data */
+
+static ec_domain_t *domainOutput = NULL;
+static ec_domain_state_t domainOutput_state={};
+static uint8_t *domainOutput_pd = NULL; /* process data */
+
+
+static ec_slave_config_t *sc_copley = NULL; /* Copley slave configuration */
+static ec_slave_config_state_t sc_copley_state;
+
+#define CopleySlavePos    0, 0  /* EtherCAT address on the bus */
 //vendor_id:(0x1018,1)
 //product_id:(0x1018,2)
-#define Copley_VID_PID  0x000000ab,0x00001030 /* vendor_id, product_id */
+#define Copley_VID_PID  0x000000ab, 0x00001030 /* vendor_id, product_id */
 
 /* PDO entries offsets */
 static struct {
@@ -101,15 +132,17 @@ static struct {
 //                                  PDO entry does not byte-align. */
 //} ec_pdo_entry_reg_t;
 
-const static ec_pdo_entry_reg_t domain1_regs[] = {
-    { CopleySlavePos, Copley_VID_PID, 0x6040, 0, &offset.ctrl_word },
-    { CopleySlavePos, Copley_VID_PID, 0x607A, 0, &offset.target_position },
+const static ec_pdo_entry_reg_t domainOutput_regs[] = {
+    {CopleySlavePos, Copley_VID_PID, 0x6040, 0, &offset.ctrl_word},
+    {CopleySlavePos, Copley_VID_PID, 0x607A, 0, &offset.target_position},
+    {}
+};
+const static ec_pdo_entry_reg_t domainInput_regs[] = {
     { CopleySlavePos, Copley_VID_PID, 0x6041, 0, &offset.status_word },
     { CopleySlavePos, Copley_VID_PID, 0x606C, 0, &offset.act_velocity },
     { CopleySlavePos, Copley_VID_PID, 0x6063, 0, &offset.act_position},
     {}
 };
-
 /** PDO entry configuration information.
  *
  * This is the data type of the \a entries field in ec_pdo_info_t.
@@ -121,21 +154,14 @@ const static ec_pdo_entry_reg_t domain1_regs[] = {
 //    uint8_t subindex; /**< PDO entry subindex. */
 //    uint8_t bit_length; /**< Size of the PDO entry in bit. */
 //} ec_pdo_entry_info_t;
-
-ec_pdo_entry_info_t copley_pdo_entries[] = {
-    /* RxPdo 0x1600 */
+static ec_pdo_entry_info_t copley_pdo_entries_output[] = {
     { 0x6040, 0x00, 16 }, /*Control Word,uint16*/
     { 0x607A, 0x00, 32 }, /*Profile Target Position,uint32*/
-
-    /* TxPDO 0x1a00 */
+};
+static ec_pdo_entry_info_t copley_pdo_entries_input[] = {
     { 0x6041, 0x00, 16 }, /*Status Word,uint16*/
-
-    /* the maximum length for PDO is 8 bytes, so create another PDO
-               for actual velocity and position */
-
-    /* TxPDO 0x1a01 */
-    { 0x606C, 0x00, 32 }, /* actual velocity, in rpm */
-    { 0x6063, 0x00, 32 }, /* actual position */
+    { 0x606C, 0x00, 32 }, /*actual velocity, in rpm*/
+    { 0x6063, 0x00, 32 }, /*actual position*/
 };
 //0x1600(Receive PDO 1 mapping parameter).
 //(0x1600,0)=2,Number of mapped object RxPDO 1.
@@ -150,10 +176,12 @@ ec_pdo_entry_info_t copley_pdo_entries[] = {
 //(0x1a01,0)=2,Number of mapped object TxPDO 2.
 //(0x1a01,1)=copley_pdo_entries[3]=(0x606c,0x00,32)=0x606c0020.
 //(0x1a01,2)=copley_pdo_entries[4]=(0x6063,0x00,32)=0x60630020.
-ec_pdo_info_t copley_pdos[] = {
-    { 0x1600, 2, copley_pdo_entries + 0 },
-    { 0x1a00, 1, copley_pdo_entries + 2 },
-    { 0x1a01, 2, copley_pdo_entries + 3 },
+static ec_pdo_info_t copley_pdos_1600[] = {
+    { 0x1600, 2, copley_pdo_entries_output },
+};
+
+static ec_pdo_info_t copley_pdos_1a00[] = {
+    { 0x1a00, 3, copley_pdo_entries_input },
 };
 
 /** Sync manager configuration information.
@@ -179,27 +207,193 @@ ec_sync_info_t copley_syncs[] = {
     //SM1:MBoxIn.
     { 1, EC_DIR_INPUT, 0, NULL, EC_WD_DISABLE },
     //SM2:Outputs -> copley_pdos[0] -> (0x1600,2)(RxPDO2) -> (0x6040,0x607A).
-    { 2, EC_DIR_OUTPUT, 1, copley_pdos + 0, EC_WD_DISABLE },
+    { 2, EC_DIR_OUTPUT, 1, copley_pdos_1600, EC_WD_DISABLE },
     //SM3:Inputs -> copley_pdos[1]/copley_pdos[2] ->(0x1a00,1)/(0x1a01,2)(TxPDO2) -> (0x6041,0x606C,0x6063).
-    { 3, EC_DIR_INPUT, 2, copley_pdos + 1, EC_WD_DISABLE },
+    { 3, EC_DIR_INPUT, 1, copley_pdos_1a00, EC_WD_DISABLE },
     { 0xFF }
 };
+void check_domain_state(void)
+{
+    ec_domain_state_t ds={};
+    ec_domain_state_t ds1={};
 
+    //domainInput.
+    ecrt_domain_state(domainInput,&ds);
+    if(ds.working_counter!=domainInput_state.working_counter)
+    {
+        printf("domainInput: WC %u.\n",ds.working_counter);
+    }
+    if(ds.wc_state!=domainInput_state.wc_state)
+    {
+        printf("domainInput: State %u.\n",ds.wc_state);
+    }
+    domainInput_state=ds;
+
+    //domainOutput.
+    ecrt_domain_state(domainOutput,&ds1);
+    if(ds1.working_counter!=domainOutput_state.working_counter)
+    {
+        printf("domainOutput: WC %u.\n",ds1.working_counter);
+    }
+    if(ds1.wc_state!=domainOutput_state.wc_state)
+    {
+        printf("domainOutput: State %u.\n",ds1.wc_state);
+    }
+    domainOutput_state=ds1;
+}
+void check_master_state(void)
+{
+    ec_master_state_t ms;
+    ecrt_master_state(master,&ms);
+    if(ms.slaves_responding != master_state.slaves_responding)
+    {
+        printf("%u slave(s).\n",ms.slaves_responding);
+    }
+    if(ms.al_states != master_state.al_states)
+    {
+        printf("AL states:0x%02x.\n",ms.al_states);
+    }
+    if(ms.link_up != master_state.link_up)
+    {
+        printf("Link is %s.\n",ms.link_up?"up":"down");
+    }
+    master_state=ms;
+}
+void check_slave_config_state(void)
+{
+    ec_slave_config_state_t s;
+    ecrt_slave_config_state(sc_copley,&s);
+    if(s.al_state != sc_copley_state.al_state)
+    {
+        printf("sc_copley_state: State 0x%02x.\n",s.al_state);
+    }
+    if(s.online != sc_copley_state.online)
+    {
+        printf("sc_copley_sate: %s.\n",s.online ? "online" : "offline");
+    }
+    if(s.operational != sc_copley_state.operational)
+    {
+        printf("sc_copley_sate: %soperational.\n",s.operational ? "" : "Not ");
+    }
+    sc_copley_state=s;
+}
 /****************************************************************************/
 void cyclic_task()
 {
     static unsigned int timeout_error = 0;
     static uint16_t command = CW_QSTOP;
     static int32_t target_position = /*TARGET_POSITION*/123456;
+    static int curpos=0;
 
     uint16_t status;    /* DS402 status register, without manufacturer bits */
     float act_velocity; /* actual velocity in rpm */
     int act_position; /* actual position in encoder unit */
 
+    if(gSysRunning.m_gWorkStatus==SYS_WORKING_POWER_ON)
+    {
+        return;
+    }
+    static int cycle_counter=0;
+    cycle_counter++;
+    if(cycle_counter>=1000*2)
+    {
+        cycle_counter=0;
+    }
+
+
     /* receive process data */
     ecrt_master_receive(master);
-    ecrt_domain_process(domain1);
+    ecrt_domain_process(domainInput);
+    ecrt_domain_process(domainOutput);
+    check_domain_state();
 
+    //500ms.
+    if(!(cycle_counter%500))
+    {
+        check_master_state();
+        check_slave_config_state();
+    }
+
+    switch(gSysRunning.m_gWorkStatus)
+    {
+    case SYS_WORKING_SAFE_MODE:
+        //check if master is in OP mode,if not then turn to OP mode.
+        check_master_state();
+        check_slave_config_state();
+        if((master_state.al_states&ETHERCAT_STATUS_OP))
+        {
+            int tmp=true;
+            if(sc_copley_state.al_state!=ETHERCAT_STATUS_OP)
+            {
+                tmp=false;
+            }
+            if(tmp)
+            {
+                ecstate=0;
+                gSysRunning.m_gWorkStatus=SYS_WORKING_OPMODE;
+                printf("SYS_WORKING_OPMODE\n");
+            }
+        }
+        break;
+    case SYS_WORKING_OPMODE:
+        ecstate++;
+        if(ecstate<=16)
+        {
+            switch(ecstate)
+            {
+            case 1:
+                //bit7=1.
+                //Reset Fault.A low-to-high transition of this bit makes the amplifier attempt to clear any latched fault condition.
+                EC_WRITE_U16(domainOutput_pd+offset.ctrl_word,0x80);
+                break;
+            case 7:
+                //write current position to target position
+                curpos=EC_READ_S32(domainInput_pd+offset.act_position);
+                EC_WRITE_S32(domainOutput_pd+offset.target_position,EC_READ_S32(domainInput_pd+offset.act_position));
+                printf("current position:%d\n",curpos);
+                break;
+            case 9:
+                //0x06=0000,0110.
+                EC_WRITE_U16(domainOutput_pd+offset.ctrl_word,0x06);
+                break;
+            case 11:
+                //0x07=0000,0111.
+                EC_WRITE_U16(domainOutput_pd+offset.ctrl_word,0x07);
+                break;
+            case 13:
+                //0x0F=0000,1111.
+                EC_WRITE_U16(domainOutput_pd+offset.ctrl_word,0x0F);
+                break;
+            }
+        }else{
+            int tmp=true;
+            if((EC_READ_U16(domainInput_pd+offset.status_word)&(STATUS_SERVO_ENABLE_BIT))==0)
+            {
+                tmp=false;
+            }
+            if(tmp)
+            {
+                ecstate=0;
+                gSysRunning.m_gWorkStatus=SYS_WORKING_IDLE_STATUS;
+                printf("SYS_WORKING_IDLE_STATUS\n");
+            }
+        }
+        break;
+    default:
+    {
+        uint16_t status;
+        float act_velocity;
+        int act_position;
+        status = EC_READ_U16(domainInput_pd + offset.status_word);
+        act_velocity = EC_READ_S32(domainInput_pd + offset.act_velocity)/1000.0;
+        act_position = EC_READ_S32(domainInput_pd + offset.act_position);
+        printf("StatusWord:0x%x,ActualVelocity=%.1f rpm,ActualPosition=%d.\n",status,act_velocity, act_position);
+        curpos+=100;
+        EC_WRITE_S32(domainOutput_pd+offset.target_position,curpos);
+    }
+        break;
+    }
+#if 0
     /* read inputs */
     status = EC_READ_U16(domain1_pd + offset.status_word) & STW_MASK;
     act_velocity = EC_READ_S32(domain1_pd + offset.act_velocity)/1000.0;
@@ -245,9 +439,10 @@ void cyclic_task()
     /* write output */
     EC_WRITE_S32( domain1_pd + offset.target_position, target_position );
     EC_WRITE_U16( domain1_pd + offset.ctrl_word, command );
-
+#endif
     /* send process data */
-    ecrt_domain_queue(domain1);
+    ecrt_domain_queue(domainOutput);
+    ecrt_domain_queue(domainInput);
     ecrt_master_send(master);
 }
 
@@ -269,6 +464,7 @@ int main(int argc, char **argv)
         }
     }
 
+    gSysRunning.m_gWorkStatus=SYS_WORKING_POWER_ON;
     //Requests an EtherCAT master for realtime operation.
     master = ecrt_request_master( 0 );
     if ( !master )
@@ -283,10 +479,16 @@ int main(int argc, char **argv)
     //This method creates a new process data domain and returns a pointer to the
     //new domain object. This object can be used for registering PDOs and
     //exchanging them in cyclic operation.
-    domain1 = ecrt_master_create_domain( master );
-    if(!domain1)
+    domainInput = ecrt_master_create_domain( master );
+    if(!domainInput)
     {
-        printf("error:failed to create domain!\n");
+        printf("error:failed to create domain Input!\n");
+        return -1;
+    }
+    domainOutput = ecrt_master_create_domain( master );
+    if(!domainOutput)
+    {
+        printf("error:failed to create domain Output!\n");
         return -1;
     }
     printf("create domain okay.\n");
@@ -349,10 +551,6 @@ int main(int argc, char **argv)
     ecrt_slave_config_sdo8( sc_copley, 0x1C13, 0, 2 ); /* set number of TxPDO */
 
 
-    //Mode of Operation.
-    //(0x6060,0)=8 CSP:Cyclic Synchronous Position mode
-    ecrt_slave_config_sdo8(sc_copley,0x6060,0,8);
-
     //Specify a complete PDO configuration.
     //This function is a convenience wrapper for the functions
     //ecrt_slave_config_sync_manager(), ecrt_slave_config_pdo_assign_clear(),
@@ -360,20 +558,30 @@ int main(int argc, char **argv)
     //and ecrt_slave_config_pdo_mapping_add(), that are better suitable for
     //automatic code generation.
     printf("Configuring PDOs...\n");
-    if ( ecrt_slave_config_pdos( sc_copley, EC_END, copley_syncs ) )
+    if(ecrt_slave_config_pdos(sc_copley, EC_END, copley_syncs))
     {
         printf("error:failed to configure Copley PDOs.\n" );
         return -1;
     }
     printf("configure PDOs done.\n");
 
-    if ( ecrt_domain_reg_pdo_entry_list( domain1, domain1_regs ) )
+    if(ecrt_domain_reg_pdo_entry_list(domainInput, domainInput_regs ) )
     {
         printf("error:PDO entry registration failed!\n" );
         return -1;
     }
-    printf("PDO entry register done.\n");
+    if(ecrt_domain_reg_pdo_entry_list(domainOutput, domainOutput_regs ) )
+    {
+        printf("error:PDO entry registration failed!\n" );
+        return -1;
+    }
+    printf("PDO entry registration done.\n");
 
+    printf("Creating SDO request...\n");
+    //Mode of Operation.
+    //(0x6060,0)=8 CSP:Cyclic Synchronous Position mode
+    ecrt_slave_config_sdo8(sc_copley,0x6060,0,8);
+    ecrt_slave_config_sdo8(sc_copley,0x60c2,1,1);
 
     //Finishes the configuration phase and prepares for cyclic operation.
     //This function tells the master that the configuration phase is finished and
@@ -390,18 +598,28 @@ int main(int argc, char **argv)
     printf("master activated.\n");
 
     // Returns the domain's process data.
-    if(!(domain1_pd = ecrt_domain_data(domain1)))
+    if(!(domainInput_pd = ecrt_domain_data(domainInput)))
+    {
+        printf("error:domain data error!\n");
+        return -1;
+    }
+    if(!(domainOutput_pd = ecrt_domain_data(domainOutput)))
     {
         printf("error:domain data error!\n");
         return -1;
     }
 
+    gSysRunning.m_gWorkStatus=SYS_WORKING_SAFE_MODE;
     printf("Started.\n");
-    while (1) {
-        usleep( 1000000 / TASK_FREQUENCY );
+    while (1)
+    {
+        //1000us=1ms.
+        usleep(1000000/TASK_FREQUENCY);
         cyclic_task();
     }
 
+    ecrt_release_master(master);
+    master=NULL;
     printf("Copley slave test end.\n");
     return 0;
 }
