@@ -1,6 +1,6 @@
 //zhangshaoyan 13522296239.
 //TechServo motor control.
-//gcc pm.c  -I/opt/ethercat/include -lethercat
+//gcc csp.c  -I/opt/ethercat/include -lethercat
 #include "ecrt.h"
 #include <stdio.h>
 #include <unistd.h>
@@ -14,7 +14,7 @@
 
 #define TASK_FREQUENCY       1000  /* Hz */
 #define TIMEOUT_CLEAR_ERROR  (2*TASK_FREQUENCY)
-#define TARGET_POSITION      1234567
+#define TARGET_POSITION      0
 
 //Status Word(0x6041,uint16)
 //bit11:Internal Limit Active.This bit is set when one of the amplifier limits active.(current,voltage,velocity or position).
@@ -81,6 +81,26 @@ static struct {
     unsigned int act_position;
 } offset;
 
+/** List record type for PDO entry mass-registration.
+ *
+ * This type is used for the array parameter of the
+ * ecrt_domain_reg_pdo_entry_list()
+ */
+//typedef struct {
+//    uint16_t alias; /**< Slave alias address. */
+//    uint16_t position; /**< Slave position. */
+//    uint32_t vendor_id; /**< Slave vendor ID. */
+//    uint32_t product_code; /**< Slave product code. */
+//    uint16_t index; /**< PDO entry index. */
+//    uint8_t subindex; /**< PDO entry subindex. */
+//    unsigned int *offset; /**< Pointer to a variable to store the PDO entry's
+//                       (byte-)offset in the process data. */
+//    unsigned int *bit_position; /**< Pointer to a variable to store a bit
+//                                  position (0-7) within the \a offset. Can be
+//                                  NULL, in which case an error is raised if the
+//                                  PDO entry does not byte-align. */
+//} ec_pdo_entry_reg_t;
+
 const static ec_pdo_entry_reg_t domain1_regs[] = {
     { CopleySlavePos, Copley_VID_PID, 0x6040, 0, &offset.ctrl_word },
     { CopleySlavePos, Copley_VID_PID, 0x607A, 0, &offset.target_position },
@@ -90,14 +110,25 @@ const static ec_pdo_entry_reg_t domain1_regs[] = {
     {}
 };
 
-/* AKD */
+/** PDO entry configuration information.
+ *
+ * This is the data type of the \a entries field in ec_pdo_info_t.
+ *
+ * \see ecrt_slave_config_pdos().
+ */
+//typedef struct {
+//    uint16_t index; /**< PDO entry index. */
+//    uint8_t subindex; /**< PDO entry subindex. */
+//    uint8_t bit_length; /**< Size of the PDO entry in bit. */
+//} ec_pdo_entry_info_t;
+
 ec_pdo_entry_info_t copley_pdo_entries[] = {
     /* RxPdo 0x1600 */
-    { 0x6040, 0x00, 16 }, /* DS402 command word */
-    { 0x607A, 0x00, 32 }, /* target position */
+    { 0x6040, 0x00, 16 }, /*Control Word,uint16*/
+    { 0x607A, 0x00, 32 }, /*Profile Target Position,uint32*/
 
     /* TxPDO 0x1a00 */
-    { 0x6041, 0x00, 16 }, /* DS402 status word */
+    { 0x6041, 0x00, 16 }, /*Status Word,uint16*/
 
     /* the maximum length for PDO is 8 bytes, so create another PDO
                for actual velocity and position */
@@ -106,18 +137,50 @@ ec_pdo_entry_info_t copley_pdo_entries[] = {
     { 0x606C, 0x00, 32 }, /* actual velocity, in rpm */
     { 0x6063, 0x00, 32 }, /* actual position */
 };
+//0x1600(Receive PDO 1 mapping parameter).
+//(0x1600,0)=2,Number of mapped object RxPDO 1.
+//(0x1600,1)=copley_pdo_entries[0]=(0x6040,0x00,16)=0x60400010.
+//(0x1600,2)=copley_pdo_entries[1]=(0x607a,0x00,32)=0x607a0020.
 
+//0x1a00(Transmit PDO 1 mapping parameter).
+//(0x1a00,0)=1,Number of mapped object TxPDO 1.
+//(0x1a00,1)=copley_pdo_entries[2]=(0x6041,0x00,16)=0x60410010.
+
+//0x1a01(Transmit PDO 2 mapping parameter).
+//(0x1a01,0)=2,Number of mapped object TxPDO 2.
+//(0x1a01,1)=copley_pdo_entries[3]=(0x606c,0x00,32)=0x606c0020.
+//(0x1a01,2)=copley_pdo_entries[4]=(0x6063,0x00,32)=0x60630020.
 ec_pdo_info_t copley_pdos[] = {
     { 0x1600, 2, copley_pdo_entries + 0 },
     { 0x1a00, 1, copley_pdo_entries + 2 },
     { 0x1a01, 2, copley_pdo_entries + 3 },
-
 };
 
+/** Sync manager configuration information.
+ *
+ * This can be use to configure multiple sync managers including the PDO
+ * assignment and PDO mapping. It is used as an input parameter type in
+ * ecrt_slave_config_pdos().
+ */
+//typedef struct {
+//    uint8_t index; /**< Sync manager index. Must be less
+//                     than #EC_MAX_SYNC_MANAGERS for a valid sync manager,
+//                     but can also be \a 0xff to mark the end of the list. */
+//    ec_direction_t dir; /**< Sync manager direction. */
+//    unsigned int n_pdos; /**< Number of PDOs in \a pdos. */
+//    ec_pdo_info_t *pdos; /**< Array with PDOs to assign. This must contain
+//                            at least \a n_pdos PDOs. */
+//    ec_watchdog_mode_t watchdog_mode; /**< Watchdog mode. */
+//} ec_sync_info_t;
+
 ec_sync_info_t copley_syncs[] = {
+    //SM0:MBoxOut.
     { 0, EC_DIR_OUTPUT, 0, NULL, EC_WD_DISABLE },
+    //SM1:MBoxIn.
     { 1, EC_DIR_INPUT, 0, NULL, EC_WD_DISABLE },
+    //SM2:Outputs -> copley_pdos[0] -> (0x1600,2)(RxPDO2) -> (0x6040,0x607A).
     { 2, EC_DIR_OUTPUT, 1, copley_pdos + 0, EC_WD_DISABLE },
+    //SM3:Inputs -> copley_pdos[1]/copley_pdos[2] ->(0x1a00,1)/(0x1a01,2)(TxPDO2) -> (0x6041,0x606C,0x6063).
     { 3, EC_DIR_INPUT, 2, copley_pdos + 1, EC_WD_DISABLE },
     { 0xFF }
 };
@@ -127,7 +190,7 @@ void cyclic_task()
 {
     static unsigned int timeout_error = 0;
     static uint16_t command = CW_QSTOP;
-    static int32_t target_position = TARGET_POSITION;
+    static int32_t target_position = /*TARGET_POSITION*/123456;
 
     uint16_t status;    /* DS402 status register, without manufacturer bits */
     float act_velocity; /* actual velocity in rpm */
