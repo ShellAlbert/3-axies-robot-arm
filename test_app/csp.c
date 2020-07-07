@@ -98,7 +98,8 @@ static uint8_t *domainOutput_pd = NULL; /* process data */
 static ec_slave_config_t *sc_copley = NULL; /* Copley slave configuration */
 static ec_slave_config_state_t sc_copley_state;
 
-#define CopleySlavePos    0, 0  /* EtherCAT address on the bus */
+//#define CopleySlavePos    0, 0  /* EtherCAT address on the bus */
+#define CopleySlavePos    0, 1  /* EtherCAT address on the bus */
 //vendor_id:(0x1018,1)
 //product_id:(0x1018,2)
 #define Copley_VID_PID  0x000000ab, 0x00001030 /* vendor_id, product_id */
