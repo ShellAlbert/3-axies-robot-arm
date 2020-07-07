@@ -308,7 +308,7 @@ void cyclic_task()
     check_domain_state();
 
     //500ms.
-    if(!(cycle_counter%500))
+    if(!(cycle_counter%100))
     {
         check_master_state();
         check_slave_config_state();
@@ -384,11 +384,32 @@ void cyclic_task()
         uint16_t status;
         float act_velocity;
         int act_position;
+
         status = EC_READ_U16(domainInput_pd + offset.status_word);
         act_velocity = EC_READ_S32(domainInput_pd + offset.act_velocity)/1000.0;
         act_position = EC_READ_S32(domainInput_pd + offset.act_position);
-        printf("StatusWord:0x%x,ActualVelocity=%.1f rpm,ActualPosition=%d.\n",status,act_velocity, act_position);
-        curpos+=100;
+        printf("ActualVelocity=%.1f rpm,ActualPosition=%d.\n",act_velocity, act_position);
+        {
+            //bits splitter.
+            char bitsBuffer[40];
+            int index=0;
+            int p1=status;
+            for(int i=0;i<32;i++)
+            {
+                    bitsBuffer[index++]=(p1&0x80000000)?'1':'0';
+                    if(0==((i+1)%4))
+                    {
+                            bitsBuffer[index++]=',';
+                    }
+                    p1<<=1;
+            }
+            printf("Status Word:0x%x,%s\n",status,bitsBuffer);
+        }
+        //curpos+=200;//clockwise direction.
+        //curpos-=200;//anti-clockwise direction.
+        //if this value is set bigger,will cause error.
+        //we can check status word to see what happened exactly.
+        curpos+=300;
         EC_WRITE_S32(domainOutput_pd+offset.target_position,curpos);
     }
         break;
@@ -504,6 +525,7 @@ int main(int argc, char **argv)
     }
     printf("get slave configuration okay!\n");
 
+#if 0
     /* Configure Copley flexible PDO */
     printf("Configuring Copley with flexible PDO...\n");
     /* Clear RxPdo */
@@ -549,7 +571,7 @@ int main(int argc, char **argv)
     ecrt_slave_config_sdo16( sc_copley, 0x1C13, 1, 0x1A00 ); /* list all TxPdo in 0x1C13:1-4 */
     ecrt_slave_config_sdo16( sc_copley, 0x1C13, 2, 0x1A01 ); /* list all TxPdo in 0x1C13:1-4 */
     ecrt_slave_config_sdo8( sc_copley, 0x1C13, 0, 2 ); /* set number of TxPDO */
-
+#endif
 
     //Specify a complete PDO configuration.
     //This function is a convenience wrapper for the functions
@@ -614,7 +636,13 @@ int main(int argc, char **argv)
     while (1)
     {
         //1000us=1ms.
-        usleep(1000000/TASK_FREQUENCY);
+        //usleep(1000000/TASK_FREQUENCY);
+        //if the time is less, the motor has no time to run.
+        //so we set the time longer to wait for the motor executed the previous command.
+        usleep(7000);
+        //usleep(8000);
+        //usleep(10000);
+        //usleep(20000);
         cyclic_task();
     }
 
