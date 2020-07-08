@@ -26,11 +26,13 @@ DEFINES += QT_DEPRECATED_WARNINGS
 SOURCES += \
         main.cpp \
         zmainui.cpp \
-    zethercatthread.cpp
+    zethercatthread.cpp \
+    zgblpara.cpp
 
 HEADERS += \
         zmainui.h \
-    zethercatthread.h
+    zethercatthread.h \
+    zgblpara.h
 
 INCLUDEPATH += /opt/ethercat/include
 LIBS +=  -lethercat

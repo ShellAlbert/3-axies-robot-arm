@@ -1,5 +1,6 @@
 //zhangshaoyan 13522296239.
 //TechServo motor control.
+//sudo /etc/init.d/ethercat restart
 //gcc csp.c  -I/opt/ethercat/include -lethercat
 #include "ecrt.h"
 #include <stdio.h>
