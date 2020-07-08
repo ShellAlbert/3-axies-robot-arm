@@ -7,7 +7,9 @@
 #include <QLineEdit>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
-#include "zethercatthread.h"
+#include <QImage>
+#include <QPaintEvent>
+#include <QKeyEvent>
 class ZMainUI : public QWidget
 {
     Q_OBJECT
@@ -18,8 +20,18 @@ public:
 
     bool ZDoInit();
 public slots:
+    void ZSlotUpdateImg(const QImage &img);
+    void ZSlotPDO(qint32 iSlave,qint32 iActPos,qint32 iTarPos,qint32 iActVel,qint32 iStatusWord);
+
+public slots:
     void ZSlotCtrlLR();
     void ZSlotCtrlUD();
+protected:
+    void paintEvent(QPaintEvent *e);
+    void closeEvent(QCloseEvent *event);
+    void keyPressEvent(QKeyEvent *event);
+    void keyReleaseEvent(QKeyEvent *event);
+    QSize sizeHint() const;
 private:
     //left part: Left Right direction servo motors.
     QToolButton *m_tbCtrlLR;
@@ -53,7 +65,7 @@ private:
     QHBoxLayout *m_hLayoutMain;
 
 private:
-    ZEtherCATThread *m_ecThread;
+    QImage m_img;
 };
 
 #endif // ZMAINUI_H

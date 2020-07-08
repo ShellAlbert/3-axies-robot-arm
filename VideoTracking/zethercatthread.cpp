@@ -13,6 +13,17 @@ extern "C"
 #include <sys/types.h>
 }
 
+//used to emit UI.
+int gStatusWord=0;
+int gActVelocity=0;
+int gActPosition=0;
+int gTarPosition=0;
+
+int gStatusWord2=0;
+int gActVelocity2=0;
+int gActPosition2=0;
+int gTarPosition2=0;
+
 /*EtherCAT slave address on the bus*/
 #define CopleySlavePos    0, 0
 #define CopleySlavePos2    0, 1
@@ -204,14 +215,12 @@ void print_bits_splitter(int bits)
 }
 void cyclic_task()
 {
-    static int curpos=0,curpos2=0;
     static int cycle_counter=0;
     cycle_counter++;
     if(cycle_counter>=1000*2)
     {
         cycle_counter=0;
     }
-
 
     /*receive EtherCAT frames*/
     ecrt_master_receive(master);
@@ -271,13 +280,13 @@ void cyclic_task()
                 break;
             case 7:
                 //write current position to target position
-                curpos=EC_READ_S32(domainInput_pd+actPosition[0]);
+                gGblPara.m_i00ActPos=EC_READ_S32(domainInput_pd+actPosition[0]);
                 EC_WRITE_S32(domainOutput_pd+targetPosition[0],EC_READ_S32(domainInput_pd+actPosition[0]));
-                printf("slave 0: current position:%d\n",curpos);
+                printf("slave 0: current position:%d\n",gGblPara.m_i00ActPos);
 
-                curpos2=EC_READ_S32(domainInput_pd+actPosition[1]);
+                gGblPara.m_i01ActPos=EC_READ_S32(domainInput_pd+actPosition[1]);
                 EC_WRITE_S32(domainOutput_pd+targetPosition[1],EC_READ_S32(domainInput_pd+actPosition[1]));
-                printf("slave 1: current position:%d\n",curpos2);
+                printf("slave 1: current position:%d\n",gGblPara.m_i01ActPos);
                 break;
             case 9:
                 //0x06=0000,0110.
@@ -309,6 +318,9 @@ void cyclic_task()
                 //at least one amplifier is not enabled,
                 //so we donot change FSM,checking next time.
                 printf("At least one amplifier is not enabled!\n");
+                printf("0x%x,0x%x\n",s0,s1);
+//                ecstate=0;
+//                g_SysFSM=FSM_SafeOp;
             }else{
                 //all slaves are "Operation Enabled".
                 ecstate=0;
@@ -321,7 +333,6 @@ void cyclic_task()
     {
         if(!(cycle_counter%100))
         {
-
             uint16_t status;
             float act_velocity;
             int act_position;
@@ -332,6 +343,10 @@ void cyclic_task()
             printf("\n\n0:aclVel=%.1f rpm,aclPos=%d,",act_velocity, act_position);
             printf("Status Word=0x%x\n",status);
             print_bits_splitter(status);
+            gStatusWord=status;
+            gActVelocity=act_velocity;
+            gActPosition=act_position;
+            gTarPosition=0;
 
             status = EC_READ_U16(domainInput_pd + statusWord[1]);
             act_velocity = EC_READ_S32(domainInput_pd + actVelocity[1])/1000.0;
@@ -339,6 +354,10 @@ void cyclic_task()
             printf("\n\n1:aclVel=%.1f rpm,aclPos=%d,",act_velocity, act_position);
             printf("Status Word=0x%x\n",status);
             print_bits_splitter(status);
+            gStatusWord2=status;
+            gActVelocity2=act_velocity;
+            gActPosition2=act_position;
+            gTarPosition2=0;
         }
 
         //curpos+=200;//clockwise direction.
@@ -346,12 +365,14 @@ void cyclic_task()
         //if this value is set bigger,will cause error.
         //we can check status word to see what happened exactly.
         //curpos+=100;
-        curpos-=100;
         //curpos-=10;
-        EC_WRITE_S32(domainOutput_pd+targetPosition[0],curpos);
+        gGblPara.m_i00ActPos-=100;
+        EC_WRITE_S32(domainOutput_pd+targetPosition[0],gGblPara.m_i00ActPos);
+        gGblPara.m_i01ActPos-=100;
+        EC_WRITE_S32(domainOutput_pd+targetPosition[1],gGblPara.m_i01ActPos);
 
-        curpos2-=100;
-        EC_WRITE_S32(domainOutput_pd+targetPosition[1],curpos2);
+//        ecstate=0;
+//        g_SysFSM=FSM_SafeOp;
     }
         break;
     }
@@ -495,7 +516,7 @@ void ZEtherCATThread::run()
     }
     while(!gGblPara.m_bExitFlag)
     {
-        if(gGblPara.m_iSlavesEnBitMask!=0)
+        if(1/*gGblPara.m_iSlavesEnBitMask!=0*/)
         {
             //1000us=1ms.
             //usleep(1000000/TASK_FREQUENCY);
@@ -506,6 +527,9 @@ void ZEtherCATThread::run()
             //usleep(10000);
             //usleep(20000);
             cyclic_task();
+
+            emit this->ZSigPDO(0,gActPosition,gTarPosition,gActVelocity,gStatusWord);
+            emit this->ZSigPDO(1,gActPosition2,gTarPosition2,gActVelocity2,gStatusWord2);
         }else{
             usleep(1000*1000);
         }

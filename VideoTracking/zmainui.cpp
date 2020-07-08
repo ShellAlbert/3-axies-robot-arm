@@ -1,5 +1,7 @@
 #include "zmainui.h"
-
+#include <QPainter>
+#include <QDebug>
+#include "zgblpara.h"
 ZMainUI::ZMainUI(QWidget *parent)
     : QWidget(parent)
 {
@@ -7,9 +9,6 @@ ZMainUI::ZMainUI(QWidget *parent)
 
 ZMainUI::~ZMainUI()
 {
-    this->m_ecThread->quit();
-    this->m_ecThread->wait();
-
     //Left right direction.
     delete this->m_tbCtrlLR;
     delete this->m_llActVelLR;
@@ -42,6 +41,7 @@ bool ZMainUI::ZDoInit()
     //left part: left right direction servo motor.
     this->m_tbCtrlLR=new QToolButton;
     this->m_tbCtrlLR->setText(tr("START"));
+    this->m_tbCtrlLR->setFocusPolicy(Qt::NoFocus);
 
     this->m_llActVelLR=new QLabel;
     this->m_llActVelLR->setText(tr("实际速度"));
@@ -76,6 +76,7 @@ bool ZMainUI::ZDoInit()
     //right part: up down direction servo motor.
     this->m_tbCtrlUD=new QToolButton;
     this->m_tbCtrlUD->setText(tr("START"));
+    this->m_tbCtrlUD->setFocusPolicy(Qt::NoFocus);
 
     this->m_llActVelUD=new QLabel;
     this->m_llActVelUD->setText(tr("实际速度"));
@@ -117,34 +118,120 @@ bool ZMainUI::ZDoInit()
     //make connections.
     QObject::connect(this->m_tbCtrlLR,SIGNAL(clicked(bool)),this,SLOT(ZSlotCtrlLR()));
     QObject::connect(this->m_tbCtrlUD,SIGNAL(clicked(bool)),this,SLOT(ZSlotCtrlUD()));
-
-    this->m_ecThread=new ZEtherCATThread;
-    this->m_ecThread->start();
     return true;
+}
+QSize ZMainUI::sizeHint() const
+{
+    return QSize(800,600);
+}
+void ZMainUI::ZSlotUpdateImg(const QImage &img)
+{
+    this->m_img=img;
+    this->update();
+}
+void ZMainUI::paintEvent(QPaintEvent *e)
+{
+    Q_UNUSED(e);
+
+    QPainter painter(this);
+    if(this->m_img.isNull())
+    {
+        painter.fillRect(QRectF(0,0,this->width(),this->height()),Qt::black);
+        return;
+    }
+
+    painter.drawImage(QRectF(0,0,this->width(),this->height()),this->m_img);
+}
+void ZMainUI::ZSlotPDO(qint32 iSlave,qint32 iActPos,qint32 iTarPos,qint32 iActVel,qint32 iStatusWord)
+{
+    switch(iSlave)
+    {
+    case 0:
+        this->m_leActVelLR->setText(QString::number(iActVel));
+        this->m_leActPosLR->setText(QString::number(iActPos));
+        this->m_leTarPosLR->setText(QString::number(iTarPos));
+        break;
+    case 1:
+        this->m_leActVelUD->setText(QString::number(iActVel));
+        this->m_leActPosUD->setText(QString::number(iActPos));
+        this->m_leTarPosUD->setText(QString::number(iTarPos));
+        break;
+    default:
+        break;
+    }
+}
+void ZMainUI::closeEvent(QCloseEvent *event)
+{
+    gGblPara.m_bExitFlag=true;
+    QWidget::closeEvent(event);
+}
+void ZMainUI::keyPressEvent(QKeyEvent *event)
+{
+    switch(event->key())
+    {
+    case Qt::Key_Up:
+        qDebug()<<"keyup";
+        break;
+    case Qt::Key_Down:
+        qDebug()<<"keydown";
+        break;
+    case Qt::Key_Left:
+        qDebug()<<"keyleft";
+        break;
+    case Qt::Key_Right:
+        qDebug()<<"keyright";
+        break;
+    default:
+        break;
+    }
+    QWidget::keyPressEvent(event);
+}
+void ZMainUI::keyReleaseEvent(QKeyEvent *event)
+{
+    switch(event->key())
+    {
+    case Qt::Key_Up:
+        qDebug()<<"keyup_release";
+        break;
+    case Qt::Key_Down:
+        qDebug()<<"keydown_release";
+        break;
+    case Qt::Key_Left:
+        qDebug()<<"keyleft_release";
+        break;
+    case Qt::Key_Right:
+        qDebug()<<"keyright_release";
+        break;
+    default:
+        break;
+    }
+    QWidget::keyReleaseEvent(event);
 }
 void ZMainUI::ZSlotCtrlLR()
 {
-    if((gGblPara.m_iSlavesEnBitMask&(0x1<<0))==0)
-    {
-        //set enabled flag.
-        gGblPara.m_iSlavesEnBitMask|=(0x1<<0);
-        this->m_tbCtrlLR->setText(tr("STOP"));
-    }else{
-        //set disabled flag.
-        gGblPara.m_iSlavesEnBitMask&=~(0x1<<0);
-        this->m_tbCtrlLR->setText(tr("START"));
-    }
+//    if((gGblPara.m_iSlavesEnBitMask&(0x1<<0))==0)
+//    {
+//        //set enabled flag.
+//        gGblPara.m_iSlavesEnBitMask|=(0x1<<0);
+//        this->m_tbCtrlLR->setText(tr("STOP"));
+//    }else{
+//        //set disabled flag.
+//        gGblPara.m_iSlavesEnBitMask&=~(0x1<<0);
+//        this->m_tbCtrlLR->setText(tr("START"));
+//    }
+    gGblPara.m_i00ActPos-=100;
 }
 void ZMainUI::ZSlotCtrlUD()
 {
-    if((gGblPara.m_iSlavesEnBitMask&(0x1<<1))==0)
-    {
-        //set enabled flag.
-        gGblPara.m_iSlavesEnBitMask|=(0x1<<1);
-        this->m_tbCtrlUD->setText(tr("STOP"));
-    }else{
-        //set disabled flag.
-        gGblPara.m_iSlavesEnBitMask&=~(0x1<<1);
-        this->m_tbCtrlUD->setText(tr("START"));
-    }
+//    if((gGblPara.m_iSlavesEnBitMask&(0x1<<1))==0)
+//    {
+//        //set enabled flag.
+//        gGblPara.m_iSlavesEnBitMask|=(0x1<<1);
+//        this->m_tbCtrlUD->setText(tr("STOP"));
+//    }else{
+//        //set disabled flag.
+//        gGblPara.m_iSlavesEnBitMask&=~(0x1<<1);
+//        this->m_tbCtrlUD->setText(tr("START"));
+//    }
+    gGblPara.m_i00ActPos+=100;
 }

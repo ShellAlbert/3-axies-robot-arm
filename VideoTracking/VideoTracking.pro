@@ -27,12 +27,19 @@ SOURCES += \
         main.cpp \
         zmainui.cpp \
     zethercatthread.cpp \
-    zgblpara.cpp
+    zgblpara.cpp \
+    zcapturethread.cpp \
+    zmatfifo.cpp \
+    zprocessingthread.cpp
 
 HEADERS += \
         zmainui.h \
     zethercatthread.h \
-    zgblpara.h
+    zgblpara.h \
+    zcapturethread.h \
+    zmatfifo.h \
+    zprocessingthread.h
 
 INCLUDEPATH += /opt/ethercat/include
 LIBS +=  -lethercat
+LIBS += -lopencv_core -lopencv_flann -lopencv_videostab -lopencv_video -lopencv_videoio -lopencv_imgproc -lopencv_objdetect -lopencv_superres -lopencv_photo -lopencv_calib3d  -lopencv_highgui  -lopencv_features2d -lopencv_stitching -lopencv_ml -lopencv_imgcodecs -lopencv_dnn -lopencv_shape
