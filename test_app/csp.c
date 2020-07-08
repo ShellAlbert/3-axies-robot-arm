@@ -12,7 +12,16 @@
 #include <time.h>
 #include <sys/types.h>
 
-#define TASK_FREQUENCY       1000  /* Hz */
+/*EtherCAT slave address on the bus*/
+#define CopleySlavePos    0, 0
+#define CopleySlavePos2    0, 1
+
+/*vendor_id, product_id*/
+//vendor_id can be read from (0x1018,1)
+//product_id can be read from (0x1018,2)
+#define Copley_VID_PID  0x000000ab, 0x00001030
+
+#define TASK_FREQUENCY       1000/*Hz*/
 #define TIMEOUT_CLEAR_ERROR  (2*TASK_FREQUENCY)
 #define TARGET_POSITION      0
 
@@ -37,214 +46,116 @@ typedef struct _GSysRunningParam
 }GSysRunningParam;
 GSysRunningParam gSysRunning;
 int ecstate=0;
-//Status Word(0x6041,uint16)
-//bit11:Internal Limit Active.This bit is set when one of the amplifier limits active.(current,voltage,velocity or position).
-//bit9:Set when the amplifier is being controlled by the CANopen interface.
-//bit7:Warning. set if a warning condition is present on the amplifier.
-//bi6:Switch on disabled.
-//bit5:Quick Stop.when clear,the amplifier is performing a quick stop.
-//bit4:Voltage enabled.
-//bit3:Fault.If set,a latched fault condition is present in the amplifier.
-//bit2:Operation enabled. Set when the amplifier is enabled.
-//bit1:Switched On.
-//bit0:Ready to switch on.
-//15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0
-//0 , 0, 0, 0,1, 0, 1,0,1,1,1,1,1,1,1,1 (0x0AFF)
-#define STW_MASK       0xAFF  /*mask to remove manufacturer special bits and target_reached*/
-//Switch On Disabled.
-//15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0
-//0, 0, 0, 0, 0, 0, 1,0,0,1,x,1,0,0,0,0 (0x250/270)
-#define STW_SWON_DIS  0x250  /*switched on disabled*/
-//Ready to Switch On
-//15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0
-//0, 0, 0, 0, 0, 0, 1,0,0,0,1,1,0,0,0,1 (0x231)
-#define STW_RDY_SWON  0x231  /*ready to switch on*/
-//Switch On.
-//15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0
-//0, 0, 0, 0, 0, 0, 1,0,0,0,1,1,0,0,1,1 (0x233)
-#define STW_SWON  0x233  /*switched on*/
-//Fault.
-//15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0
-//0, 0, 0, 0, 0, 0, 1,0,0,0,1,x,1,0,0,0 (0x228)
-#define STW_FAULT      0x228  /*Fault*/
 
-//Control Word(0x6040,uint16).
-//bit2:Quick Stop. If this bit is clear,then the amplifier is commandded to perform a quick stop.
-//bit1:Enable Voltage.This bit must be set to enable the amplifier.
-#define CW_QSTOP  0x00   /*enable quick stop*/
-//0x06:0000,0110.
-#define CW_DIS_QSTOP  0x06   /*disable quick stop*/
-//0x07:0000,0111.
-#define CW_EN_SWON  0x07   /*enable switched on*/
-//0x0F:0000,1111.
-#define CW_EN_OP     0x0F   /*enable operation*/
-//bit7:Reset Fault.A low-to-high transition of this bit makes the amplifier attempt to clear any latched fault condition.
-//0x80:1000,0000.
-#define CW_CLR_FAULT  0x80   /*clear error*/
-
-/* EtherCAT */
-static ec_master_t *master = NULL;
+/*EtherCAT master*/
+static ec_master_t *master=NULL;
 static ec_master_state_t master_state={};
-
-static ec_domain_t *domainInput = NULL;
+/*process data:input*/
+static ec_domain_t *domainInput=NULL;
 static ec_domain_state_t domainInput_state={};
-static uint8_t *domainInput_pd = NULL; /* process data */
-
-static ec_domain_t *domainOutput = NULL;
+static uint8_t *domainInput_pd=NULL;
+/*process data:output*/
+static ec_domain_t *domainOutput=NULL;
 static ec_domain_state_t domainOutput_state={};
-static uint8_t *domainOutput_pd = NULL; /* process data */
+static uint8_t *domainOutput_pd=NULL;
+/*Copley slave configuration*/
+static ec_slave_config_t *sc_copley[2]={NULL,NULL};
+static ec_slave_config_state_t sc_copley_state[2]={};
 
+/*PDO entries offsets*/
+static struct{
+    unsigned int ctrlWord;
+    unsigned int targetPosition;
+    unsigned int statusWord;
+    unsigned int actVelocity;
+    unsigned int actPosition;
+}offset[2];
+static unsigned int ctrlWord[2];
+static unsigned int targetPosition[2];
+static unsigned int statusWord[2];
+static unsigned int actVelocity[2];
+static unsigned int actPosition[2];
+const static ec_pdo_entry_reg_t domainOutput_regs[]=
+{
+    { CopleySlavePos, Copley_VID_PID, 0x6040, 0, &ctrlWord[0], NULL },
+    { CopleySlavePos, Copley_VID_PID, 0x607A, 0, &targetPosition[0], NULL },
 
-static ec_slave_config_t *sc_copley = NULL; /* Copley slave configuration */
-static ec_slave_config_state_t sc_copley_state;
-
-//#define CopleySlavePos    0, 0  /* EtherCAT address on the bus */
-#define CopleySlavePos    0, 1  /* EtherCAT address on the bus */
-//vendor_id:(0x1018,1)
-//product_id:(0x1018,2)
-#define Copley_VID_PID  0x000000ab, 0x00001030 /* vendor_id, product_id */
-
-/* PDO entries offsets */
-static struct {
-    unsigned int ctrl_word;
-    unsigned int target_position;
-    unsigned int status_word;
-    unsigned int act_velocity;
-    unsigned int act_position;
-} offset;
-
-/** List record type for PDO entry mass-registration.
- *
- * This type is used for the array parameter of the
- * ecrt_domain_reg_pdo_entry_list()
- */
-//typedef struct {
-//    uint16_t alias; /**< Slave alias address. */
-//    uint16_t position; /**< Slave position. */
-//    uint32_t vendor_id; /**< Slave vendor ID. */
-//    uint32_t product_code; /**< Slave product code. */
-//    uint16_t index; /**< PDO entry index. */
-//    uint8_t subindex; /**< PDO entry subindex. */
-//    unsigned int *offset; /**< Pointer to a variable to store the PDO entry's
-//                       (byte-)offset in the process data. */
-//    unsigned int *bit_position; /**< Pointer to a variable to store a bit
-//                                  position (0-7) within the \a offset. Can be
-//                                  NULL, in which case an error is raised if the
-//                                  PDO entry does not byte-align. */
-//} ec_pdo_entry_reg_t;
-
-const static ec_pdo_entry_reg_t domainOutput_regs[] = {
-    {CopleySlavePos, Copley_VID_PID, 0x6040, 0, &offset.ctrl_word},
-    {CopleySlavePos, Copley_VID_PID, 0x607A, 0, &offset.target_position},
+    { CopleySlavePos2, Copley_VID_PID, 0x6040, 0, &ctrlWord[1], NULL },
+    { CopleySlavePos2, Copley_VID_PID, 0x607A, 0, &targetPosition[1], NULL },
     {}
 };
-const static ec_pdo_entry_reg_t domainInput_regs[] = {
-    { CopleySlavePos, Copley_VID_PID, 0x6041, 0, &offset.status_word },
-    { CopleySlavePos, Copley_VID_PID, 0x606C, 0, &offset.act_velocity },
-    { CopleySlavePos, Copley_VID_PID, 0x6063, 0, &offset.act_position},
+const static ec_pdo_entry_reg_t domainInput_regs[]=
+{
+    { CopleySlavePos, Copley_VID_PID, 0x6041, 0, &statusWord[0], NULL },
+    { CopleySlavePos, Copley_VID_PID, 0x606C, 0, &actVelocity[0], NULL },
+    { CopleySlavePos, Copley_VID_PID, 0x6063, 0, &actPosition[0], NULL },
+
+    { CopleySlavePos2, Copley_VID_PID, 0x6041, 0, &statusWord[1], NULL },
+    { CopleySlavePos2, Copley_VID_PID, 0x606C, 0, &actVelocity[1], NULL },
+    { CopleySlavePos2, Copley_VID_PID, 0x6063, 0, &actPosition[1], NULL },
     {}
 };
-/** PDO entry configuration information.
- *
- * This is the data type of the \a entries field in ec_pdo_info_t.
- *
- * \see ecrt_slave_config_pdos().
- */
-//typedef struct {
-//    uint16_t index; /**< PDO entry index. */
-//    uint8_t subindex; /**< PDO entry subindex. */
-//    uint8_t bit_length; /**< Size of the PDO entry in bit. */
-//} ec_pdo_entry_info_t;
+
+//define TxPDO entries.(Master->Slave)
 static ec_pdo_entry_info_t copley_pdo_entries_output[] = {
     { 0x6040, 0x00, 16 }, /*Control Word,uint16*/
     { 0x607A, 0x00, 32 }, /*Profile Target Position,uint32*/
 };
-static ec_pdo_entry_info_t copley_pdo_entries_input[] = {
-    { 0x6041, 0x00, 16 }, /*Status Word,uint16*/
-    { 0x606C, 0x00, 32 }, /*actual velocity, in rpm*/
-    { 0x6063, 0x00, 32 }, /*actual position*/
-};
-//0x1600(Receive PDO 1 mapping parameter).
-//(0x1600,0)=2,Number of mapped object RxPDO 1.
-//(0x1600,1)=copley_pdo_entries[0]=(0x6040,0x00,16)=0x60400010.
-//(0x1600,2)=copley_pdo_entries[1]=(0x607a,0x00,32)=0x607a0020.
-
-//0x1a00(Transmit PDO 1 mapping parameter).
-//(0x1a00,0)=1,Number of mapped object TxPDO 1.
-//(0x1a00,1)=copley_pdo_entries[2]=(0x6041,0x00,16)=0x60410010.
-
-//0x1a01(Transmit PDO 2 mapping parameter).
-//(0x1a01,0)=2,Number of mapped object TxPDO 2.
-//(0x1a01,1)=copley_pdo_entries[3]=(0x606c,0x00,32)=0x606c0020.
-//(0x1a01,2)=copley_pdo_entries[4]=(0x6063,0x00,32)=0x60630020.
+//define TxPDO itself.
 static ec_pdo_info_t copley_pdos_1600[] = {
     { 0x1600, 2, copley_pdo_entries_output },
 };
 
+//define RxPDO entries.(Master<-Slave)
+static ec_pdo_entry_info_t copley_pdo_entries_input[] = {
+    { 0x6041, 0x00, 16 }, /*Status Word,uint16*/
+    { 0x606C, 0x00, 32 }, /*actual velocity,uint32*/
+    { 0x6063, 0x00, 32 }, /*actual position,uint32*/
+};
+//define RxPDO itself.
 static ec_pdo_info_t copley_pdos_1a00[] = {
     { 0x1a00, 3, copley_pdo_entries_input },
 };
-
-/** Sync manager configuration information.
- *
- * This can be use to configure multiple sync managers including the PDO
- * assignment and PDO mapping. It is used as an input parameter type in
- * ecrt_slave_config_pdos().
- */
-//typedef struct {
-//    uint8_t index; /**< Sync manager index. Must be less
-//                     than #EC_MAX_SYNC_MANAGERS for a valid sync manager,
-//                     but can also be \a 0xff to mark the end of the list. */
-//    ec_direction_t dir; /**< Sync manager direction. */
-//    unsigned int n_pdos; /**< Number of PDOs in \a pdos. */
-//    ec_pdo_info_t *pdos; /**< Array with PDOs to assign. This must contain
-//                            at least \a n_pdos PDOs. */
-//    ec_watchdog_mode_t watchdog_mode; /**< Watchdog mode. */
-//} ec_sync_info_t;
-
-ec_sync_info_t copley_syncs[] = {
-    //SM0:MBoxOut.
-    { 0, EC_DIR_OUTPUT, 0, NULL, EC_WD_DISABLE },
-    //SM1:MBoxIn.
-    { 1, EC_DIR_INPUT, 0, NULL, EC_WD_DISABLE },
-    //SM2:Outputs -> copley_pdos[0] -> (0x1600,2)(RxPDO2) -> (0x6040,0x607A).
-    { 2, EC_DIR_OUTPUT, 1, copley_pdos_1600, EC_WD_DISABLE },
-    //SM3:Inputs -> copley_pdos[1]/copley_pdos[2] ->(0x1a00,1)/(0x1a01,2)(TxPDO2) -> (0x6041,0x606C,0x6063).
-    { 3, EC_DIR_INPUT, 1, copley_pdos_1a00, EC_WD_DISABLE },
+//Sync Manager configuration.
+static ec_sync_info_t copley_syncs[] = {
+    { 0, EC_DIR_OUTPUT, 0, NULL, EC_WD_DISABLE },//SM0:MBoxOut.
+    { 1, EC_DIR_INPUT, 0, NULL, EC_WD_DISABLE },//SM1:MBoxIn.
+    { 2, EC_DIR_OUTPUT, 1, copley_pdos_1600, EC_WD_DISABLE },//SM2:Outputs.
+    { 3, EC_DIR_INPUT, 1, copley_pdos_1a00, EC_WD_DISABLE },//SM3:Inputs.
     { 0xFF }
 };
 void check_domain_state(void)
 {
-    ec_domain_state_t ds={};
     ec_domain_state_t ds1={};
+    ec_domain_state_t ds2={};
 
     //domainInput.
-    ecrt_domain_state(domainInput,&ds);
-    if(ds.working_counter!=domainInput_state.working_counter)
+    ecrt_domain_state(domainInput,&ds1);
+    if(ds1.working_counter!=domainInput_state.working_counter)
     {
-        printf("domainInput: WC %u.\n",ds.working_counter);
+        printf("domainInput: WC %u.\n",ds1.working_counter);
     }
-    if(ds.wc_state!=domainInput_state.wc_state)
+    if(ds1.wc_state!=domainInput_state.wc_state)
     {
-        printf("domainInput: State %u.\n",ds.wc_state);
+        printf("domainInput: State %u.\n",ds1.wc_state);
     }
-    domainInput_state=ds;
+    domainInput_state=ds1;
 
     //domainOutput.
-    ecrt_domain_state(domainOutput,&ds1);
-    if(ds1.working_counter!=domainOutput_state.working_counter)
+    ecrt_domain_state(domainOutput,&ds2);
+    if(ds2.working_counter!=domainOutput_state.working_counter)
     {
-        printf("domainOutput: WC %u.\n",ds1.working_counter);
+        printf("domainOutput: WC %u.\n",ds2.working_counter);
     }
-    if(ds1.wc_state!=domainOutput_state.wc_state)
+    if(ds2.wc_state!=domainOutput_state.wc_state)
     {
-        printf("domainOutput: State %u.\n",ds1.wc_state);
+        printf("domainOutput: State %u.\n",ds2.wc_state);
     }
-    domainOutput_state=ds1;
+    domainOutput_state=ds2;
 }
 void check_master_state(void)
 {
-    ec_master_state_t ms;
+    ec_master_state_t ms={};
     ecrt_master_state(master,&ms);
     if(ms.slaves_responding != master_state.slaves_responding)
     {
@@ -262,34 +173,62 @@ void check_master_state(void)
 }
 void check_slave_config_state(void)
 {
-    ec_slave_config_state_t s;
-    ecrt_slave_config_state(sc_copley,&s);
-    if(s.al_state != sc_copley_state.al_state)
+    //slave:0:0
+    ec_slave_config_state_t s={};
+    ecrt_slave_config_state(sc_copley[0],&s);
+    if(s.al_state != sc_copley_state[0].al_state)
     {
-        printf("sc_copley_state: State 0x%02x.\n",s.al_state);
+        printf("sc_copley_state[0]: State 0x%02x.\n",s.al_state);
     }
-    if(s.online != sc_copley_state.online)
+    if(s.online != sc_copley_state[0].online)
     {
-        printf("sc_copley_sate: %s.\n",s.online ? "online" : "offline");
+        printf("sc_copley_sate[0]: %s.\n",s.online ? "online" : "offline");
     }
-    if(s.operational != sc_copley_state.operational)
+    if(s.operational != sc_copley_state[0].operational)
     {
-        printf("sc_copley_sate: %soperational.\n",s.operational ? "" : "Not ");
+        printf("sc_copley_sate[0]: %soperational.\n",s.operational ? "" : "Not ");
     }
-    sc_copley_state=s;
+    sc_copley_state[0]=s;
+
+    //slave:0:1
+    ec_slave_config_state_t s1={};
+    ecrt_slave_config_state(sc_copley[1],&s1);
+    if(s1.al_state != sc_copley_state[1].al_state)
+    {
+        printf("sc_copley_state[1]: State 0x%02x.\n",s1.al_state);
+    }
+    if(s1.online != sc_copley_state[1].online)
+    {
+        printf("sc_copley_sate[1]: %s.\n",s1.online ? "online" : "offline");
+    }
+    if(s1.operational != sc_copley_state[1].operational)
+    {
+        printf("sc_copley_sate[1]: %soperational.\n",s1.operational ? "" : "Not ");
+    }
+    sc_copley_state[1]=s1;
+}
+void print_bits_splitter(int bits)
+{
+    //bits splitter.
+    char bitsBuffer[40];
+    int index=0;
+    int p1=bits;
+    for(int i=0;i<32;i++)
+    {
+        bitsBuffer[index++]=(p1&0x80000000)?'1':'0';
+        if(0==((i+1)%4))
+        {
+            bitsBuffer[index++]=',';
+        }
+        p1<<=1;
+    }
+    printf("< %s >",bitsBuffer);
 }
 /****************************************************************************/
 void cyclic_task()
 {
-    static unsigned int timeout_error = 0;
-    static uint16_t command = CW_QSTOP;
-    static int32_t target_position = /*TARGET_POSITION*/123456;
-    static int curpos=0;
 
-    uint16_t status;    /* DS402 status register, without manufacturer bits */
-    float act_velocity; /* actual velocity in rpm */
-    int act_position; /* actual position in encoder unit */
-
+    static int curpos=0,curpos2=0;
     if(gSysRunning.m_gWorkStatus==SYS_WORKING_POWER_ON)
     {
         return;
@@ -302,10 +241,10 @@ void cyclic_task()
     }
 
 
-    /* receive process data */
+    /*receive EtherCAT frames*/
     ecrt_master_receive(master);
-    ecrt_domain_process(domainInput);
     ecrt_domain_process(domainOutput);
+    ecrt_domain_process(domainInput);
     check_domain_state();
 
     //500ms.
@@ -324,7 +263,11 @@ void cyclic_task()
         if((master_state.al_states&ETHERCAT_STATUS_OP))
         {
             int tmp=true;
-            if(sc_copley_state.al_state!=ETHERCAT_STATUS_OP)
+            if(sc_copley_state[0].al_state!=ETHERCAT_STATUS_OP)
+            {
+                tmp=false;
+            }
+            if(sc_copley_state[1].al_state!=ETHERCAT_STATUS_OP)
             {
                 tmp=false;
             }
@@ -345,30 +288,44 @@ void cyclic_task()
             case 1:
                 //bit7=1.
                 //Reset Fault.A low-to-high transition of this bit makes the amplifier attempt to clear any latched fault condition.
-                EC_WRITE_U16(domainOutput_pd+offset.ctrl_word,0x80);
+                EC_WRITE_U16(domainOutput_pd+ctrlWord[0],0x80);
+                EC_WRITE_U16(domainOutput_pd+ctrlWord[1],0x80);
                 break;
             case 7:
                 //write current position to target position
-                curpos=EC_READ_S32(domainInput_pd+offset.act_position);
-                EC_WRITE_S32(domainOutput_pd+offset.target_position,EC_READ_S32(domainInput_pd+offset.act_position));
-                printf("current position:%d\n",curpos);
+                curpos=EC_READ_S32(domainInput_pd+actPosition[0]);
+                EC_WRITE_S32(domainOutput_pd+targetPosition[0],EC_READ_S32(domainInput_pd+actPosition[0]));
+                printf("slave 0: current position:%d\n",curpos);
+
+                curpos2=EC_READ_S32(domainInput_pd+actPosition[1]);
+                EC_WRITE_S32(domainOutput_pd+targetPosition[1],EC_READ_S32(domainInput_pd+actPosition[1]));
+                printf("slave 1: current position:%d\n",curpos2);
                 break;
             case 9:
                 //0x06=0000,0110.
-                EC_WRITE_U16(domainOutput_pd+offset.ctrl_word,0x06);
+                EC_WRITE_U16(domainOutput_pd+ctrlWord[0],0x06);
+                EC_WRITE_U16(domainOutput_pd+ctrlWord[1],0x06);
                 break;
             case 11:
                 //0x07=0000,0111.
-                EC_WRITE_U16(domainOutput_pd+offset.ctrl_word,0x07);
+                EC_WRITE_U16(domainOutput_pd+ctrlWord[0],0x07);
+                EC_WRITE_U16(domainOutput_pd+ctrlWord[1],0x07);
                 break;
             case 13:
                 //0x0F=0000,1111.
-                EC_WRITE_U16(domainOutput_pd+offset.ctrl_word,0x0F);
+                EC_WRITE_U16(domainOutput_pd+ctrlWord[0],0x0F);
+                EC_WRITE_U16(domainOutput_pd+ctrlWord[1],0x0F);
+                break;
+            default:
                 break;
             }
         }else{
             int tmp=true;
-            if((EC_READ_U16(domainInput_pd+offset.status_word)&(STATUS_SERVO_ENABLE_BIT))==0)
+            if((EC_READ_U16(domainInput_pd+statusWord[0])&(STATUS_SERVO_ENABLE_BIT))==0)
+            {
+                tmp=false;
+            }
+            if((EC_READ_U16(domainInput_pd+statusWord[1])&(STATUS_SERVO_ENABLE_BIT))==0)
             {
                 tmp=false;
             }
@@ -382,87 +339,44 @@ void cyclic_task()
         break;
     default:
     {
-        uint16_t status;
-        float act_velocity;
-        int act_position;
 
-        status = EC_READ_U16(domainInput_pd + offset.status_word);
-        act_velocity = EC_READ_S32(domainInput_pd + offset.act_velocity)/1000.0;
-        act_position = EC_READ_S32(domainInput_pd + offset.act_position);
-        printf("ActualVelocity=%.1f rpm,ActualPosition=%d.\n",act_velocity, act_position);
+        if(!(cycle_counter%100))
         {
-            //bits splitter.
-            char bitsBuffer[40];
-            int index=0;
-            int p1=status;
-            for(int i=0;i<32;i++)
-            {
-                    bitsBuffer[index++]=(p1&0x80000000)?'1':'0';
-                    if(0==((i+1)%4))
-                    {
-                            bitsBuffer[index++]=',';
-                    }
-                    p1<<=1;
-            }
-            printf("Status Word:0x%x,%s\n",status,bitsBuffer);
+
+            uint16_t status;
+            float act_velocity;
+            int act_position;
+
+            status = EC_READ_U16(domainInput_pd + statusWord[0]);
+            act_velocity = EC_READ_S32(domainInput_pd + actVelocity[0])/1000.0;
+            act_position = EC_READ_S32(domainInput_pd + actPosition[0]);
+            printf("\n\n0:aclVel=%.1f rpm,aclPos=%d,",act_velocity, act_position);
+            printf("Status Word=0x%x\n",status);
+            print_bits_splitter(status);
+
+            status = EC_READ_U16(domainInput_pd + statusWord[1]);
+            act_velocity = EC_READ_S32(domainInput_pd + actVelocity[1])/1000.0;
+            act_position = EC_READ_S32(domainInput_pd + actPosition[1]);
+            printf("\n\n1:aclVel=%.1f rpm,aclPos=%d,",act_velocity, act_position);
+            printf("Status Word=0x%x\n",status);
+            print_bits_splitter(status);
         }
+
         //curpos+=200;//clockwise direction.
         //curpos-=200;//anti-clockwise direction.
         //if this value is set bigger,will cause error.
         //we can check status word to see what happened exactly.
-        curpos+=300;
-        EC_WRITE_S32(domainOutput_pd+offset.target_position,curpos);
+        //curpos+=100;
+        curpos-=100;
+        //curpos-=10;
+        EC_WRITE_S32(domainOutput_pd+targetPosition[0],curpos);
+
+        curpos2-=100;
+        EC_WRITE_S32(domainOutput_pd+targetPosition[1],curpos2);
     }
         break;
     }
-#if 0
-    /* read inputs */
-    status = EC_READ_U16(domain1_pd + offset.status_word) & STW_MASK;
-    act_velocity = EC_READ_S32(domain1_pd + offset.act_velocity)/1000.0;
-    act_position = EC_READ_S32(domain1_pd + offset.act_position);
-
-    /* DS402 CANopen over EtherCAT status machine */
-    if (status == STW_SWON_DIS && command != CW_DIS_QSTOP) {
-        printf( "Copley: disable quick stop\n" );
-        command = CW_DIS_QSTOP;
-
-    } else if (status == STW_RDY_SWON && command != CW_EN_SWON ) {
-        printf("Copley: enable switch on\n" );
-        command = CW_EN_SWON;
-
-    } else if ( status == STW_SWON  && command != CW_EN_OP ) {
-        printf("Copley: start operation\n" );
-        command = CW_EN_OP;
-
-    } else if ( status == STW_FAULT && command != CW_CLR_FAULT ) {
-        if ( timeout_error )
-        {
-            if (timeout_error == TIMEOUT_CLEAR_ERROR) {
-                printf( "Copley: ERROR, wait for timeout\n" );
-            }
-            timeout_error--;
-        } else {
-            timeout_error = TIMEOUT_CLEAR_ERROR;
-            command = CW_CLR_FAULT;
-            printf( "Copley: clear error now\n" );
-        }
-    } else {
-        /* print actual values, once per second */
-        static time_t prev_second = 0;
-        time_t now = time(NULL);
-        if ( now != prev_second )
-        {
-            printf("Status Word=0x%x\n",EC_READ_U16(domain1_pd + offset.status_word));
-            printf("Copley:ActualVelocity=%.1f rpm,ActualPosition=%d,TargetPosition=%d\n",act_velocity, act_position, target_position );
-            prev_second = now;
-        }
-    }
-
-    /* write output */
-    EC_WRITE_S32( domain1_pd + offset.target_position, target_position );
-    EC_WRITE_U16( domain1_pd + offset.ctrl_word, command );
-#endif
-    /* send process data */
+    /*send process data*/
     ecrt_domain_queue(domainOutput);
     ecrt_domain_queue(domainInput);
     ecrt_master_send(master);
@@ -474,7 +388,8 @@ int main(int argc, char **argv)
 {
     static const int enable_realtime = 1;
 
-    if (enable_realtime) {
+    if(enable_realtime)
+    {
         struct sched_param param;
         param.sched_priority = 49;
         if ( sched_setscheduler( 0, SCHED_FIFO, &param ) == -1) {
@@ -498,19 +413,13 @@ int main(int argc, char **argv)
 
     //Creates a new process data domain.
     //For process data exchange, at least one process data domain is needed.
-    //This method creates a new process data domain and returns a pointer to the
-    //new domain object. This object can be used for registering PDOs and
-    //exchanging them in cyclic operation.
+    //This method creates a new process data domain and returns a pointer to the new domain object.
+    //This object can be used for registering PDOs and exchanging them in cyclic operation.
     domainInput = ecrt_master_create_domain( master );
-    if(!domainInput)
-    {
-        printf("error:failed to create domain Input!\n");
-        return -1;
-    }
     domainOutput = ecrt_master_create_domain( master );
-    if(!domainOutput)
+    if(!domainInput || !domainOutput)
     {
-        printf("error:failed to create domain Output!\n");
+        printf("error:failed to create domain Input/Output!\n");
         return -1;
     }
     printf("create domain okay.\n");
@@ -519,9 +428,14 @@ int main(int argc, char **argv)
     //If the slave with the given address is found during the bus configuration,
     //its vendor ID and product code are matched against the given value.
     //On mismatch, the slave is not configured and an error message is raised.
-    if(!(sc_copley=ecrt_master_slave_config( master, CopleySlavePos, Copley_VID_PID)))
+    if(!(sc_copley[0]=ecrt_master_slave_config( master, CopleySlavePos, Copley_VID_PID)))
     {
-        printf("error:failed to get slave configuration for Copley.\n");
+        printf("error:failed to get slave configuration for Copley-0.\n");
+        return -1;
+    }
+    if(!(sc_copley[1]=ecrt_master_slave_config( master, CopleySlavePos2, Copley_VID_PID)))
+    {
+        printf("error:failed to get slave configuration for Copley-1.\n");
         return -1;
     }
     printf("get slave configuration okay!\n");
@@ -581,7 +495,12 @@ int main(int argc, char **argv)
     //and ecrt_slave_config_pdo_mapping_add(), that are better suitable for
     //automatic code generation.
     printf("Configuring PDOs...\n");
-    if(ecrt_slave_config_pdos(sc_copley, EC_END, copley_syncs))
+    if(ecrt_slave_config_pdos(sc_copley[0], EC_END, copley_syncs))
+    {
+        printf("error:failed to configure Copley PDOs.\n" );
+        return -1;
+    }
+    if(ecrt_slave_config_pdos(sc_copley[1], EC_END, copley_syncs))
     {
         printf("error:failed to configure Copley PDOs.\n" );
         return -1;
@@ -603,15 +522,16 @@ int main(int argc, char **argv)
     printf("Creating SDO request...\n");
     //Mode of Operation.
     //(0x6060,0)=8 CSP:Cyclic Synchronous Position mode
-    ecrt_slave_config_sdo8(sc_copley,0x6060,0,8);
-    ecrt_slave_config_sdo8(sc_copley,0x60c2,1,1);
+    for(int i=0;i<2;i++)
+    {
+        ecrt_slave_config_sdo8(sc_copley[i],0x6060,0,8);
+        ecrt_slave_config_sdo8(sc_copley[i],0x60c2,1,1);
+    }
 
     //Finishes the configuration phase and prepares for cyclic operation.
-    //This function tells the master that the configuration phase is finished and
-    //the realtime operation will begin. The function allocates internal memory
-    //for the domains and calculates the logical FMMU addresses for domain
-    //members. It tells the master state machine that the bus configuration is
-    //now to be applied.
+    //This function tells the master that the configuration phase is finished and the realtime operation will begin.
+    //The function allocates internal memory for the domains and calculates the logical FMMU addresses for domain members.
+    //It tells the master state machine that the bus configuration is now to be applied.
     printf("Activating master...\n");
     if ( ecrt_master_activate( master ) )
     {
@@ -640,7 +560,7 @@ int main(int argc, char **argv)
         //usleep(1000000/TASK_FREQUENCY);
         //if the time is less, the motor has no time to run.
         //so we set the time longer to wait for the motor executed the previous command.
-        usleep(7000);
+        usleep(3000);
         //usleep(8000);
         //usleep(10000);
         //usleep(20000);
