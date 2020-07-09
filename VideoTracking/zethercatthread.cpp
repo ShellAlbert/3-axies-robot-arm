@@ -39,6 +39,7 @@ enum{
     FSM_SafeOp,
     FSM_Homing,
     FSM_CheckHoming,
+    FSM_RunPV,
     FSM_ConfigSlave,
     FSM_CheckStatus,
     FSM_DoMove,
@@ -61,6 +62,8 @@ static ec_slave_config_t *sc_copley[2]={NULL,NULL};
 static ec_slave_config_state_t sc_copley_state[2]={};
 
 /**< Pointer to a variable to store the PDO entry's (byte-)offset in the process data. */
+//offset for PDO entries just like a alias or symbol.
+//we only use its offset,we use its address.
 static uint32_t offsetCtrlWord[2];
 static uint32_t offsetTarPos[2];
 static uint32_t offsetStatusWord[2];
@@ -265,7 +268,7 @@ void cyclic_task()
                 //master in OP mode and all slaves are in OP mode.
                 //change to next FSM.
                 g_SysFSM=FSM_Homing;
-                qDebug()<<"FSM --->>> FSM_ConfigSlave";
+                qDebug()<<"FSM --->>> FSM_Homing";
             }
         }
         break;
@@ -333,6 +336,7 @@ void cyclic_task()
         EC_WRITE_U16(domainOutput_pd+offsetCtrlWord[1],0x1F);
 
         g_SysFSM=FSM_CheckHoming;
+        qDebug()<<"FSM --->>> FSM_CheckHoming";
     }
         break;
     case FSM_CheckHoming:
@@ -359,8 +363,69 @@ void cyclic_task()
 
         if(bS0HomingOk && bS1HomingOk)
         {
-            g_SysFSM=FSM_ConfigSlave;
+            //g_SysFSM=FSM_ConfigSlave;
+            g_SysFSM=FSM_RunPV;
+            qDebug()<<"FSM --->>> FSM_RunPV";
         }
+    }
+        break;
+    case FSM_RunPV:
+    {
+
+        //Mode of Operation.
+        //(0x6060,0)=3,Profile Velocity mode.
+        ecrt_slave_config_sdo8(sc_copley[0],0x6060,0,3);
+        //Profile Acceleration.
+        ecrt_slave_config_sdo32(sc_copley[0],0x6083,0,1000);
+        //Profile Deceleration.
+        ecrt_slave_config_sdo32(sc_copley[0],0x6084,0,1000);
+        //Target Velocity.
+        ecrt_slave_config_sdo32(sc_copley[0],0x60FF,0,100000);
+        //Motion Profile Type.
+        ecrt_slave_config_sdo16(sc_copley[0],0x6086,0,-1);
+        //Profile Velocity.
+        ecrt_slave_config_sdo32(sc_copley[0],0x6081,0,100000);
+
+        EC_WRITE_U16(domainOutput_pd+offsetCtrlWord[0],0x0080);
+        usleep(100);
+        EC_WRITE_U16(domainOutput_pd+offsetCtrlWord[0],0x0006);
+        usleep(100);
+        EC_WRITE_U16(domainOutput_pd+offsetCtrlWord[0],0x0007);
+        usleep(100);
+        EC_WRITE_U16(domainOutput_pd+offsetCtrlWord[0],0x000f);
+        usleep(100);
+        EC_WRITE_U16(domainOutput_pd+offsetCtrlWord[0],0x001f);
+        usleep(100);
+        g_SysFSM=FSM_IdleStatus;
+
+#if 0
+        //Target Velocity(0x60FF,0)
+        ecrt_slave_config_sdo32(sc_copley[0],0x60FF,0,28388608);
+        ecrt_slave_config_sdo32(sc_copley[1],0x60FF,0,38388608);
+
+        //Reset Fault.
+        //A low-to-high transition of this bit makes the amplifier attempt to clear any latched fault condition.
+        EC_WRITE_U16(domainOutput_pd+offsetCtrlWord[0],0x0080);
+        EC_WRITE_U16(domainOutput_pd+offsetCtrlWord[1],0x0080);
+        usleep(100);
+
+        EC_WRITE_U16(domainOutput_pd+offsetCtrlWord[0],0x06);
+        EC_WRITE_U16(domainOutput_pd+offsetCtrlWord[1],0x06);
+        usleep(100);
+
+        EC_WRITE_U16(domainOutput_pd+offsetCtrlWord[0],0x07);
+        EC_WRITE_U16(domainOutput_pd+offsetCtrlWord[1],0x07);
+        usleep(100);
+
+        EC_WRITE_U16(domainOutput_pd+offsetCtrlWord[0],0x0F);
+        EC_WRITE_U16(domainOutput_pd+offsetCtrlWord[1],0x0F);
+        usleep(100);
+
+
+        EC_WRITE_U16(domainOutput_pd+offsetCtrlWord[0],0x1F);
+        EC_WRITE_U16(domainOutput_pd+offsetCtrlWord[1],0x1F);
+        g_SysFSM=FSM_IdleStatus;
+#endif
     }
         break;
     case FSM_ConfigSlave:
@@ -532,7 +597,11 @@ void cyclic_task()
         break;
     case FSM_IdleStatus:
     {
-
+        uint16_t s0,s1;
+        s0 = EC_READ_U16(domainInput_pd + offsetStatusWord[0]);
+        s1 = EC_READ_U16(domainInput_pd + offsetStatusWord[1]);
+        qDebug("s0: 0x%x, s1: 0x%x\n",s0,s1);
+        //0x5237: 0101,0010,0011,0111
     }
         break;
     default:
@@ -641,6 +710,7 @@ int g_do_init()
 
     //    ecrt_slave_config_sdo8(sc_copley[1],0x6060,0,8);
     //    ecrt_slave_config_sdo8(sc_copley[1],0x60c2,1,1);
+
 
     //Finishes the configuration phase and prepares for cyclic operation.
     //This function tells the master that the configuration phase is finished and the realtime operation will begin.
