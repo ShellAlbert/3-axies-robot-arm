@@ -1,4 +1,5 @@
 #include "zethercatthread.h"
+#include <QDebug>
 extern "C"
 {
 #include "ecrt.h"
@@ -36,8 +37,9 @@ int gTarPosition2=0;
 enum{
     FSM_Power_On,
     FSM_SafeOp,
-    FSM_Op,
-    FSM_Link_Down,
+    FSM_ConfigSlave,
+    FSM_CheckStatus,
+    FSM_DoMove,
     FSM_Idle_Status,
 };
 int g_SysFSM=FSM_Power_On;
@@ -56,32 +58,31 @@ static uint8_t *domainOutput_pd=NULL;
 static ec_slave_config_t *sc_copley[2]={NULL,NULL};
 static ec_slave_config_state_t sc_copley_state[2]={};
 
-int ecstate=0;
-
-static unsigned int ctrlWord[2];
-static unsigned int targetPosition[2];
-static unsigned int statusWord[2];
-static unsigned int actVelocity[2];
-static unsigned int actPosition[2];
+/**< Pointer to a variable to store the PDO entry's (byte-)offset in the process data. */
+static uint32_t offsetCtrlWord[2];
+static uint32_t offsetTarPos[2];
+static uint32_t offsetStatusWord[2];
+static uint32_t offsetActVel[2];
+static uint32_t offsetPosActVal[2];
 
 const static ec_pdo_entry_reg_t domainOutput_regs[]=
 {
-    { CopleySlavePos, Copley_VID_PID, 0x6040, 0, &ctrlWord[0], NULL },
-    { CopleySlavePos, Copley_VID_PID, 0x607A, 0, &targetPosition[0], NULL },
+    { CopleySlavePos, Copley_VID_PID, 0x6040, 0, &offsetCtrlWord[0], NULL },
+    { CopleySlavePos, Copley_VID_PID, 0x607A, 0, &offsetTarPos[0], NULL },
 
-    { CopleySlavePos2, Copley_VID_PID, 0x6040, 0, &ctrlWord[1], NULL },
-    { CopleySlavePos2, Copley_VID_PID, 0x607A, 0, &targetPosition[1], NULL },
+    { CopleySlavePos2, Copley_VID_PID, 0x6040, 0, &offsetCtrlWord[1], NULL },
+    { CopleySlavePos2, Copley_VID_PID, 0x607A, 0, &offsetTarPos[1], NULL },
     {}
 };
 const static ec_pdo_entry_reg_t domainInput_regs[]=
 {
-    { CopleySlavePos, Copley_VID_PID, 0x6041, 0, &statusWord[0], NULL },
-    { CopleySlavePos, Copley_VID_PID, 0x606C, 0, &actVelocity[0], NULL },
-    { CopleySlavePos, Copley_VID_PID, 0x6063, 0, &actPosition[0], NULL },
+    { CopleySlavePos, Copley_VID_PID, 0x6041, 0, &offsetStatusWord[0], NULL },
+    { CopleySlavePos, Copley_VID_PID, 0x606C, 0, &offsetActVel[0], NULL },
+    { CopleySlavePos, Copley_VID_PID, 0x6063, 0, &offsetPosActVal[0], NULL },
 
-    { CopleySlavePos2, Copley_VID_PID, 0x6041, 0, &statusWord[1], NULL },
-    { CopleySlavePos2, Copley_VID_PID, 0x606C, 0, &actVelocity[1], NULL },
-    { CopleySlavePos2, Copley_VID_PID, 0x6063, 0, &actPosition[1], NULL },
+    { CopleySlavePos2, Copley_VID_PID, 0x6041, 0, &offsetStatusWord[1], NULL },
+    { CopleySlavePos2, Copley_VID_PID, 0x606C, 0, &offsetActVel[1], NULL },
+    { CopleySlavePos2, Copley_VID_PID, 0x6063, 0, &offsetPosActVal[1], NULL },
     {}
 };
 
@@ -252,84 +253,127 @@ void cyclic_task()
         //3,2,1,0:1000=0x08.(OP mode).
         if((master_state.al_states&0x08))
         {
-            //make sure all slaves are in OP mode.
+            //unsigned int al_state : 4;
+            //The application-layer state of the slave.
+            //- 1: \a INIT,- 2: \a PREOP,- 4: \a SAFEOP,- 8: \a OP
+            //Note that each state is coded in a different bit!
             if((sc_copley_state[0].al_state!=0x08) || (sc_copley_state[1].al_state!=0x08))
             {
                 //do not change FSM,wait for next time checking.
             }else{
                 //master in OP mode and all slaves are in OP mode.
                 //change to next FSM.
-                ecstate=0;
-                g_SysFSM=FSM_Op;
-                printf("FSM -> FSM_Op\n");
+                g_SysFSM=FSM_ConfigSlave;
+                qDebug()<<"FSM --->>> FSM_ConfigSlave";
             }
         }
         break;
-    case FSM_Op:
-        ecstate++;
-        if(ecstate<=16)
-        {
-            switch(ecstate)
-            {
-            case 1:
-                //bit7=1.
-                //Reset Fault.
-                //A low-to-high transition of this bit makes the amplifier attempt to clear any latched fault condition.
-                EC_WRITE_U16(domainOutput_pd+ctrlWord[0],0x80);
-                EC_WRITE_U16(domainOutput_pd+ctrlWord[1],0x80);
-                break;
-            case 7:
-                //write current position to target position
-                gGblPara.m_i00ActPos=EC_READ_S32(domainInput_pd+actPosition[0]);
-                EC_WRITE_S32(domainOutput_pd+targetPosition[0],EC_READ_S32(domainInput_pd+actPosition[0]));
-                printf("slave 0: current position:%d\n",gGblPara.m_i00ActPos);
+    case FSM_ConfigSlave:
+        //Control Word(0x6040)
+        //15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0
+        //0 ,0 ,0 ,0 ,0 ,0 ,0,0,1,0,0,0,0,0,0,0
+        //bit7=1.
+        //Reset Fault.
+        //A low-to-high transition of this bit makes the amplifier attempt to clear any latched fault condition.
+        EC_WRITE_U16(domainOutput_pd+offsetCtrlWord[0],0x0080);
+        EC_WRITE_U16(domainOutput_pd+offsetCtrlWord[1],0x0080);
 
-                gGblPara.m_i01ActPos=EC_READ_S32(domainInput_pd+actPosition[1]);
-                EC_WRITE_S32(domainOutput_pd+targetPosition[1],EC_READ_S32(domainInput_pd+actPosition[1]));
-                printf("slave 1: current position:%d\n",gGblPara.m_i01ActPos);
-                break;
-            case 9:
-                //0x06=0000,0110.
-                EC_WRITE_U16(domainOutput_pd+ctrlWord[0],0x06);
-                EC_WRITE_U16(domainOutput_pd+ctrlWord[1],0x06);
-                break;
-            case 11:
-                //0x07=0000,0111.
-                EC_WRITE_U16(domainOutput_pd+ctrlWord[0],0x07);
-                EC_WRITE_U16(domainOutput_pd+ctrlWord[1],0x07);
-                break;
-            case 13:
-                //0x0F=0000,1111.
-                EC_WRITE_U16(domainOutput_pd+ctrlWord[0],0x0F);
-                EC_WRITE_U16(domainOutput_pd+ctrlWord[1],0x0F);
-                break;
-            default:
-                break;
-            }
-        }else{
-            //Status Word(0x6041)
-            //0x0004:0000,0000,0000,0100
-            //bit2: Operation Enabled.Set when the amplifier is enabled.
-            uint16_t s0,s1;
-            s0=EC_READ_U16(domainInput_pd+statusWord[0]);
-            s1=EC_READ_U16(domainInput_pd+statusWord[1]);
-            if( ((s0&0x0004)==0) || ((s1&0x0004)==0) )
+        //write current position to target position
+        //read PositionActualValue(0x6063,int32) from slave0.
+        gGblPara.m_i00ActPos=EC_READ_S32(domainInput_pd+offsetPosActVal[0]);
+        EC_WRITE_S32(domainOutput_pd+offsetTarPos[0],EC_READ_S32(domainInput_pd+offsetPosActVal[0]));
+        printf("slave 0: current position:%d\n",gGblPara.m_i00ActPos);
+
+        //read PositionActualValue(0x6063,int32) from slave1.
+        gGblPara.m_i01ActPos=EC_READ_S32(domainInput_pd+offsetPosActVal[1]);
+        EC_WRITE_S32(domainOutput_pd+offsetTarPos[1],EC_READ_S32(domainInput_pd+offsetPosActVal[1]));
+        printf("slave 1: current position:%d\n",gGblPara.m_i01ActPos);
+
+        //0x0006=0000,0000,0000,0110.
+        //bit1:Enable Voltage.This bit must be set to enable the amplifier.
+        //bit2:Quick Stop. If this bit is clear,then the amplifier is commanded to perform a quick stop.
+        EC_WRITE_U16(domainOutput_pd+offsetCtrlWord[0],0x06);
+        EC_WRITE_U16(domainOutput_pd+offsetCtrlWord[1],0x06);
+
+        //0x0007=0000,0000,0000,0111.
+        //bit0:Switch On.This bit must be set to enable the amplifier.
+        //bit1:Enable Voltage.This bit must be set to enable the amplifier.
+        //bit2:Quick Stop. If this bit is clear,then the amplifier is commanded to perform a quick stop.
+        EC_WRITE_U16(domainOutput_pd+offsetCtrlWord[0],0x07);
+        EC_WRITE_U16(domainOutput_pd+offsetCtrlWord[1],0x07);
+
+        //0x000F=0000,0000,0000,1111.
+        //bit0:Switch On.This bit must be set to enable the amplifier.
+        //bit1:Enable Voltage.This bit must be set to enable the amplifier.
+        //bit2:Quick Stop. If this bit is clear,then the amplifier is commanded to perform a quick stop.
+        //bit3:Enable Operation.This bit must be set to enable the amplifier.
+        EC_WRITE_U16(domainOutput_pd+offsetCtrlWord[0],0x0F);
+        EC_WRITE_U16(domainOutput_pd+offsetCtrlWord[1],0x0F);
+
+        g_SysFSM=FSM_CheckStatus;
+        qDebug()<<"FSM --->>> FSM_CheckStatus";
+        break;
+    case FSM_CheckStatus:
+    {
+        //Status Word(0x6041)
+        //0x0004:0000,0000,0000,0100
+        //bit2: Operation Enabled.Set when the amplifier is enabled.
+        bool bSlave0Fault=false,bSlave1Fault=false;
+        uint16_t s0,s1;
+        //check slave0 status word.
+        s0=EC_READ_U16(domainInput_pd+offsetStatusWord[0]);
+        if((s0&0x0004)==0)
+        {
+            //bit2 was not set by slave,something wrong happened.
+            bSlave0Fault=true;
+            //0x0100:0000,0001,0000,0000
+            //bit8:Set if the last trajectory was aborted rather than finishing normally.
+            if(s0&0x0100)
             {
-                //at least one amplifier is not enabled,
-                //so we donot change FSM,checking next time.
-                printf("At least one amplifier is not enabled!\n");
-                printf("0x%x,0x%x\n",s0,s1);
-//                ecstate=0;
-//                g_SysFSM=FSM_SafeOp;
-            }else{
-                //all slaves are "Operation Enabled".
-                ecstate=0;
-                g_SysFSM=FSM_Idle_Status;
-                printf("FSM -> FSM_Idle_Status\n");
+                qDebug()<<"slave(0):the last trajectory was aborted rather than finishing normally.";
+            }
+            //0x0800:0000,1000,0000,0000
+            //bit11:Internal Limit Active.
+            //This bit is set when one of the amplifier limits(current,voltage,velocity or position) is active.
+            if(s0&0x0800)
+            {
+                qDebug()<<"slave(0):Internal Limit Active.";
             }
         }
+        //check slave1 status word.
+        s1=EC_READ_U16(domainInput_pd+offsetStatusWord[1]);
+        if((s1&0x0004)==0)
+        {
+            //bit2 was not set by slave,something wrong happened.
+            bSlave1Fault=true;
+            //0x0100:0000,0001,0000,0000
+            //bit8:Set if the last trajectory was aborted rather than finishing normally.
+            if(s1&0x0100)
+            {
+                qDebug()<<"slave(1):the last trajectory was aborted rather than finishing normally.";
+            }
+            //0x0800:0000,1000,0000,0000
+            //bit11:Internal Limit Active.
+            //This bit is set when one of the amplifier limits(current,voltage,velocity or position) is active.
+            if(s1&0x0800)
+            {
+                qDebug()<<"slave(1):Internal Limit Active.";
+            }
+        }
+        //re-init slaves whatever which slave has fault.
+        if(bSlave0Fault || bSlave1Fault)
+        {
+            qDebug()<<"5s re-config slaves!";
+            usleep(1000*1000*5);
+            g_SysFSM=FSM_ConfigSlave;
+        }else{
+            //all slaves status word are okay.
+            g_SysFSM=FSM_DoMove;
+            qDebug()<<"FSM --->>> FSM_DoMove";
+        }
+    }
         break;
-    default:
+    case FSM_DoMove:
     {
         if(!(cycle_counter%100))
         {
@@ -337,9 +381,9 @@ void cyclic_task()
             float act_velocity;
             int act_position;
 
-            status = EC_READ_U16(domainInput_pd + statusWord[0]);
-            act_velocity = EC_READ_S32(domainInput_pd + actVelocity[0])/1000.0;
-            act_position = EC_READ_S32(domainInput_pd + actPosition[0]);
+            status = EC_READ_U16(domainInput_pd + offsetStatusWord[0]);
+            act_velocity = EC_READ_S32(domainInput_pd + offsetActVel[0])/1000.0;
+            act_position = EC_READ_S32(domainInput_pd + offsetPosActVal[0]);
             printf("\n\n0:aclVel=%.1f rpm,aclPos=%d,",act_velocity, act_position);
             printf("Status Word=0x%x\n",status);
             print_bits_splitter(status);
@@ -348,9 +392,9 @@ void cyclic_task()
             gActPosition=act_position;
             gTarPosition=0;
 
-            status = EC_READ_U16(domainInput_pd + statusWord[1]);
-            act_velocity = EC_READ_S32(domainInput_pd + actVelocity[1])/1000.0;
-            act_position = EC_READ_S32(domainInput_pd + actPosition[1]);
+            status = EC_READ_U16(domainInput_pd + offsetStatusWord[1]);
+            act_velocity = EC_READ_S32(domainInput_pd + offsetActVel[1])/1000.0;
+            act_position = EC_READ_S32(domainInput_pd + offsetPosActVal[1]);
             printf("\n\n1:aclVel=%.1f rpm,aclPos=%d,",act_velocity, act_position);
             printf("Status Word=0x%x\n",status);
             print_bits_splitter(status);
@@ -367,13 +411,15 @@ void cyclic_task()
         //curpos+=100;
         //curpos-=10;
         gGblPara.m_i00ActPos-=100;
-        EC_WRITE_S32(domainOutput_pd+targetPosition[0],gGblPara.m_i00ActPos);
+        EC_WRITE_S32(domainOutput_pd+offsetTarPos[0],gGblPara.m_i00ActPos);
         gGblPara.m_i01ActPos-=100;
-        EC_WRITE_S32(domainOutput_pd+targetPosition[1],gGblPara.m_i01ActPos);
+        EC_WRITE_S32(domainOutput_pd+offsetTarPos[1],gGblPara.m_i01ActPos);
 
-//        ecstate=0;
-//        g_SysFSM=FSM_SafeOp;
+        //        ecstate=0;
+        //        g_SysFSM=FSM_SafeOp;
     }
+        break;
+    default:
         break;
     }
     /*send process data*/
