@@ -37,10 +37,12 @@ int gTarPosition2=0;
 enum{
     FSM_Power_On,
     FSM_SafeOp,
+    FSM_Homing,
+    FSM_CheckHoming,
     FSM_ConfigSlave,
     FSM_CheckStatus,
     FSM_DoMove,
-    FSM_Idle_Status,
+    FSM_IdleStatus,
 };
 int g_SysFSM=FSM_Power_On;
 /*EtherCAT master*/
@@ -120,6 +122,8 @@ void check_domain_state(void)
     ec_domain_state_t ds2={};
 
     //domainInput.
+    //Reads the state of a domain.
+    //Using this method, the process data exchange can be monitored in realtime.
     ecrt_domain_state(domainInput,&ds1);
     if(ds1.working_counter!=domainInput_state.working_counter)
     {
@@ -132,6 +136,8 @@ void check_domain_state(void)
     domainInput_state=ds1;
 
     //domainOutput.
+    //Reads the state of a domain.
+    //Using this method, the process data exchange can be monitored in realtime.
     ecrt_domain_state(domainOutput,&ds2);
     if(ds2.working_counter!=domainOutput_state.working_counter)
     {
@@ -216,6 +222,8 @@ void print_bits_splitter(int bits)
 }
 void cyclic_task()
 {
+    static int iReverFlag=0;
+    static int i00TarPos=0,i01TarPos=0;
     static int cycle_counter=0;
     cycle_counter++;
     if(cycle_counter>=1000*2)
@@ -228,20 +236,13 @@ void cyclic_task()
     ecrt_domain_process(domainOutput);
     ecrt_domain_process(domainInput);
     check_domain_state();
-
-    //500ms.
-    if(!(cycle_counter%100))
-    {
-        check_master_state();
-        check_slave_config_state();
-    }
+    check_master_state();
+    check_slave_config_state();
 
     switch(g_SysFSM)
     {
     case FSM_SafeOp:
         //check if master is in OP mode,if not then turn to OP mode.
-        check_master_state();
-        check_slave_config_state();
         //Master state.
         //unsigned int al_states : 4;
         //Application-layer states of all slaves.The states are coded in the lower 4 bits.
@@ -263,12 +264,114 @@ void cyclic_task()
             }else{
                 //master in OP mode and all slaves are in OP mode.
                 //change to next FSM.
-                g_SysFSM=FSM_ConfigSlave;
+                g_SysFSM=FSM_Homing;
                 qDebug()<<"FSM --->>> FSM_ConfigSlave";
             }
         }
         break;
+    case FSM_Homing:
+    {
+        int curPos;
+        //Mode of Operation.
+        //(0x6060,0)=6:Homing mode.
+        ecrt_slave_config_sdo8(sc_copley[0],0x6060,0,6);
+        ecrt_slave_config_sdo8(sc_copley[1],0x6060,0,6);
+
+        //Home offset=0.
+        ecrt_slave_config_sdo32(sc_copley[0],0x607C,0,0);
+        ecrt_slave_config_sdo32(sc_copley[1],0x607C,0,0);
+
+        //Home velocity-fast.
+        ecrt_slave_config_sdo32(sc_copley[0],0x6099,1,10000);
+        ecrt_slave_config_sdo32(sc_copley[1],0x6099,1,10000);
+        //Home velocity-slow.
+        ecrt_slave_config_sdo32(sc_copley[0],0x6099,2,500);
+        ecrt_slave_config_sdo32(sc_copley[1],0x6099,2,500);
+
+        //Homing Acceleration.
+        ecrt_slave_config_sdo32(sc_copley[0],0x609A,0,200000);
+        ecrt_slave_config_sdo32(sc_copley[1],0x609A,0,200000);
+
+        //Homing method.
+        ecrt_slave_config_sdo8(sc_copley[0],0x6098,0,-1);
+        ecrt_slave_config_sdo8(sc_copley[1],0x6098,0,-1);
+        usleep(100);
+
+        curPos=EC_READ_S32(domainInput_pd+offsetPosActVal[0]);
+        EC_WRITE_S32(domainOutput_pd+offsetTarPos[0],EC_READ_S32(domainInput_pd+offsetPosActVal[0]));
+        qDebug()<<"slave(0):current positon:"<<curPos;
+
+        curPos=EC_READ_S32(domainInput_pd+offsetPosActVal[1]);
+        EC_WRITE_S32(domainOutput_pd+offsetTarPos[1],EC_READ_S32(domainInput_pd+offsetPosActVal[1]));
+        qDebug()<<"slave(1):current positon:"<<curPos;
+
+        //0x0006=0000,0000,0000,0110.
+        //bit1:Enable Voltage.This bit must be set to enable the amplifier.
+        //bit2:Quick Stop. If this bit is clear,then the amplifier is commanded to perform a quick stop.
+        EC_WRITE_U16(domainOutput_pd+offsetCtrlWord[0],0x06);
+        EC_WRITE_U16(domainOutput_pd+offsetCtrlWord[1],0x06);
+        usleep(100);
+
+        //0x0007=0000,0000,0000,0111.
+        //bit0:Switch On.This bit must be set to enable the amplifier.
+        //bit1:Enable Voltage.This bit must be set to enable the amplifier.
+        //bit2:Quick Stop. If this bit is clear,then the amplifier is commanded to perform a quick stop.
+        EC_WRITE_U16(domainOutput_pd+offsetCtrlWord[0],0x07);
+        EC_WRITE_U16(domainOutput_pd+offsetCtrlWord[1],0x07);
+        usleep(100);
+
+        //0x000F=0000,0000,0000,1111.
+        //bit0:Switch On.This bit must be set to enable the amplifier.
+        //bit1:Enable Voltage.This bit must be set to enable the amplifier.
+        //bit2:Quick Stop. If this bit is clear,then the amplifier is commanded to perform a quick stop.
+        //bit3:Enable Operation.This bit must be set to enable the amplifier.
+        EC_WRITE_U16(domainOutput_pd+offsetCtrlWord[0],0x0F);
+        EC_WRITE_U16(domainOutput_pd+offsetCtrlWord[1],0x0F);
+        usleep(100);
+
+        EC_WRITE_U16(domainOutput_pd+offsetCtrlWord[0],0x1F);
+        EC_WRITE_U16(domainOutput_pd+offsetCtrlWord[1],0x1F);
+
+        g_SysFSM=FSM_CheckHoming;
+    }
+        break;
+    case FSM_CheckHoming:
+    {
+        bool bS0HomingOk=false,bS1HomingOk=false;
+        uint16_t s0,s1;
+        //0x5237:0101,0010,0011,0111.
+        //bit12:Homing attained(Homing Mode).
+        //bit13:Homing error(Homing Mode).
+        //check slave0 status word.
+        s0=EC_READ_U16(domainInput_pd+offsetStatusWord[0]);
+        if(s0&(0x1<<12)  && (s0&(0x1<<13))==0)
+        {
+            bS0HomingOk=true;
+            qDebug("slave(0): Homing attained without error(0x%x).\n",s0);
+        }
+        //check slave1 status word.
+        s1=EC_READ_U16(domainInput_pd+offsetStatusWord[1]);
+        if(s1&(0x1<<12)  && (s1&(0x1<<13))==0)
+        {
+            bS1HomingOk=true;
+            qDebug("slave(1): Homing attained without error(0x%x).\n",s1);
+        }
+
+        if(bS0HomingOk && bS1HomingOk)
+        {
+            g_SysFSM=FSM_ConfigSlave;
+        }
+    }
+        break;
     case FSM_ConfigSlave:
+        //Mode of Operation.
+        //(0x6060,0)=8 CSP:Cyclic Synchronous Position mode
+        ecrt_slave_config_sdo8(sc_copley[0],0x6060,0,8);
+        ecrt_slave_config_sdo8(sc_copley[0],0x60c2,1,1);
+
+        ecrt_slave_config_sdo8(sc_copley[1],0x6060,0,8);
+        ecrt_slave_config_sdo8(sc_copley[1],0x60c2,1,1);
+
         //Control Word(0x6040)
         //15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0
         //0 ,0 ,0 ,0 ,0 ,0 ,0,0,1,0,0,0,0,0,0,0
@@ -278,16 +381,16 @@ void cyclic_task()
         EC_WRITE_U16(domainOutput_pd+offsetCtrlWord[0],0x0080);
         EC_WRITE_U16(domainOutput_pd+offsetCtrlWord[1],0x0080);
 
-        //write current position to target position
         //read PositionActualValue(0x6063,int32) from slave0.
-        gGblPara.m_i00ActPos=EC_READ_S32(domainInput_pd+offsetPosActVal[0]);
-        EC_WRITE_S32(domainOutput_pd+offsetTarPos[0],EC_READ_S32(domainInput_pd+offsetPosActVal[0]));
-        printf("slave 0: current position:%d\n",gGblPara.m_i00ActPos);
+        i00TarPos=EC_READ_S32(domainInput_pd+offsetPosActVal[0]);
+        EC_WRITE_S32(domainOutput_pd+offsetTarPos[0],i00TarPos);
+        printf("slave(0): sync PositionActualValue to TargetPosition:%d\n",i00TarPos);
 
         //read PositionActualValue(0x6063,int32) from slave1.
-        gGblPara.m_i01ActPos=EC_READ_S32(domainInput_pd+offsetPosActVal[1]);
-        EC_WRITE_S32(domainOutput_pd+offsetTarPos[1],EC_READ_S32(domainInput_pd+offsetPosActVal[1]));
-        printf("slave 1: current position:%d\n",gGblPara.m_i01ActPos);
+        i01TarPos=EC_READ_S32(domainInput_pd+offsetPosActVal[1]);
+        EC_WRITE_S32(domainOutput_pd+offsetTarPos[1],i01TarPos);
+        printf("slave(1): sync PositionActualValue to TargetPosition:%d\n",i01TarPos);
+
 
         //0x0006=0000,0000,0000,0110.
         //bit1:Enable Voltage.This bit must be set to enable the amplifier.
@@ -410,13 +513,26 @@ void cyclic_task()
         //we can check status word to see what happened exactly.
         //curpos+=100;
         //curpos-=10;
-        gGblPara.m_i00ActPos-=100;
-        EC_WRITE_S32(domainOutput_pd+offsetTarPos[0],gGblPara.m_i00ActPos);
-        gGblPara.m_i01ActPos-=100;
-        EC_WRITE_S32(domainOutput_pd+offsetTarPos[1],gGblPara.m_i01ActPos);
 
+        //slave0 move by +100/-100 positon.
+
+        i00TarPos+=200;
+        i01TarPos+=100;
+        EC_WRITE_S32(domainOutput_pd+offsetTarPos[0],i00TarPos);
+
+        //slave1 move by +100/-100 positon.
+        //gGblPara.m_i01PosActVal-=100;
+
+        EC_WRITE_S32(domainOutput_pd+offsetTarPos[1],i01TarPos);
         //        ecstate=0;
         //        g_SysFSM=FSM_SafeOp;
+
+        //ecrt_master_reset(master).
+    }
+        break;
+    case FSM_IdleStatus:
+    {
+
     }
         break;
     default:
@@ -447,6 +563,15 @@ int g_do_init()
         return -1;
     }
     printf("request master 0 okay.\n");
+
+    for(int i=0;i<2;i++)
+    {
+        ec_slave_info_t scInfo;
+        if(ecrt_master_get_slave(master,i,&scInfo)==0)
+        {
+            printf("slave(%d):%x,%x,%s\n",i,scInfo.vendor_id,scInfo.product_code,scInfo.name);
+        }
+    }
 
     //Creates a new process data domain.
     //For process data exchange, at least one process data domain is needed.
@@ -509,13 +634,13 @@ int g_do_init()
     printf("PDO entry registration done.\n");
 
     printf("Creating SDO request...\n");
-    //Mode of Operation.
-    //(0x6060,0)=8 CSP:Cyclic Synchronous Position mode
-    ecrt_slave_config_sdo8(sc_copley[0],0x6060,0,8);
-    ecrt_slave_config_sdo8(sc_copley[0],0x60c2,1,1);
+    //    //Mode of Operation.
+    //    //(0x6060,0)=8 CSP:Cyclic Synchronous Position mode
+    //    ecrt_slave_config_sdo8(sc_copley[0],0x6060,0,8);
+    //    ecrt_slave_config_sdo8(sc_copley[0],0x60c2,1,1);
 
-    ecrt_slave_config_sdo8(sc_copley[1],0x6060,0,8);
-    ecrt_slave_config_sdo8(sc_copley[1],0x60c2,1,1);
+    //    ecrt_slave_config_sdo8(sc_copley[1],0x6060,0,8);
+    //    ecrt_slave_config_sdo8(sc_copley[1],0x60c2,1,1);
 
     //Finishes the configuration phase and prepares for cyclic operation.
     //This function tells the master that the configuration phase is finished and the realtime operation will begin.

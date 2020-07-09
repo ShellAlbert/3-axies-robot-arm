@@ -16,11 +16,11 @@ public:
     int m_iSlavesEnBitMask;
 
     //0,0(slave 0), Actural Position, Target Position.
-    int m_i00ActPos;
+    int m_i00PosActVal;
     int m_i00TarPos;
 
     //0,1(slave 1), Actural Position, Target Position.
-    int m_i01ActPos;
+    int m_i01PosActVal;
     int m_i01TarPos;
 };
 extern ZGblPara gGblPara;

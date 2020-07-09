@@ -219,7 +219,8 @@ void ZMainUI::ZSlotCtrlLR()
 //        gGblPara.m_iSlavesEnBitMask&=~(0x1<<0);
 //        this->m_tbCtrlLR->setText(tr("START"));
 //    }
-    gGblPara.m_i00ActPos-=100;
+//    gGblPara.m_i00ActPos-=100;
+    gGblPara.m_i00PosActVal-=100;
 }
 void ZMainUI::ZSlotCtrlUD()
 {
@@ -233,5 +234,6 @@ void ZMainUI::ZSlotCtrlUD()
 //        gGblPara.m_iSlavesEnBitMask&=~(0x1<<1);
 //        this->m_tbCtrlUD->setText(tr("START"));
 //    }
-    gGblPara.m_i00ActPos+=100;
+//    gGblPara.m_i00ActPos+=100;
+    gGblPara.m_i01PosActVal-=100;
 }
