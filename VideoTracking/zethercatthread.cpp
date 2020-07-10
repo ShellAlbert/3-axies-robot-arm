@@ -41,11 +41,11 @@ enum{
     FSM_CheckHomingAttained,
     FSM_RunPV,
     FSM_CfgCSP,
-    FSM_CheckCSP,
     FSM_RunCSP,
     FSM_IdleStatus,
 };
 int g_SysFSM=FSM_Power_On;
+
 /*EtherCAT master*/
 static ec_master_t *master=NULL;
 static ec_master_state_t master_state={};
@@ -54,9 +54,9 @@ static ec_domain_t *domainIn=NULL;
 static ec_domain_state_t domainIn_state={};
 static uint8_t *domainIn_pd=NULL;
 /*slave process data tx*/
-static ec_domain_t *domainWr=NULL;
-static ec_domain_state_t domainWr_state={};
-static uint8_t *domainWr_pd=NULL;
+static ec_domain_t *domainOut=NULL;
+static ec_domain_state_t domainOut_state={};
+static uint8_t *domainOut_pd=NULL;
 /*Copley slave configuration*/
 static ec_slave_config_t *sc_copley[2]={NULL,NULL};
 static ec_slave_config_state_t sc_copley_state[2]={};
@@ -140,7 +140,7 @@ const static ec_pdo_entry_reg_t domainIn_regs[]=
     { CopleySlavePos2, Copley_VID_PID, 0x607A, 0, &offsetTarPos[1], NULL },
     {}
 };
-const static ec_pdo_entry_reg_t domainWr_regs[]=
+const static ec_pdo_entry_reg_t domainOut_regs[]=
 {
     //TxPDOs.
     { CopleySlavePos, Copley_VID_PID, 0x6041, 0, &offsetStatusWord[0], NULL },
@@ -158,29 +158,6 @@ const static ec_pdo_entry_reg_t domainWr_regs[]=
     {}
 };
 
-////define RxPDO entries.(Master<-Slave)
-//static ec_pdo_entry_info_t copley_pdo_entries_input[] = {
-//    { 0x6041, 0x00, 16 }, /*Status Word,uint16*/
-//    { 0x6064, 0x00, 32 }, /*Position Actual Value,uint32*/
-//    { 0x60F4, 0x00, 32 }, /*Position Error,uint32*/
-//    { 0x606C, 0x00, 32 }, /*Actual Velocity,uint32*/
-//};
-//static ec_pdo_entry_info_t copley_pdo_entries_input2[] = {
-//    { 0x6077, 0x00, 32 }, /*Torque Actual Value,uint32*/
-//};
-////define RxPDO itself.
-//static ec_pdo_info_t copley_pdos_1a00[] = {
-//    { 0x1a00, 4, copley_pdo_entries_input },
-//    { 0x1a01, 1, copley_pdo_entries_input2 },
-//};
-////Sync Manager configuration.
-//static ec_sync_info_t copley_syncs[] = {
-//    { 0, EC_DIR_OUTPUT, 0, NULL, EC_WD_DISABLE },//SM0:MBoxOut.
-//    { 1, EC_DIR_INPUT, 0, NULL, EC_WD_DISABLE },//SM1:MBoxIn.
-//    { 2, EC_DIR_OUTPUT, 1, copley_pdos_1600, EC_WD_DISABLE },//SM2:Outputs.
-//    { 3, EC_DIR_INPUT, 2, copley_pdos_1a00, EC_WD_DISABLE },//SM3:Inputs.
-//    { 0xFF }
-//};
 void check_domain_state(void)
 {
     ec_domain_state_t ds1={};
@@ -203,16 +180,16 @@ void check_domain_state(void)
     //domainOutput.
     //Reads the state of a domain.
     //Using this method, the process data exchange can be monitored in realtime.
-    ecrt_domain_state(domainWr,&ds2);
-    if(ds2.working_counter!=domainWr_state.working_counter)
+    ecrt_domain_state(domainOut,&ds2);
+    if(ds2.working_counter!=domainOut_state.working_counter)
     {
         printf("domainOutput: WC %u.\n",ds2.working_counter);
     }
-    if(ds2.wc_state!=domainWr_state.wc_state)
+    if(ds2.wc_state!=domainOut_state.wc_state)
     {
         printf("domainOutput: State %u.\n",ds2.wc_state);
     }
-    domainWr_state=ds2;
+    domainOut_state=ds2;
 }
 void check_master_state(void)
 {
@@ -301,7 +278,7 @@ void ZEtherCATThread::ZDoCyclicTask()
 
     //Processing datagram (Master module -> domain).
     ecrt_domain_process(domainIn);
-    ecrt_domain_process(domainWr);
+    ecrt_domain_process(domainOut);
 
     //not mandatory.
     check_domain_state();
@@ -369,12 +346,12 @@ void ZEtherCATThread::ZDoCyclicTask()
         //master read from slave domain Wr process data.
         //domainWr_pd:  slave output data to master.
         //domainRd_pd:  slave input data from master.
-        curPos=EC_READ_S32(domainWr_pd+offsetPosActVal[0]);
-        EC_WRITE_S32(domainIn_pd+offsetTarPos[0],EC_READ_S32(domainWr_pd+offsetPosActVal[0]));
+        curPos=EC_READ_S32(domainOut_pd+offsetPosActVal[0]);
+        EC_WRITE_S32(domainIn_pd+offsetTarPos[0],EC_READ_S32(domainOut_pd+offsetPosActVal[0]));
         qDebug()<<"slave(0):current positon:"<<curPos;
 
-        curPos=EC_READ_S32(domainWr_pd+offsetPosActVal[1]);
-        EC_WRITE_S32(domainIn_pd+offsetTarPos[1],EC_READ_S32(domainWr_pd+offsetPosActVal[1]));
+        curPos=EC_READ_S32(domainOut_pd+offsetPosActVal[1]);
+        EC_WRITE_S32(domainIn_pd+offsetTarPos[1],EC_READ_S32(domainOut_pd+offsetPosActVal[1]));
         qDebug()<<"slave(1):current positon:"<<curPos;
 
         //0x0006=0000,0000,0000,0110.
@@ -416,14 +393,14 @@ void ZEtherCATThread::ZDoCyclicTask()
         //bit12:Homing attained(Homing Mode).
         //bit13:Homing error(Homing Mode).
         //check slave0 status word.
-        s0=EC_READ_U16(domainWr_pd+offsetStatusWord[0]);
+        s0=EC_READ_U16(domainOut_pd+offsetStatusWord[0]);
         if(s0&(0x1<<12)  && (s0&(0x1<<13))==0)
         {
             bS0HomingOk=true;
             emit this->ZSigLog(false,QString("slave(0): Homing attained."));
         }
         //check slave1 status word.
-        s1=EC_READ_U16(domainWr_pd+offsetStatusWord[1]);
+        s1=EC_READ_U16(domainOut_pd+offsetStatusWord[1]);
         if(s1&(0x1<<12)  && (s1&(0x1<<13))==0)
         {
             bS1HomingOk=true;
@@ -550,19 +527,67 @@ void ZEtherCATThread::ZDoCyclicTask()
         g_SysFSM=FSM_RunCSP;
         emit this->ZSigLog(false,"FSM --->>> FSM_RunCSP");
         break;
-    case FSM_CheckCSP:
+    case FSM_RunCSP:
     {
-        //Status Word(0x6041)
-        //0x0004:0000,0000,0000,0100
-        //bit2: Operation Enabled.Set when the amplifier is enabled.
-        bool bSlave0Fault=false,bSlave1Fault=false;
+        uint16_t cmd;
         uint16_t s0,s1;
-        //check slave0 status word.
-        s0=EC_READ_U16(domainWr_pd+offsetStatusWord[0]);
-        if((s0&0x0004)==0)
+
+        //Status Word(0x6041).
+        //bit6,bit5,bit3,bit2,bit1,bit0:determine the current states.
+        s0=EC_READ_U16(domainOut_pd+offsetStatusWord[0]);
+        s1=EC_READ_U16(domainOut_pd+offsetStatusWord[1]);
+        qDebug("s0: 0x%x, s1: 0x%x\n",s0,s1);
+
+        if((s0&0x004F)==0x0040)
         {
-            //bit2 was not set by slave,something wrong happened.
-            bSlave0Fault=true;
+            //we conly concern bit6,bit3,bit2,bit1,bit0 in Switch On Disabled,
+            //so we use 0000,0000,0100,1111=0x4F as the bit mask.
+
+            //xxxx,xxxx,x1xx,0000=0x0040,Switch on Disabled.
+            emit this->ZSigLog(false,"slave(0) in Switch on Disabled.");
+
+            //issue "shutdown" command,From [Switch On Disabled] to [Ready to Switch On].
+            //shutdown:bit7=0,bit3=x,bit2=1,bit1=1,bit0=0.
+            //0000,0000,0000,0110=0x0006.
+            cmd=0x0006;
+        }else if((s0&0x006F)==0x0021)
+        {
+            //we conly concern bit6,bit3,bit2,bit1,bit0 in Ready to switch on,
+            //so we use 0000,0000,0110,1111=0x6F as the bit mask.
+
+            //xxxx,xxxx,x01x,0001=0x0021,Ready to switch on.
+            emit this->ZSigLog(false,"slave(0) in Ready to switch on.");
+            cmd=0x0007;
+        }else if((s0&0x006F)==0x0023)
+        {
+            //we conly concern bit6,bit5,bit3,bit2,bit1,bit0 in Switch on,
+            //so we use 0000,0000,0110,1111=0x006F as the bit mask.
+
+            //xxxx,xxxx,x01x,0011=0x0023,Switch on.
+            emit this->ZSigLog(false,"slave(0) in Switch on.");
+            cmd=0x000F;
+        }else if((s0&0x006F)==0x0027)
+        {
+            int iCurrentPos,iTargetPos;
+            //we conly concern bit6,bit5,bit3,bit2,bit1,bit0 in Operation Enabled,
+            //so we use 0000,0000,0110,1111=0x006F as the bit mask.
+
+            //xxxx,xxxx,x01x,0111=0x0027,Operation Enabled.
+            emit this->ZSigLog(false,"slave(0) in Operation Enabled.");
+            cmd=0x001F;
+
+            //read position actual value.
+            iCurrentPos=EC_READ_S32(domainOut_pd + offsetPosActVal[0]);
+            iTargetPos=iCurrentPos+1000;//set target positon.
+            EC_WRITE_S32(domainIn_pd+offsetTarPos[0],iTargetPos);
+
+            //read related PDOs.
+            int iPosActVal=EC_READ_S32(domainOut_pd + offsetPosActVal[0]);
+            int iPosErr=EC_READ_S32(domainOut_pd + offsetPosError[0]);
+            int iActVel=EC_READ_S32(domainOut_pd + offsetActVel[0]);
+            int iTorActVal=EC_READ_S32(domainOut_pd + offsetTorActVal[0]);
+            qDebug("%d,%d,%d,%d\n",iPosActVal,iPosErr,iActVel,iTorActVal);
+        }else{
             //0x0100:0000,0001,0000,0000
             //bit8:Set if the last trajectory was aborted rather than finishing normally.
             if(s0&0x0100)
@@ -576,128 +601,20 @@ void ZEtherCATThread::ZDoCyclicTask()
             {
                 emit this->ZSigLog(true,"slave(0):Internal Limit Active.");
             }
-        }
-        //check slave1 status word.
-        s1=EC_READ_U16(domainWr_pd+offsetStatusWord[1]);
-        if((s1&0x0004)==0)
-        {
-            //bit2 was not set by slave,something wrong happened.
-            bSlave1Fault=true;
-            //0x0100:0000,0001,0000,0000
-            //bit8:Set if the last trajectory was aborted rather than finishing normally.
-            if(s1&0x0100)
-            {
-                emit this->ZSigLog(true,"slave(1):the last trajectory was aborted rather than finishing normally.");
-            }
-            //0x0800:0000,1000,0000,0000
-            //bit11:Internal Limit Active.
-            //This bit is set when one of the amplifier limits(current,voltage,velocity or position) is active.
-            if(s1&0x0800)
-            {
-                emit this->ZSigLog(true,"slave(1):Internal Limit Active.");
-            }
-        }
-        //re-init slaves whatever which slave has fault.
-        if(bSlave0Fault || bSlave1Fault)
-        {
-            qDebug()<<"5s re-config slaves!";
-            usleep(1000*1000*5);
-            g_SysFSM=FSM_CfgCSP;
-        }else{
-            //all slaves status word are okay.
-            g_SysFSM=FSM_RunCSP;
-            emit this->ZSigLog(false,"FSM --->>> FSM_RunCSP");
-        }
-    }
-        break;
-    case FSM_RunCSP:
-    {
-        uint16_t cmd;
-        uint16_t s0,s1;
-        int iCurrentPos,iTargetPos;
-        s0=EC_READ_U16(domainWr_pd+offsetStatusWord[0]);
-        s1=EC_READ_U16(domainWr_pd+offsetStatusWord[1]);
-        qDebug("s0: 0x%x, s1: 0x%x\n",s0,s1);
-        //slave0.
-        if((s0&0x004F)==0x40)
-        {
-            cmd=0x0006;
-        }else if((s0&0x006F)==0x21)
-        {
-            cmd=0x0007;
-        }else if((s0&0x027F)==0x233)
-        {
-            cmd=0x000F;
-        }else if((s0&0x027F)==0x0237)
-        {
-            cmd=0x001F;
-        }else{
+
+            //Fault.
+            //bit7:Reset Fault.
+            //A low-to-high transition of this bit makes the amplifier attemp to clear any latched fault condition.
             cmd=0x0080;
         }
-        //read position actual value.
-        iCurrentPos=EC_READ_S32(domainWr_pd + offsetPosActVal[0]);
-        iTargetPos=iCurrentPos+600;//set target positon.
-
         EC_WRITE_U16(domainIn_pd+offsetCtrlWord[0],cmd);
-        EC_WRITE_S32(domainIn_pd+offsetTarPos[0],iTargetPos);
-#if 0
-        if(!(cycle_counter%100))
-        {
-            uint16_t status;
-            float act_velocity;
-            int act_position;
-
-            status = EC_READ_U16(domainWr_pd + offsetStatusWord[0]);
-            act_velocity = EC_READ_S32(domainWr_pd + offsetActVel[0])/1000.0;
-            act_position = EC_READ_S32(domainWr_pd + offsetPosActVal[0]);
-            printf("\n\n0:aclVel=%.1f rpm,aclPos=%d,",act_velocity, act_position);
-            printf("Status Word=0x%x\n",status);
-            print_bits_splitter(status);
-            gStatusWord=status;
-            gActVelocity=act_velocity;
-            gActPosition=act_position;
-            gTarPosition=0;
-
-            status = EC_READ_U16(domainWr_pd + offsetStatusWord[1]);
-            act_velocity = EC_READ_S32(domainWr_pd + offsetActVel[1])/1000.0;
-            act_position = EC_READ_S32(domainWr_pd + offsetPosActVal[1]);
-            printf("\n\n1:aclVel=%.1f rpm,aclPos=%d,",act_velocity, act_position);
-            printf("Status Word=0x%x\n",status);
-            print_bits_splitter(status);
-            gStatusWord2=status;
-            gActVelocity2=act_velocity;
-            gActPosition2=act_position;
-            gTarPosition2=0;
-        }
-#endif
-        //curpos+=200;//clockwise direction.
-        //curpos-=200;//anti-clockwise direction.
-        //if this value is set bigger,will cause error.
-        //we can check status word to see what happened exactly.
-        //curpos+=100;
-        //curpos-=10;
-
-        //slave0 move by +100/-100 positon.
-
-//        i00TarPos+=200;
-//        i01TarPos+=100;
-//        EC_WRITE_S32(domainOutput_pd+offsetTarPos[0],i00TarPos);
-
-        //slave1 move by +100/-100 positon.
-        //gGblPara.m_i01PosActVal-=100;
-
-//        EC_WRITE_S32(domainOutput_pd+offsetTarPos[1],i01TarPos);
-        //        ecstate=0;
-        //        g_SysFSM=FSM_SafeOp;
-
-        //ecrt_master_reset(master).
     }
         break;
     case FSM_IdleStatus:
     {
         uint16_t s0,s1;
-        s0 = EC_READ_U16(domainWr_pd + offsetStatusWord[0]);
-        s1 = EC_READ_U16(domainWr_pd + offsetStatusWord[1]);
+        s0 = EC_READ_U16(domainOut_pd + offsetStatusWord[0]);
+        s1 = EC_READ_U16(domainOut_pd + offsetStatusWord[1]);
         qDebug("s0: 0x%x, s1: 0x%x\n",s0,s1);
         //0x5237: 0101,0010,0011,0111
     }
@@ -706,7 +623,7 @@ void ZEtherCATThread::ZDoCyclicTask()
         break;
     }
     /*send process data*/
-    ecrt_domain_queue(domainWr);
+    ecrt_domain_queue(domainOut);
     ecrt_domain_queue(domainIn);
     ecrt_master_send(master);
 }
@@ -753,8 +670,8 @@ void ZEtherCATThread::run()
         //This method creates a new process data domain and returns a pointer to the new domain object.
         //This object can be used for registering PDOs and exchanging them in cyclic operation.
         domainIn=ecrt_master_create_domain(master);
-        domainWr=ecrt_master_create_domain(master);
-        if(!domainIn || !domainWr)
+        domainOut=ecrt_master_create_domain(master);
+        if(!domainIn || !domainOut)
         {
             emit this->ZSigLog(true,"failed to create domain Input/Output!");
             iThreadExitCode=-1;
@@ -807,7 +724,7 @@ void ZEtherCATThread::run()
             iThreadExitCode=-1;
             break;
         }
-        if(ecrt_domain_reg_pdo_entry_list(domainWr,domainWr_regs))
+        if(ecrt_domain_reg_pdo_entry_list(domainOut,domainOut_regs))
         {
             emit this->ZSigLog(true,"failed to register domainWr.");
             iThreadExitCode=-1;
@@ -834,7 +751,7 @@ void ZEtherCATThread::run()
             iThreadExitCode=-1;
             break;
         }
-        if(!(domainWr_pd=ecrt_domain_data(domainWr)))
+        if(!(domainOut_pd=ecrt_domain_data(domainOut)))
         {
             emit this->ZSigLog(false,"get out domain address error!");
             iThreadExitCode=-1;
