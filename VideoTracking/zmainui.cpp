@@ -51,6 +51,9 @@ bool ZMainUI::ZDoInit()
     this->m_tbMoveLft=new QToolButton;
     this->m_tbMoveLft->setText(tr("Left"));
     this->m_tbMoveLft->setFocusPolicy(Qt::NoFocus);
+    //this->m_tbMoveLft->setAutoRepeat(true);
+    //this->m_tbMoveLft->setAutoRepeatDelay(1000);//delay 100ms.
+    //this->m_tbMoveLft->setAutoRepeatInterval(100);//internal 100ms.
 
     this->m_tbMoveRht=new QToolButton;
     this->m_tbMoveRht->setText(tr("Right"));
@@ -245,17 +248,19 @@ void ZMainUI::ZSlotLog(bool bErrFlag,QString log)
 }
 void ZMainUI::ZSlotMoveToLeft()
 {
-    gGblPara.m_iSlave0TarPos+=5000;
+    gGblPara.m_iSlave1TarPos+=200;
 }
 void ZMainUI::ZSlotMoveToRight()
 {
-    gGblPara.m_iSlave0TarPos-=5000;
+    gGblPara.m_iSlave1TarPos-=200;
 }
 void ZMainUI::ZSlotMoveToUp()
 {
-    gGblPara.m_iSlave1TarPos+=5000;
+    gGblPara.m_iSlave0TarPos+=200;
+
 }
 void ZMainUI::ZSlotMoveToDown()
 {
-    gGblPara.m_iSlave1TarPos-=5000;
+
+    gGblPara.m_iSlave0TarPos-=200;
 }

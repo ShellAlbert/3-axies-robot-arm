@@ -71,7 +71,6 @@ private:
     //the main layout.
     QTextEdit *m_teLog;
     QVBoxLayout *m_vLayoutMain;
-
 private:
     QImage m_img;
 };
