@@ -484,6 +484,7 @@ void ZEtherCATThread::ZDoCyclicTask()
 
         //read position actual value.
         gGblPara.m_iSlave0TarPos=EC_READ_S32(domainOut_pd + offsetPosActVal[0]);
+        gGblPara.m_iSlave1TarPos=EC_READ_S32(domainOut_pd + offsetPosActVal[1]);
 
         g_SysFSM=FSM_RunCSP;
         emit this->ZSigLog(false,"FSM --->>> FSM_RunCSP");
@@ -499,6 +500,7 @@ void ZEtherCATThread::ZDoCyclicTask()
         s1=EC_READ_U16(domainOut_pd+offsetStatusWord[1]);
         //qDebug("s0: 0x%x, s1: 0x%x\n",s0,s1);
 
+        //slave0 finite state machine.
         if((s0&0x004F)==0x0040)
         {
             //we conly concern bit6,bit3,bit2,bit1,bit0 in Switch On Disabled,
@@ -529,7 +531,7 @@ void ZEtherCATThread::ZDoCyclicTask()
             cmd=0x000F;
         }else if((s0&0x006F)==0x0027)
         {
-            int iCurrentPos,iTargetPos;
+            int iCurrentPos;
             //we conly concern bit6,bit5,bit3,bit2,bit1,bit0 in Operation Enabled,
             //so we use 0000,0000,0110,1111=0x006F as the bit mask.
 
@@ -572,6 +574,80 @@ void ZEtherCATThread::ZDoCyclicTask()
             cmd=0x0080;
         }
         EC_WRITE_U16(domainIn_pd+offsetCtrlWord[0],cmd);
+
+        //slave1 finite state machine.
+        if((s1&0x004F)==0x0040)
+        {
+            //we conly concern bit6,bit3,bit2,bit1,bit0 in Switch On Disabled,
+            //so we use 0000,0000,0100,1111=0x4F as the bit mask.
+
+            //xxxx,xxxx,x1xx,0000=0x0040,Switch on Disabled.
+            emit this->ZSigLog(false,"slave(1) in Switch on Disabled.");
+
+            //issue "shutdown" command,From [Switch On Disabled] to [Ready to Switch On].
+            //shutdown:bit7=0,bit3=x,bit2=1,bit1=1,bit0=0.
+            //0000,0000,0000,0110=0x0006.
+            cmd=0x0006;
+        }else if((s1&0x006F)==0x0021)
+        {
+            //we conly concern bit6,bit3,bit2,bit1,bit0 in Ready to switch on,
+            //so we use 0000,0000,0110,1111=0x6F as the bit mask.
+
+            //xxxx,xxxx,x01x,0001=0x0021,Ready to switch on.
+            emit this->ZSigLog(false,"slave(1) in Ready to switch on.");
+            cmd=0x0007;
+        }else if((s1&0x006F)==0x0023)
+        {
+            //we conly concern bit6,bit5,bit3,bit2,bit1,bit0 in Switch on,
+            //so we use 0000,0000,0110,1111=0x006F as the bit mask.
+
+            //xxxx,xxxx,x01x,0011=0x0023,Switch on.
+            emit this->ZSigLog(false,"slave(1) in Switch on.");
+            cmd=0x000F;
+        }else if((s1&0x006F)==0x0027)
+        {
+            int iCurrentPos;
+            //we conly concern bit6,bit5,bit3,bit2,bit1,bit0 in Operation Enabled,
+            //so we use 0000,0000,0110,1111=0x006F as the bit mask.
+
+            //xxxx,xxxx,x01x,0111=0x0027,Operation Enabled.
+            //emit this->ZSigLog(false,"slave(0) in Operation Enabled.");
+            cmd=0x001F;
+
+            //read position actual value.
+            iCurrentPos=EC_READ_S32(domainOut_pd + offsetPosActVal[1]);
+            //iTargetPos=iCurrentPos+1000;//set target positon.
+            EC_WRITE_S32(domainIn_pd+offsetTarPos[1],gGblPara.m_iSlave1TarPos);
+
+            //read related PDOs.
+            int iPosActVal=EC_READ_S32(domainOut_pd + offsetPosActVal[1]);
+            int iPosErr=EC_READ_S32(domainOut_pd + offsetPosError[1]);
+            int iActVel=EC_READ_S32(domainOut_pd + offsetActVel[1]);
+            int iTorActVal=EC_READ_S32(domainOut_pd + offsetTorActVal[1]);
+            //qDebug("%d,%d,%d,%d\n",iPosActVal,iPosErr,iActVel,iTorActVal);
+            qDebug("%d -> %d , diff=%d\n",iCurrentPos,gGblPara.m_iSlave1TarPos,gGblPara.m_iSlave1TarPos-iCurrentPos);
+            emit this->ZSigPDO(1,iPosActVal,gGblPara.m_iSlave1TarPos,iActVel);
+        }else{
+            //0x0100:0000,0001,0000,0000
+            //bit8:Set if the last trajectory was aborted rather than finishing normally.
+            if(s1&0x0100)
+            {
+                emit this->ZSigLog(true,"slave(1):the last trajectory was aborted rather than finishing normally.");
+            }
+            //0x0800:0000,1000,0000,0000
+            //bit11:Internal Limit Active.
+            //This bit is set when one of the amplifier limits(current,voltage,velocity or position) is active.
+            if(s1&0x0800)
+            {
+                emit this->ZSigLog(true,"slave(1):Internal Limit Active.");
+            }
+
+            //Fault.
+            //bit7:Reset Fault.
+            //A low-to-high transition of this bit makes the amplifier attemp to clear any latched fault condition.
+            cmd=0x0080;
+        }
+        EC_WRITE_U16(domainIn_pd+offsetCtrlWord[1],cmd);
     }
         break;
     case FSM_IdleStatus:
