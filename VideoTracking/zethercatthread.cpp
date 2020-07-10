@@ -38,11 +38,11 @@ enum{
     FSM_Power_On,
     FSM_SafeOp,
     FSM_Homing,
-    FSM_CheckHoming,
+    FSM_CheckHomingAttained,
     FSM_RunPV,
-    FSM_ConfigSlave,
-    FSM_CheckStatus,
-    FSM_DoMove,
+    FSM_CfgCSP,
+    FSM_CheckCSP,
+    FSM_RunCSP,
     FSM_IdleStatus,
 };
 int g_SysFSM=FSM_Power_On;
@@ -223,9 +223,8 @@ void print_bits_splitter(int bits)
     }
     printf("< %s >",bitsBuffer);
 }
-void cyclic_task()
+void ZEtherCATThread::ZDoCyclicTask()
 {
-    static int iReverFlag=0;
     static int i00TarPos=0,i01TarPos=0;
     static int cycle_counter=0;
     cycle_counter++;
@@ -268,7 +267,7 @@ void cyclic_task()
                 //master in OP mode and all slaves are in OP mode.
                 //change to next FSM.
                 g_SysFSM=FSM_Homing;
-                qDebug()<<"FSM --->>> FSM_Homing";
+                emit this->ZSigLog(false,"FSM --->>> FSM_Homing");
             }
         }
         break;
@@ -335,11 +334,11 @@ void cyclic_task()
         EC_WRITE_U16(domainOutput_pd+offsetCtrlWord[0],0x1F);
         EC_WRITE_U16(domainOutput_pd+offsetCtrlWord[1],0x1F);
 
-        g_SysFSM=FSM_CheckHoming;
-        qDebug()<<"FSM --->>> FSM_CheckHoming";
+        g_SysFSM=FSM_CheckHomingAttained;
+        emit this->ZSigLog(false,"FSM --->>> FSM_CheckHomingAttained");
     }
         break;
-    case FSM_CheckHoming:
+    case FSM_CheckHomingAttained:
     {
         bool bS0HomingOk=false,bS1HomingOk=false;
         uint16_t s0,s1;
@@ -351,27 +350,26 @@ void cyclic_task()
         if(s0&(0x1<<12)  && (s0&(0x1<<13))==0)
         {
             bS0HomingOk=true;
-            qDebug("slave(0): Homing attained without error(0x%x).\n",s0);
+            emit this->ZSigLog(false,QString("slave(0): Homing attained."));
         }
         //check slave1 status word.
         s1=EC_READ_U16(domainInput_pd+offsetStatusWord[1]);
         if(s1&(0x1<<12)  && (s1&(0x1<<13))==0)
         {
             bS1HomingOk=true;
-            qDebug("slave(1): Homing attained without error(0x%x).\n",s1);
+            emit this->ZSigLog(false,QString("slave(1): Homing attained."));
         }
 
         if(bS0HomingOk && bS1HomingOk)
         {
-            //g_SysFSM=FSM_ConfigSlave;
-            g_SysFSM=FSM_RunPV;
-            qDebug()<<"FSM --->>> FSM_RunPV";
+            g_SysFSM=FSM_CfgCSP;
+            //g_SysFSM=FSM_RunPV;
+            emit this->ZSigLog(false,"FSM --->>> FSM_CfgCSP");
         }
     }
         break;
     case FSM_RunPV:
     {
-
         //Mode of Operation.
         //(0x6060,0)=3,Profile Velocity mode.
         ecrt_slave_config_sdo8(sc_copley[0],0x6060,0,3);
@@ -428,7 +426,7 @@ void cyclic_task()
 #endif
     }
         break;
-    case FSM_ConfigSlave:
+    case FSM_CfgCSP:
         //Mode of Operation.
         //(0x6060,0)=8 CSP:Cyclic Synchronous Position mode
         ecrt_slave_config_sdo8(sc_copley[0],0x6060,0,8);
@@ -449,12 +447,12 @@ void cyclic_task()
         //read PositionActualValue(0x6063,int32) from slave0.
         i00TarPos=EC_READ_S32(domainInput_pd+offsetPosActVal[0]);
         EC_WRITE_S32(domainOutput_pd+offsetTarPos[0],i00TarPos);
-        printf("slave(0): sync PositionActualValue to TargetPosition:%d\n",i00TarPos);
+        //printf("slave(0): sync PositionActualValue to TargetPosition:%d\n",i00TarPos);
 
         //read PositionActualValue(0x6063,int32) from slave1.
         i01TarPos=EC_READ_S32(domainInput_pd+offsetPosActVal[1]);
         EC_WRITE_S32(domainOutput_pd+offsetTarPos[1],i01TarPos);
-        printf("slave(1): sync PositionActualValue to TargetPosition:%d\n",i01TarPos);
+        //printf("slave(1): sync PositionActualValue to TargetPosition:%d\n",i01TarPos);
 
 
         //0x0006=0000,0000,0000,0110.
@@ -478,10 +476,10 @@ void cyclic_task()
         EC_WRITE_U16(domainOutput_pd+offsetCtrlWord[0],0x0F);
         EC_WRITE_U16(domainOutput_pd+offsetCtrlWord[1],0x0F);
 
-        g_SysFSM=FSM_CheckStatus;
-        qDebug()<<"FSM --->>> FSM_CheckStatus";
+        g_SysFSM=FSM_CheckCSP;
+        emit this->ZSigLog(false,"FSM --->>> FSM_CheckCSP");
         break;
-    case FSM_CheckStatus:
+    case FSM_CheckCSP:
     {
         //Status Word(0x6041)
         //0x0004:0000,0000,0000,0100
@@ -498,14 +496,14 @@ void cyclic_task()
             //bit8:Set if the last trajectory was aborted rather than finishing normally.
             if(s0&0x0100)
             {
-                qDebug()<<"slave(0):the last trajectory was aborted rather than finishing normally.";
+                emit this->ZSigLog(true,"slave(0):the last trajectory was aborted rather than finishing normally.");
             }
             //0x0800:0000,1000,0000,0000
             //bit11:Internal Limit Active.
             //This bit is set when one of the amplifier limits(current,voltage,velocity or position) is active.
             if(s0&0x0800)
             {
-                qDebug()<<"slave(0):Internal Limit Active.";
+                emit this->ZSigLog(true,"slave(0):Internal Limit Active.");
             }
         }
         //check slave1 status word.
@@ -518,14 +516,14 @@ void cyclic_task()
             //bit8:Set if the last trajectory was aborted rather than finishing normally.
             if(s1&0x0100)
             {
-                qDebug()<<"slave(1):the last trajectory was aborted rather than finishing normally.";
+                emit this->ZSigLog(true,"slave(1):the last trajectory was aborted rather than finishing normally.");
             }
             //0x0800:0000,1000,0000,0000
             //bit11:Internal Limit Active.
             //This bit is set when one of the amplifier limits(current,voltage,velocity or position) is active.
             if(s1&0x0800)
             {
-                qDebug()<<"slave(1):Internal Limit Active.";
+                emit this->ZSigLog(true,"slave(1):Internal Limit Active.");
             }
         }
         //re-init slaves whatever which slave has fault.
@@ -533,15 +531,15 @@ void cyclic_task()
         {
             qDebug()<<"5s re-config slaves!";
             usleep(1000*1000*5);
-            g_SysFSM=FSM_ConfigSlave;
+            g_SysFSM=FSM_CfgCSP;
         }else{
             //all slaves status word are okay.
-            g_SysFSM=FSM_DoMove;
-            qDebug()<<"FSM --->>> FSM_DoMove";
+            g_SysFSM=FSM_RunCSP;
+            emit this->ZSigLog(false,"FSM --->>> FSM_RunCSP");
         }
     }
         break;
-    case FSM_DoMove:
+    case FSM_RunCSP:
     {
         if(!(cycle_counter%100))
         {
@@ -612,169 +610,179 @@ void cyclic_task()
     ecrt_domain_queue(domainInput);
     ecrt_master_send(master);
 }
-int g_do_init()
-{
-    g_SysFSM=FSM_Power_On;
-    //Lock memory.(will faile if we are not root).
-#if 0
-    if(mlockall( MCL_CURRENT|MCL_FUTURE )==-1)
-    {
-        perror("mlockall failed");
-        return -1;
-    }
-#endif
-
-    //Requests an EtherCAT master for realtime operation.
-    master=ecrt_request_master(0);
-    if(!master)
-    {
-        printf("error:failed to request master 0!\n");
-        return -1;
-    }
-    printf("request master 0 okay.\n");
-
-    for(int i=0;i<2;i++)
-    {
-        ec_slave_info_t scInfo;
-        if(ecrt_master_get_slave(master,i,&scInfo)==0)
-        {
-            printf("slave(%d):%x,%x,%s\n",i,scInfo.vendor_id,scInfo.product_code,scInfo.name);
-        }
-    }
-
-    //Creates a new process data domain.
-    //For process data exchange, at least one process data domain is needed.
-    //This method creates a new process data domain and returns a pointer to the new domain object.
-    //This object can be used for registering PDOs and exchanging them in cyclic operation.
-    domainInput=ecrt_master_create_domain(master);
-    domainOutput=ecrt_master_create_domain(master);
-    if(!domainInput || !domainOutput)
-    {
-        printf("error:failed to create domain Input/Output!\n");
-        return -1;
-    }
-    printf("create domain okay.\n");
-
-    //Obtains a slave configuration.
-    //If the slave with the given address is found during the bus configuration,
-    //its vendor ID and product code are matched against the given value.
-    //On mismatch, the slave is not configured and an error message is raised.
-    if(!(sc_copley[0]=ecrt_master_slave_config(master,CopleySlavePos,Copley_VID_PID)))
-    {
-        printf("error:failed to get slave configuration for Copley-0.\n");
-        return -1;
-    }
-    if(!(sc_copley[1]=ecrt_master_slave_config(master,CopleySlavePos2,Copley_VID_PID)))
-    {
-        printf("error:failed to get slave configuration for Copley-1.\n");
-        return -1;
-    }
-    printf("get slave configuration okay!\n");
-
-    //Specify a complete PDO configuration.
-    //This function is a convenience wrapper for the functions
-    //ecrt_slave_config_sync_manager(), ecrt_slave_config_pdo_assign_clear(),
-    //ecrt_slave_config_pdo_assign_add(), ecrt_slave_config_pdo_mapping_clear()
-    //and ecrt_slave_config_pdo_mapping_add(), that are better suitable for
-    //automatic code generation.
-    printf("Configuring PDOs...\n");
-    if(ecrt_slave_config_pdos(sc_copley[0],EC_END,copley_syncs))
-    {
-        printf("error:failed to configure Copley PDOs.\n" );
-        return -1;
-    }
-    if(ecrt_slave_config_pdos(sc_copley[1],EC_END,copley_syncs))
-    {
-        printf("error:failed to configure Copley PDOs.\n" );
-        return -1;
-    }
-    printf("configure PDOs done.\n");
-
-    if(ecrt_domain_reg_pdo_entry_list(domainInput,domainInput_regs))
-    {
-        printf("error:PDO entry registration failed!\n" );
-        return -1;
-    }
-    if(ecrt_domain_reg_pdo_entry_list(domainOutput,domainOutput_regs))
-    {
-        printf("error:PDO entry registration failed!\n" );
-        return -1;
-    }
-    printf("PDO entry registration done.\n");
-
-    printf("Creating SDO request...\n");
-    //    //Mode of Operation.
-    //    //(0x6060,0)=8 CSP:Cyclic Synchronous Position mode
-    //    ecrt_slave_config_sdo8(sc_copley[0],0x6060,0,8);
-    //    ecrt_slave_config_sdo8(sc_copley[0],0x60c2,1,1);
-
-    //    ecrt_slave_config_sdo8(sc_copley[1],0x6060,0,8);
-    //    ecrt_slave_config_sdo8(sc_copley[1],0x60c2,1,1);
-
-
-    //Finishes the configuration phase and prepares for cyclic operation.
-    //This function tells the master that the configuration phase is finished and the realtime operation will begin.
-    //The function allocates internal memory for the domains and calculates the logical FMMU addresses for domain members.
-    //It tells the master state machine that the bus configuration is now to be applied.
-    printf("Activating master...\n");
-    if(ecrt_master_activate(master))
-    {
-        printf("error:failed to activate master!\n");
-        return -1;
-    }
-    printf("master activated.\n");
-
-    // Returns the domain's process data.
-    if(!(domainInput_pd=ecrt_domain_data(domainInput)))
-    {
-        printf("error:domain data error!\n");
-        return -1;
-    }
-    if(!(domainOutput_pd=ecrt_domain_data(domainOutput)))
-    {
-        printf("error:domain data error!\n");
-        return -1;
-    }
-
-    g_SysFSM=FSM_SafeOp;
-    return 0;
-}
-void g_do_uninit()
-{
-    ecrt_release_master(master);
-    master=NULL;
-    munlockall();
-}
 ZEtherCATThread::ZEtherCATThread()
 {
 
 }
 void ZEtherCATThread::run()
 {
-    if(g_do_init()<0)
-    {
-        return;
-    }
-    while(!gGblPara.m_bExitFlag)
-    {
-        if(1/*gGblPara.m_iSlavesEnBitMask!=0*/)
+    int iThreadExitCode=0;
+    do{
+        g_SysFSM=FSM_Power_On;
+        //Lock memory.(will faile if we are not root).
+#if 0
+        if(mlockall( MCL_CURRENT|MCL_FUTURE )==-1)
         {
-            //1000us=1ms.
-            //usleep(1000000/TASK_FREQUENCY);
-            //if the time is less, the motor has no time to run.
-            //so we set the time longer to wait for the motor executed the previous command.
-            usleep(3000);
-            //usleep(8000);
-            //usleep(10000);
-            //usleep(20000);
-            cyclic_task();
-
-            emit this->ZSigPDO(0,gActPosition,gTarPosition,gActVelocity,gStatusWord);
-            emit this->ZSigPDO(1,gActPosition2,gTarPosition2,gActVelocity2,gStatusWord2);
-        }else{
-            usleep(1000*1000);
+            perror("mlockall failed");
+            return -1;
         }
+#endif
+
+        //Requests an EtherCAT master for realtime operation.
+        master=ecrt_request_master(0);
+        if(!master)
+        {
+            emit this->ZSigLog(true,"failed to request master(0).");
+            iThreadExitCode=-1;
+            break;
+        }
+        emit this->ZSigLog(false,"request master(0) okay.");
+
+        for(int i=0;i<2;i++)
+        {
+            ec_slave_info_t scInfo;
+            if(ecrt_master_get_slave(master,i,&scInfo)==0)
+            {
+                char buffer[256];
+                sprintf(buffer,"find slave(%d):0x%x,0x%x,%s.",i,scInfo.vendor_id,scInfo.product_code,scInfo.name);
+                emit this->ZSigLog(false,QString(buffer));
+            }
+        }
+
+        //Creates a new process data domain.
+        //For process data exchange, at least one process data domain is needed.
+        //This method creates a new process data domain and returns a pointer to the new domain object.
+        //This object can be used for registering PDOs and exchanging them in cyclic operation.
+        domainInput=ecrt_master_create_domain(master);
+        domainOutput=ecrt_master_create_domain(master);
+        if(!domainInput || !domainOutput)
+        {
+            emit this->ZSigLog(true,"failed to create domain Input/Output!");
+            iThreadExitCode=-1;
+            break;
+        }
+        emit this->ZSigLog(false,"create domain okay.");
+
+        //Obtains a slave configuration.
+        //If the slave with the given address is found during the bus configuration,
+        //its vendor ID and product code are matched against the given value.
+        //On mismatch, the slave is not configured and an error message is raised.
+        if(!(sc_copley[0]=ecrt_master_slave_config(master,CopleySlavePos,Copley_VID_PID)))
+        {
+            emit this->ZSigLog(true,"failed to get slave(0) configuration.");
+            iThreadExitCode=-1;
+            break;
+        }
+        if(!(sc_copley[1]=ecrt_master_slave_config(master,CopleySlavePos2,Copley_VID_PID)))
+        {
+            emit this->ZSigLog(true,"failed to get slave(1) configuration.");
+            iThreadExitCode=-1;
+            break;
+        }
+        emit this->ZSigLog(false,"get 2 slaves configuration okay!");
+
+        //Specify a complete PDO configuration.
+        //This function is a convenience wrapper for the functions
+        //ecrt_slave_config_sync_manager(), ecrt_slave_config_pdo_assign_clear(),
+        //ecrt_slave_config_pdo_assign_add(), ecrt_slave_config_pdo_mapping_clear()
+        //and ecrt_slave_config_pdo_mapping_add(), that are better suitable for
+        //automatic code generation.
+        emit this->ZSigLog(false,"configuring PDOs...");
+        if(ecrt_slave_config_pdos(sc_copley[0],EC_END,copley_syncs))
+        {
+            emit this->ZSigLog(true,"failed to configure slave(0) PDOs.");
+            iThreadExitCode=-1;
+            break;
+        }
+        if(ecrt_slave_config_pdos(sc_copley[1],EC_END,copley_syncs))
+        {
+            emit this->ZSigLog(true,"failed to configure slave(1) PDOs.");
+            iThreadExitCode=-1;
+            break;
+        }
+        emit this->ZSigLog(false,"configuring PDOs done.");
+
+        if(ecrt_domain_reg_pdo_entry_list(domainInput,domainInput_regs))
+        {
+            emit this->ZSigLog(true,"failed to register domain Input.");
+            iThreadExitCode=-1;
+            break;
+        }
+        if(ecrt_domain_reg_pdo_entry_list(domainOutput,domainOutput_regs))
+        {
+            emit this->ZSigLog(true,"failed to register domain Output.");
+            iThreadExitCode=-1;
+            break;
+        }
+        emit this->ZSigLog(false,"PDO(s) entry registration done.");
+
+        //printf("Creating SDO request...\n");
+        //    //Mode of Operation.
+        //    //(0x6060,0)=8 CSP:Cyclic Synchronous Position mode
+        //    ecrt_slave_config_sdo8(sc_copley[0],0x6060,0,8);
+        //    ecrt_slave_config_sdo8(sc_copley[0],0x60c2,1,1);
+
+        //    ecrt_slave_config_sdo8(sc_copley[1],0x6060,0,8);
+        //    ecrt_slave_config_sdo8(sc_copley[1],0x60c2,1,1);
+
+
+        //Finishes the configuration phase and prepares for cyclic operation.
+        //This function tells the master that the configuration phase is finished and the realtime operation will begin.
+        //The function allocates internal memory for the domains and calculates the logical FMMU addresses for domain members.
+        //It tells the master state machine that the bus configuration is now to be applied.
+        if(ecrt_master_activate(master))
+        {
+            emit this->ZSigLog(false,"failed to activate master!");
+            iThreadExitCode=-1;
+            break;
+        }
+        emit this->ZSigLog(false,"master activated.");
+
+        // Returns the domain's process data.
+        if(!(domainInput_pd=ecrt_domain_data(domainInput)))
+        {
+            emit this->ZSigLog(false,"get input domain data error!");
+            iThreadExitCode=-1;
+            break;
+        }
+        if(!(domainOutput_pd=ecrt_domain_data(domainOutput)))
+        {
+            emit this->ZSigLog(false,"get output domain data error!");
+            iThreadExitCode=-1;
+            break;
+        }
+
+        g_SysFSM=FSM_SafeOp;
+
+        while(!gGblPara.m_bExitFlag)
+        {
+            if(1/*gGblPara.m_iSlavesEnBitMask!=0*/)
+            {
+                //1000us=1ms.
+                //usleep(1000000/TASK_FREQUENCY);
+                //if the time is less, the motor has no time to run.
+                //so we set the time longer to wait for the motor executed the previous command.
+                usleep(3000);
+                //usleep(8000);
+                //usleep(10000);
+                //usleep(20000);
+                this->ZDoCyclicTask();
+
+                emit this->ZSigPDO(0,gActPosition,gTarPosition,gActVelocity,gStatusWord);
+                emit this->ZSigPDO(1,gActPosition2,gTarPosition2,gActVelocity2,gStatusWord2);
+            }else{
+                usleep(1000*1000);
+            }
+        }
+        ecrt_release_master(master);
+        master=NULL;
+        munlockall();
+    }while(0);
+    if(iThreadExitCode<0)
+    {
+        emit this->ZSigLog(true,QString("EtherCAT thread exit with %1.").arg(iThreadExitCode));
+    }else{
+        emit this->ZSigLog(false,QString("EtherCAT thread exit with %1.").arg(iThreadExitCode));
     }
-    g_do_uninit();
     return;
 }

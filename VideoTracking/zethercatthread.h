@@ -12,8 +12,10 @@ protected:
     void run();
 signals:
     void ZSigPDO(qint32 iSlave,qint32 iActPos,qint32 iTarPos,qint32 iActVel,qint32 iStatusWord);
+signals:
+    void ZSigLog(bool bErrFlag,QString log);
 private:
-
+    void ZDoCyclicTask();
 };
 
 #endif // ZETHERCATTHREAD_H

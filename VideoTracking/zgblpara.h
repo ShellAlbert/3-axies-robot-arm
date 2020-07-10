@@ -29,4 +29,5 @@ extern ZGblPara gGblPara;
 #include <opencv2/opencv.hpp>
 #include <opencv2/highgui.hpp>
 extern QImage cvMat2QImage(const cv::Mat &mat);
+
 #endif // ZGBLPARA_H

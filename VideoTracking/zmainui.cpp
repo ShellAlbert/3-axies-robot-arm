@@ -35,6 +35,9 @@ ZMainUI::~ZMainUI()
     delete this->m_gLayoutRht;
     //the main.
     delete this->m_hLayoutMain;
+
+    delete this->m_teLog;
+    delete this->m_vLayoutMain;
 }
 bool ZMainUI::ZDoInit()
 {
@@ -113,7 +116,13 @@ bool ZMainUI::ZDoInit()
     this->m_hLayoutMain->addLayout(this->m_gLayoutLft);
     this->m_hLayoutMain->addStretch(1);
     this->m_hLayoutMain->addLayout(this->m_gLayoutRht);
-    this->setLayout(this->m_hLayoutMain);
+
+    this->m_teLog=new QTextEdit;
+    this->m_vLayoutMain=new QVBoxLayout;
+    this->m_vLayoutMain->addLayout(this->m_hLayoutMain);
+    this->m_vLayoutMain->addStretch(1);
+    this->m_vLayoutMain->addWidget(this->m_teLog);
+    this->setLayout(this->m_vLayoutMain);
 
     //make connections.
     QObject::connect(this->m_tbCtrlLR,SIGNAL(clicked(bool)),this,SLOT(ZSlotCtrlLR()));
@@ -236,4 +245,13 @@ void ZMainUI::ZSlotCtrlUD()
 //    }
 //    gGblPara.m_i00ActPos+=100;
     gGblPara.m_i01PosActVal-=100;
+}
+void ZMainUI::ZSlotLog(bool bErrFlag,QString log)
+{
+    if(bErrFlag)
+    {
+        this->m_teLog->append(QString("<ERR> :")+log);
+    }else{
+        this->m_teLog->append(QString("<INFO>:")+log);
+    }
 }

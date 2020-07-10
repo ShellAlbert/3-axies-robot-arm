@@ -5,6 +5,7 @@
 #include <QToolButton>
 #include <QLabel>
 #include <QLineEdit>
+#include <QTextEdit>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QImage>
@@ -22,7 +23,7 @@ public:
 public slots:
     void ZSlotUpdateImg(const QImage &img);
     void ZSlotPDO(qint32 iSlave,qint32 iActPos,qint32 iTarPos,qint32 iActVel,qint32 iStatusWord);
-
+    void ZSlotLog(bool bErrFlag,QString log);
 public slots:
     void ZSlotCtrlLR();
     void ZSlotCtrlUD();
@@ -63,6 +64,9 @@ private:
 
     //the main layout.
     QHBoxLayout *m_hLayoutMain;
+
+    QTextEdit *m_teLog;
+    QVBoxLayout *m_vLayoutMain;
 
 private:
     QImage m_img;
