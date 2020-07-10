@@ -477,53 +477,14 @@ void ZEtherCATThread::ZDoCyclicTask()
         //setup "Mode of Operation" via SDO.
         //(0x6060,0)=8 CSP:Cyclic Synchronous Position mode
         ecrt_slave_config_sdo8(sc_copley[0],0x6060,0,8);
-        ecrt_slave_config_sdo8(sc_copley[0],0x60c2,1,1);
+        //ecrt_slave_config_sdo8(sc_copley[0],0x60c2,1,100);
 
         ecrt_slave_config_sdo8(sc_copley[1],0x6060,0,8);
-        ecrt_slave_config_sdo8(sc_copley[1],0x60c2,1,1);
+        //ecrt_slave_config_sdo8(sc_copley[1],0x60c2,1,1);
 
-#if 0
-        //Control Word(0x6040)
-        //15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0
-        //0 ,0 ,0 ,0 ,0 ,0 ,0,0,1,0,0,0,0,0,0,0
-        //bit7=1.
-        //Reset Fault.
-        //A low-to-high transition of this bit makes the amplifier attempt to clear any latched fault condition.
-        EC_WRITE_U16(domainOutput_pd+offsetCtrlWord[0],0x0080);
-        EC_WRITE_U16(domainOutput_pd+offsetCtrlWord[1],0x0080);
+        //read position actual value.
+        gGblPara.m_iSlave0TarPos=EC_READ_S32(domainOut_pd + offsetPosActVal[0]);
 
-        //read PositionActualValue(0x6063,int32) from slave0.
-        i00TarPos=EC_READ_S32(domainInput_pd+offsetPosActVal[0]);
-        EC_WRITE_S32(domainOutput_pd+offsetTarPos[0],i00TarPos);
-        //printf("slave(0): sync PositionActualValue to TargetPosition:%d\n",i00TarPos);
-
-        //read PositionActualValue(0x6063,int32) from slave1.
-        i01TarPos=EC_READ_S32(domainInput_pd+offsetPosActVal[1]);
-        EC_WRITE_S32(domainOutput_pd+offsetTarPos[1],i01TarPos);
-        //printf("slave(1): sync PositionActualValue to TargetPosition:%d\n",i01TarPos);
-
-
-        //0x0006=0000,0000,0000,0110.
-        //bit1:Enable Voltage.This bit must be set to enable the amplifier.
-        //bit2:Quick Stop. If this bit is clear,then the amplifier is commanded to perform a quick stop.
-        EC_WRITE_U16(domainOutput_pd+offsetCtrlWord[0],0x06);
-        EC_WRITE_U16(domainOutput_pd+offsetCtrlWord[1],0x06);
-
-        //0x0007=0000,0000,0000,0111.
-        //bit0:Switch On.This bit must be set to enable the amplifier.
-        //bit1:Enable Voltage.This bit must be set to enable the amplifier.
-        //bit2:Quick Stop. If this bit is clear,then the amplifier is commanded to perform a quick stop.
-        EC_WRITE_U16(domainOutput_pd+offsetCtrlWord[0],0x07);
-        EC_WRITE_U16(domainOutput_pd+offsetCtrlWord[1],0x07);
-
-        //0x000F=0000,0000,0000,1111.
-        //bit0:Switch On.This bit must be set to enable the amplifier.
-        //bit1:Enable Voltage.This bit must be set to enable the amplifier.
-        //bit2:Quick Stop. If this bit is clear,then the amplifier is commanded to perform a quick stop.
-        //bit3:Enable Operation.This bit must be set to enable the amplifier.
-        EC_WRITE_U16(domainOutput_pd+offsetCtrlWord[0],0x0F);
-        EC_WRITE_U16(domainOutput_pd+offsetCtrlWord[1],0x0F);
-#endif
         g_SysFSM=FSM_RunCSP;
         emit this->ZSigLog(false,"FSM --->>> FSM_RunCSP");
         break;
@@ -536,7 +497,7 @@ void ZEtherCATThread::ZDoCyclicTask()
         //bit6,bit5,bit3,bit2,bit1,bit0:determine the current states.
         s0=EC_READ_U16(domainOut_pd+offsetStatusWord[0]);
         s1=EC_READ_U16(domainOut_pd+offsetStatusWord[1]);
-        qDebug("s0: 0x%x, s1: 0x%x\n",s0,s1);
+        //qDebug("s0: 0x%x, s1: 0x%x\n",s0,s1);
 
         if((s0&0x004F)==0x0040)
         {
@@ -573,20 +534,23 @@ void ZEtherCATThread::ZDoCyclicTask()
             //so we use 0000,0000,0110,1111=0x006F as the bit mask.
 
             //xxxx,xxxx,x01x,0111=0x0027,Operation Enabled.
-            emit this->ZSigLog(false,"slave(0) in Operation Enabled.");
+            //emit this->ZSigLog(false,"slave(0) in Operation Enabled.");
             cmd=0x001F;
 
             //read position actual value.
             iCurrentPos=EC_READ_S32(domainOut_pd + offsetPosActVal[0]);
-            iTargetPos=iCurrentPos+1000;//set target positon.
-            EC_WRITE_S32(domainIn_pd+offsetTarPos[0],iTargetPos);
+            //iTargetPos=iCurrentPos+1000;//set target positon.
+            EC_WRITE_S32(domainIn_pd+offsetTarPos[0],gGblPara.m_iSlave0TarPos);
 
             //read related PDOs.
             int iPosActVal=EC_READ_S32(domainOut_pd + offsetPosActVal[0]);
             int iPosErr=EC_READ_S32(domainOut_pd + offsetPosError[0]);
             int iActVel=EC_READ_S32(domainOut_pd + offsetActVel[0]);
             int iTorActVal=EC_READ_S32(domainOut_pd + offsetTorActVal[0]);
-            qDebug("%d,%d,%d,%d\n",iPosActVal,iPosErr,iActVel,iTorActVal);
+            //qDebug("%d,%d,%d,%d\n",iPosActVal,iPosErr,iActVel,iTorActVal);
+            qDebug("%d -> %d , diff=%d\n",iCurrentPos,gGblPara.m_iSlave0TarPos,gGblPara.m_iSlave0TarPos-iCurrentPos);
+            emit this->ZSigPDO(0,iPosActVal,gGblPara.m_iSlave0TarPos,iActVel);
+            //emit this->ZSigPDO(1,gActPosition2,gTarPosition2,gActVelocity2);
         }else{
             //0x0100:0000,0001,0000,0000
             //bit8:Set if the last trajectory was aborted rather than finishing normally.
@@ -773,9 +737,6 @@ void ZEtherCATThread::run()
                 //usleep(10000);
                 //usleep(20000);
                 this->ZDoCyclicTask();
-
-                emit this->ZSigPDO(0,gActPosition,gTarPosition,gActVelocity,gStatusWord);
-                emit this->ZSigPDO(1,gActPosition2,gTarPosition2,gActVelocity2,gStatusWord2);
             }else{
                 usleep(1000*1000);
             }

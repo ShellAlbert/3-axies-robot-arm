@@ -9,124 +9,141 @@ ZMainUI::ZMainUI(QWidget *parent)
 
 ZMainUI::~ZMainUI()
 {
-    //Left right direction.
-    delete this->m_tbCtrlLR;
-    delete this->m_llActVelLR;
-    delete this->m_leActVelLR;
+    //left,right,up,down control.
+    delete this->m_tbMoveLft;
+    delete this->m_tbMoveRht;
+    delete this->m_tbMoveUp;
+    delete this->m_tbMoveDn;
+    delete this->m_gLayoutMove;
 
-    delete this->m_llActPosLR;
-    delete this->m_leActPosLR;
+    //slave 0 Position Actual Value.
+    delete this->m_llS0PosActVal;
+    delete this->m_leS0PosActVal;
+    //slave 0 Target Position.
+    delete this->m_llS0TarPos;
+    delete this->m_leS0TarPos;
+    //slave 0 Actual Velocity.
+    delete this->m_llS0ActVel;
+    delete this->m_leS0ActVel;
 
-    delete this->m_llTarPosLR;
-    delete this->m_leTarPosLR;
+    //slave 1 Position Actual Value.
+    delete this->m_llS1PosActVal;
+    delete this->m_leS1PosActVal;
+    //slave 1 Target Position.
+    delete this->m_llS1TarPos;
+    delete this->m_leS1TarPos;
+    //slave 1 Actual Velocity.
+    delete this->m_llS1ActVel;
+    delete this->m_leS1ActVel;
 
-    delete this->m_gLayoutLft;
-    //Up Down direction.
-    delete this->m_tbCtrlUD;
-    delete this->m_llActVelUD;
-    delete this->m_leActVelUD;
+    delete this->m_gLayLft;
 
-    delete this->m_llActPosUD;
-    delete this->m_leActPosUD;
+    //the main layout.
+    delete this->m_hLayoutTop;
 
-    delete this->m_llTarPosUD;
-    delete this->m_leTarPosUD;
-
-    delete this->m_gLayoutRht;
-    //the main.
-    delete this->m_hLayoutMain;
-
+    //the main layout.
     delete this->m_teLog;
     delete this->m_vLayoutMain;
 }
 bool ZMainUI::ZDoInit()
 {
-    //left part: left right direction servo motor.
-    this->m_tbCtrlLR=new QToolButton;
-    this->m_tbCtrlLR->setText(tr("START"));
-    this->m_tbCtrlLR->setFocusPolicy(Qt::NoFocus);
+    //left,right,up,down control.
+    this->m_tbMoveLft=new QToolButton;
+    this->m_tbMoveLft->setText(tr("Left"));
+    this->m_tbMoveLft->setFocusPolicy(Qt::NoFocus);
 
-    this->m_llActVelLR=new QLabel;
-    this->m_llActVelLR->setText(tr("实际速度"));
-    this->m_leActVelLR=new QLineEdit;
-    this->m_leActVelLR->setFocusPolicy(Qt::NoFocus);
-    this->m_leActVelLR->setText("0");
+    this->m_tbMoveRht=new QToolButton;
+    this->m_tbMoveRht->setText(tr("Right"));
+    this->m_tbMoveRht->setFocusPolicy(Qt::NoFocus);
 
-    this->m_llActPosLR=new QLabel;
-    this->m_llActPosLR->setText(tr("当前位置"));
-    this->m_leActPosLR=new QLineEdit;
-    this->m_leActPosLR->setFocusPolicy(Qt::NoFocus);
-    this->m_leActPosLR->setText("0");
+    this->m_tbMoveUp=new QToolButton;
+    this->m_tbMoveUp->setText(tr("Up"));
+    this->m_tbMoveUp->setFocusPolicy(Qt::NoFocus);
 
-    this->m_llTarPosLR=new QLabel;
-    this->m_llTarPosLR->setText(tr("目标位置"));
-    this->m_leTarPosLR=new QLineEdit;
-    this->m_leTarPosLR->setFocusPolicy(Qt::NoFocus);
-    this->m_leTarPosLR->setText("0");
+    this->m_tbMoveDn=new QToolButton;
+    this->m_tbMoveDn->setText(tr("Down"));
+    this->m_tbMoveDn->setFocusPolicy(Qt::NoFocus);
 
-    this->m_gLayoutLft=new QGridLayout;
-    this->m_gLayoutLft->addWidget(this->m_tbCtrlLR,0,1,1,1);
+    this->m_gLayoutMove=new QGridLayout;
+    this->m_gLayoutMove->addWidget(this->m_tbMoveUp,0,1,1,1);
+    this->m_gLayoutMove->addWidget(this->m_tbMoveLft,1,0,1,1);
+    this->m_gLayoutMove->addWidget(this->m_tbMoveRht,1,2,1,1);
+    this->m_gLayoutMove->addWidget(this->m_tbMoveDn,2,1,1,1);
 
-    this->m_gLayoutLft->addWidget(this->m_llActVelLR,1,0,1,1);
-    this->m_gLayoutLft->addWidget(this->m_leActVelLR,1,1,1,1);
+    //slave 0 Position Actual Value.
+    this->m_llS0PosActVal=new QLabel(tr("CurPos"));
+    this->m_leS0PosActVal=new QLineEdit;
+    this->m_leS0PosActVal->setFocusPolicy(Qt::NoFocus);
+    this->m_leS0PosActVal->setText("0");
 
-    this->m_gLayoutLft->addWidget(this->m_llActPosLR,2,0,1,1);
-    this->m_gLayoutLft->addWidget(this->m_leActPosLR,2,1,1,1);
+    //slave 0 Target Position.
+    this->m_llS0TarPos=new QLabel(tr("TarPos"));
+    this->m_leS0TarPos=new QLineEdit;
+    this->m_leS0TarPos->setFocusPolicy(Qt::NoFocus);
+    this->m_leS0TarPos->setText("0");
 
-    this->m_gLayoutLft->addWidget(this->m_llTarPosLR,3,0,1,1);
-    this->m_gLayoutLft->addWidget(this->m_leTarPosLR,3,1,1,1);
+    //slave 0 Actual Velocity.
+    this->m_llS0ActVel=new QLabel(tr("ActVel"));
+    this->m_leS0ActVel=new QLineEdit;
+    this->m_leS0ActVel->setFocusPolicy(Qt::NoFocus);
+    this->m_leS0ActVel->setText("0");
 
-    //right part: up down direction servo motor.
-    this->m_tbCtrlUD=new QToolButton;
-    this->m_tbCtrlUD->setText(tr("START"));
-    this->m_tbCtrlUD->setFocusPolicy(Qt::NoFocus);
+    //slave 1 Position Actual Value.
+    this->m_llS1PosActVal=new QLabel(tr("CurPos"));
+    this->m_leS1PosActVal=new QLineEdit;
+    this->m_leS1PosActVal->setFocusPolicy(Qt::NoFocus);
+    this->m_leS1PosActVal->setText("0");
 
-    this->m_llActVelUD=new QLabel;
-    this->m_llActVelUD->setText(tr("实际速度"));
-    this->m_leActVelUD=new QLineEdit;
-    this->m_leActVelUD->setFocusPolicy(Qt::NoFocus);
-    this->m_leActVelUD->setText("0");
+    //slave 1 Target Position.
+    this->m_llS1TarPos=new QLabel(tr("TarPos"));
+    this->m_leS1TarPos=new QLineEdit;
+    this->m_leS1TarPos->setFocusPolicy(Qt::NoFocus);
+    this->m_leS1TarPos->setText("0");
 
-    this->m_llActPosUD=new QLabel;
-    this->m_llActPosUD->setText(tr("当前位置"));
-    this->m_leActPosUD=new QLineEdit;
-    this->m_leActPosUD->setFocusPolicy(Qt::NoFocus);
-    this->m_leActPosUD->setText("0");
+    //slave 1 Actual Velocity.
+    this->m_llS1ActVel=new QLabel(tr("ActVel"));
+    this->m_leS1ActVel=new QLineEdit;
+    this->m_leS1ActVel->setFocusPolicy(Qt::NoFocus);
+    this->m_leS1ActVel->setText("0");
 
-    this->m_llTarPosUD=new QLabel;
-    this->m_llTarPosUD->setText(tr("目标位置"));
-    this->m_leTarPosUD=new QLineEdit;
-    this->m_leTarPosUD->setFocusPolicy(Qt::NoFocus);
-    this->m_leTarPosUD->setText("0");
+    this->m_gLayLft=new QGridLayout;
+    this->m_gLayLft->addLayout(this->m_gLayoutMove,0,0,1,2);
+    this->m_gLayLft->addWidget(this->m_llS0PosActVal,1,0,1,1);
+    this->m_gLayLft->addWidget(this->m_leS0PosActVal,1,1,1,1);
 
-    this->m_gLayoutRht=new QGridLayout;
-    this->m_gLayoutRht->addWidget(this->m_tbCtrlUD,0,1,1,1);
+    this->m_gLayLft->addWidget(this->m_llS0TarPos,2,0,1,1);
+    this->m_gLayLft->addWidget(this->m_leS0TarPos,2,1,1,1);
 
-    this->m_gLayoutRht->addWidget(this->m_llActVelUD,1,0,1,1);
-    this->m_gLayoutRht->addWidget(this->m_leActVelUD,1,1,1,1);
+    this->m_gLayLft->addWidget(this->m_llS0ActVel,3,0,1,1);
+    this->m_gLayLft->addWidget(this->m_leS0ActVel,3,1,1,1);
 
-    this->m_gLayoutRht->addWidget(this->m_llActPosUD,2,0,1,1);
-    this->m_gLayoutRht->addWidget(this->m_leActPosUD,2,1,1,1);
+    this->m_gLayLft->addWidget(this->m_llS1PosActVal,4,0,1,1);
+    this->m_gLayLft->addWidget(this->m_leS1PosActVal,4,1,1,1);
 
-    this->m_gLayoutRht->addWidget(this->m_llTarPosUD,3,0,1,1);
-    this->m_gLayoutRht->addWidget(this->m_leTarPosUD,3,1,1,1);
+    this->m_gLayLft->addWidget(this->m_llS1TarPos,5,0,1,1);
+    this->m_gLayLft->addWidget(this->m_leS1TarPos,5,1,1,1);
+
+    this->m_gLayLft->addWidget(this->m_llS1ActVel,6,0,1,1);
+    this->m_gLayLft->addWidget(this->m_leS1ActVel,6,1,1,1);
+
+    //the layout top.
+    this->m_hLayoutTop=new QHBoxLayout;
+    this->m_hLayoutTop->addLayout(this->m_gLayLft);
+    this->m_hLayoutTop->addStretch(1);
 
     //the main layout.
-    this->m_hLayoutMain=new QHBoxLayout;
-    this->m_hLayoutMain->addLayout(this->m_gLayoutLft);
-    this->m_hLayoutMain->addStretch(1);
-    this->m_hLayoutMain->addLayout(this->m_gLayoutRht);
-
     this->m_teLog=new QTextEdit;
     this->m_vLayoutMain=new QVBoxLayout;
-    this->m_vLayoutMain->addLayout(this->m_hLayoutMain);
+    this->m_vLayoutMain->addLayout(this->m_hLayoutTop);
     this->m_vLayoutMain->addStretch(1);
     this->m_vLayoutMain->addWidget(this->m_teLog);
     this->setLayout(this->m_vLayoutMain);
 
     //make connections.
-    QObject::connect(this->m_tbCtrlLR,SIGNAL(clicked(bool)),this,SLOT(ZSlotCtrlLR()));
-    QObject::connect(this->m_tbCtrlUD,SIGNAL(clicked(bool)),this,SLOT(ZSlotCtrlUD()));
+    QObject::connect(this->m_tbMoveLft,SIGNAL(clicked(bool)),this,SLOT(ZSlotMoveToLeft()));
+    QObject::connect(this->m_tbMoveRht,SIGNAL(clicked(bool)),this,SLOT(ZSlotMoveToRight()));
+    QObject::connect(this->m_tbMoveUp,SIGNAL(clicked(bool)),this,SLOT(ZSlotMoveToUp()));
+    QObject::connect(this->m_tbMoveDn,SIGNAL(clicked(bool)),this,SLOT(ZSlotMoveToDown()));
     return true;
 }
 QSize ZMainUI::sizeHint() const
@@ -151,19 +168,19 @@ void ZMainUI::paintEvent(QPaintEvent *e)
 
     painter.drawImage(QRectF(0,0,this->width(),this->height()),this->m_img);
 }
-void ZMainUI::ZSlotPDO(qint32 iSlave,qint32 iActPos,qint32 iTarPos,qint32 iActVel,qint32 iStatusWord)
+void ZMainUI::ZSlotPDO(qint32 iSlave,qint32 iActPos,qint32 iTarPos,qint32 iActVel)
 {
     switch(iSlave)
     {
     case 0:
-        this->m_leActVelLR->setText(QString::number(iActVel));
-        this->m_leActPosLR->setText(QString::number(iActPos));
-        this->m_leTarPosLR->setText(QString::number(iTarPos));
+        this->m_leS0PosActVal->setText(QString::number(iActPos));
+        this->m_leS0TarPos->setText(QString::number(iTarPos));
+        this->m_leS0ActVel->setText(QString::number(iActVel));
         break;
     case 1:
-        this->m_leActVelUD->setText(QString::number(iActVel));
-        this->m_leActPosUD->setText(QString::number(iActPos));
-        this->m_leTarPosUD->setText(QString::number(iTarPos));
+        this->m_leS1PosActVal->setText(QString::number(iActPos));
+        this->m_leS1TarPos->setText(QString::number(iTarPos));
+        this->m_leS1ActVel->setText(QString::number(iActVel));
         break;
     default:
         break;
@@ -216,36 +233,7 @@ void ZMainUI::keyReleaseEvent(QKeyEvent *event)
     }
     QWidget::keyReleaseEvent(event);
 }
-void ZMainUI::ZSlotCtrlLR()
-{
-//    if((gGblPara.m_iSlavesEnBitMask&(0x1<<0))==0)
-//    {
-//        //set enabled flag.
-//        gGblPara.m_iSlavesEnBitMask|=(0x1<<0);
-//        this->m_tbCtrlLR->setText(tr("STOP"));
-//    }else{
-//        //set disabled flag.
-//        gGblPara.m_iSlavesEnBitMask&=~(0x1<<0);
-//        this->m_tbCtrlLR->setText(tr("START"));
-//    }
-//    gGblPara.m_i00ActPos-=100;
-    gGblPara.m_i00PosActVal-=100;
-}
-void ZMainUI::ZSlotCtrlUD()
-{
-//    if((gGblPara.m_iSlavesEnBitMask&(0x1<<1))==0)
-//    {
-//        //set enabled flag.
-//        gGblPara.m_iSlavesEnBitMask|=(0x1<<1);
-//        this->m_tbCtrlUD->setText(tr("STOP"));
-//    }else{
-//        //set disabled flag.
-//        gGblPara.m_iSlavesEnBitMask&=~(0x1<<1);
-//        this->m_tbCtrlUD->setText(tr("START"));
-//    }
-//    gGblPara.m_i00ActPos+=100;
-    gGblPara.m_i01PosActVal-=100;
-}
+
 void ZMainUI::ZSlotLog(bool bErrFlag,QString log)
 {
     if(bErrFlag)
@@ -254,4 +242,20 @@ void ZMainUI::ZSlotLog(bool bErrFlag,QString log)
     }else{
         this->m_teLog->append(QString("<INFO>:")+log);
     }
+}
+void ZMainUI::ZSlotMoveToLeft()
+{
+    gGblPara.m_iSlave0TarPos+=5000;
+}
+void ZMainUI::ZSlotMoveToRight()
+{
+    gGblPara.m_iSlave0TarPos-=5000;
+}
+void ZMainUI::ZSlotMoveToUp()
+{
+    gGblPara.m_iSlave1TarPos+=5000;
+}
+void ZMainUI::ZSlotMoveToDown()
+{
+    gGblPara.m_iSlave1TarPos-=5000;
 }

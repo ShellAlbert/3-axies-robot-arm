@@ -15,13 +15,11 @@ public:
     //enabled if bit was set,disabled if bit was clear.
     int m_iSlavesEnBitMask;
 
-    //0,0(slave 0), Actural Position, Target Position.
-    int m_i00PosActVal;
-    int m_i00TarPos;
+    //slave0 Target Position.
+    int m_iSlave0TarPos;
 
-    //0,1(slave 1), Actural Position, Target Position.
-    int m_i01PosActVal;
-    int m_i01TarPos;
+    //slave1 Target Position.
+    int m_iSlave1TarPos;
 };
 extern ZGblPara gGblPara;
 

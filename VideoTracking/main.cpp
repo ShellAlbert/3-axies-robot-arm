@@ -15,7 +15,7 @@ int main(int argc, char *argv[])
     ZMainUI win;
 
     QObject::connect(&proc1,SIGNAL(ZSigNewImg(QImage)),&win,SLOT(ZSlotUpdateImg(QImage)));
-    QObject::connect(&ecThread,SIGNAL(ZSigPDO(qint32,qint32,qint32,qint32,qint32)),&win,SLOT(ZSlotPDO(qint32,qint32,qint32,qint32,qint32)));
+    QObject::connect(&ecThread,SIGNAL(ZSigPDO(qint32,qint32,qint32,qint32)),&win,SLOT(ZSlotPDO(qint32,qint32,qint32,qint32)));
     QObject::connect(&ecThread,SIGNAL(ZSigLog(bool,QString)),&win,SLOT(ZSlotLog(bool,QString)));
     if(!win.ZDoInit())
     {

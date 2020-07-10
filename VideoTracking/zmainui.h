@@ -22,11 +22,13 @@ public:
     bool ZDoInit();
 public slots:
     void ZSlotUpdateImg(const QImage &img);
-    void ZSlotPDO(qint32 iSlave,qint32 iActPos,qint32 iTarPos,qint32 iActVel,qint32 iStatusWord);
+    void ZSlotPDO(qint32 iSlave,qint32 iActPos,qint32 iTarPos,qint32 iActVel);
     void ZSlotLog(bool bErrFlag,QString log);
 public slots:
-    void ZSlotCtrlLR();
-    void ZSlotCtrlUD();
+    void ZSlotMoveToLeft();
+    void ZSlotMoveToRight();
+    void ZSlotMoveToUp();
+    void ZSlotMoveToDown();
 protected:
     void paintEvent(QPaintEvent *e);
     void closeEvent(QCloseEvent *event);
@@ -34,37 +36,39 @@ protected:
     void keyReleaseEvent(QKeyEvent *event);
     QSize sizeHint() const;
 private:
-    //left part: Left Right direction servo motors.
-    QToolButton *m_tbCtrlLR;
+    //left,right,up,down control.
+    QToolButton *m_tbMoveLft;
+    QToolButton *m_tbMoveRht;
+    QToolButton *m_tbMoveUp;
+    QToolButton *m_tbMoveDn;
+    QGridLayout *m_gLayoutMove;
 
-    QLabel *m_llActVelLR;
-    QLineEdit *m_leActVelLR;
+    //slave 0 Position Actual Value.
+    QLabel *m_llS0PosActVal;
+    QLineEdit *m_leS0PosActVal;
+    //slave 0 Target Position.
+    QLabel *m_llS0TarPos;
+    QLineEdit *m_leS0TarPos;
+    //slave 0 Actual Velocity.
+    QLabel *m_llS0ActVel;
+    QLineEdit *m_leS0ActVel;
 
-    QLabel *m_llActPosLR;
-    QLineEdit *m_leActPosLR;
+    //slave 1 Position Actual Value.
+    QLabel *m_llS1PosActVal;
+    QLineEdit *m_leS1PosActVal;
+    //slave 1 Target Position.
+    QLabel *m_llS1TarPos;
+    QLineEdit *m_leS1TarPos;
+    //slave 1 Actual Velocity.
+    QLabel *m_llS1ActVel;
+    QLineEdit *m_leS1ActVel;
 
-    QLabel *m_llTarPosLR;
-    QLineEdit *m_leTarPosLR;
-
-    QGridLayout *m_gLayoutLft;
-
-    //right part: Up Down direction servo motors.
-    QToolButton *m_tbCtrlUD;
-
-    QLabel *m_llActVelUD;
-    QLineEdit *m_leActVelUD;
-
-    QLabel *m_llActPosUD;
-    QLineEdit *m_leActPosUD;
-
-    QLabel *m_llTarPosUD;
-    QLineEdit *m_leTarPosUD;
-
-    QGridLayout *m_gLayoutRht;
+    QGridLayout *m_gLayLft;
 
     //the main layout.
-    QHBoxLayout *m_hLayoutMain;
+    QHBoxLayout *m_hLayoutTop;
 
+    //the main layout.
     QTextEdit *m_teLog;
     QVBoxLayout *m_vLayoutMain;
 
