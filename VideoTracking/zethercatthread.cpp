@@ -493,7 +493,12 @@ void ZEtherCATThread::ZDoCyclicTask()
     {
         uint16_t cmd;
         uint16_t s0,s1;
-
+        int curPos0,curPos1;
+        int tarPos0,tarPos1;
+        curPos0=EC_READ_S32(domainOut_pd + offsetPosActVal[0]);
+        curPos1=EC_READ_S32(domainOut_pd + offsetPosActVal[1]);
+        tarPos0=curPos0;
+        tarPos1=curPos1;
         //Status Word(0x6041).
         //bit6,bit5,bit3,bit2,bit1,bit0:determine the current states.
         s0=EC_READ_U16(domainOut_pd+offsetStatusWord[0]);
@@ -540,45 +545,37 @@ void ZEtherCATThread::ZDoCyclicTask()
             cmd=0x001F;
 
             //slave0: up/down direction control.
-            //if (gGblPara.m_pixelDiffY>0), move torward to down.
-            //if (gGblPara.m_pixelDiffY<0), move torward to up.
-
-            //read position actual value.
-            iCurrentPos=EC_READ_S32(domainOut_pd + offsetPosActVal[0]);
-            //EC_WRITE_S32(domainIn_pd+offsetTarPos[0],gGblPara.m_iSlave0TarPos);
-            //iTargetPos=iCurrentPos+1000;//set target positon.
-            int iTargetPos=iCurrentPos;
-
+            //we move by a small step to avoid amplifier driver error.
+            int iMoveStep=100;
             if(gGblPara.m_pixelDiffY>0)//(gGblPara.m_pixelDiffY>0), move torward to down.
             {
-                qDebug("currentPos:%d,diffY:%d\n",iCurrentPos,gGblPara.m_pixelDiffY);
-                if(gGblPara.m_pixelDiffY>=200)
+                qDebug("currentPos:%d,diffY:%d\n",curPos0,gGblPara.m_pixelDiffY);
+                if(gGblPara.m_pixelDiffY>=iMoveStep)
                 {
-                    qDebug("Y Move down by 200!\n");
-                    iTargetPos+=200;
-                    gGblPara.m_pixelDiffY-=200;
+                    qDebug("Y Move down by %d!\n",iMoveStep);
+                    tarPos0+=iMoveStep;
+                    gGblPara.m_pixelDiffY-=iMoveStep;
                 }else{
                     qDebug("Y Move down by %d!\n",gGblPara.m_pixelDiffY);
-                    iTargetPos+=gGblPara.m_pixelDiffY;
+                    tarPos0+=gGblPara.m_pixelDiffY;
                     gGblPara.m_pixelDiffY=0;
                 }
             }else if(gGblPara.m_pixelDiffY<0)//if (gGblPara.m_pixelDiffY<0), move torward to up.
             {
                 qDebug("currentPos:%d,diffY:%d\n",iCurrentPos,gGblPara.m_pixelDiffY);
-                if(gGblPara.m_pixelDiffY<=-200)
+                if(gGblPara.m_pixelDiffY<=-iMoveStep)
                 {
-                    qDebug("Y Move up by 200!\n");
-                    iTargetPos-=200;
-                    gGblPara.m_pixelDiffY+=200;
+                    qDebug("Y Move up by %d!\n",iMoveStep);
+                    tarPos0-=iMoveStep;
+                    gGblPara.m_pixelDiffY+=iMoveStep;
                 }else{
                     qDebug("Y Move up by %d!\n",gGblPara.m_pixelDiffY);
-                    iTargetPos-=gGblPara.m_pixelDiffY;
+                    tarPos0-=gGblPara.m_pixelDiffY;
                     gGblPara.m_pixelDiffY=0;
                 }
             }else{
                 //qDebug()<<"No need to move!";
             }
-            EC_WRITE_S32(domainIn_pd+offsetTarPos[0],iTargetPos);
 
             //read related PDOs.
             int iPosActVal=EC_READ_S32(domainOut_pd + offsetPosActVal[0]);
@@ -609,7 +606,6 @@ void ZEtherCATThread::ZDoCyclicTask()
             //A low-to-high transition of this bit makes the amplifier attemp to clear any latched fault condition.
             cmd=0x0080;
         }
-        EC_WRITE_U16(domainIn_pd+offsetCtrlWord[0],cmd);
 
         //slave1 finite state machine.
         if((s1&0x004F)==0x0040)
@@ -650,43 +646,38 @@ void ZEtherCATThread::ZDoCyclicTask()
             //emit this->ZSigLog(false,"slave(0) in Operation Enabled.");
             cmd=0x001F;
 
-            //read position actual value.
-            iCurrentPos=EC_READ_S32(domainOut_pd + offsetPosActVal[1]);
-            //EC_WRITE_S32(domainIn_pd+offsetTarPos[1],gGblPara.m_iSlave1TarPos);
-            //iTargetPos=iCurrentPos+1000;//set target positon.
-            int iTargetPos=iCurrentPos;
-
+            //slave0: up/down direction control.
+            //we move by a small step to avoid amplifier driver error.
+            int iMoveStep=100;
             if(gGblPara.m_pixelDiffX>0)//(gGblPara.m_pixelDiffX>0), move torward to left.
             {
                 qDebug("currentPos:%d,diffX:%d\n",iCurrentPos,gGblPara.m_pixelDiffX);
-                if(gGblPara.m_pixelDiffX>=200)
+                if(gGblPara.m_pixelDiffX>=iMoveStep)
                 {
-                    qDebug("X Move down by 200!\n");
-                    iTargetPos+=200;
-                    gGblPara.m_pixelDiffX-=200;
+                    qDebug("X Move down by %d!\n",iMoveStep);
+                    tarPos1-=iMoveStep;
+                    gGblPara.m_pixelDiffX-=iMoveStep;
                 }else{
                     qDebug("X Move down by %d!\n",gGblPara.m_pixelDiffX);
-                    iTargetPos+=gGblPara.m_pixelDiffX;
+                    tarPos1-=gGblPara.m_pixelDiffX;
                     gGblPara.m_pixelDiffX=0;
                 }
-            }else if(gGblPara.m_pixelDiffX<0)//if (gGblPara.m_pixelDiffY<0), move torward to up.
+            }else if(gGblPara.m_pixelDiffX<0)//if (gGblPara.m_pixelDiffY<0), move torward to right.
             {
-                qDebug("currentPos:%d,diffY:%d\n",iCurrentPos,gGblPara.m_pixelDiffX);
-                if(gGblPara.m_pixelDiffX<=-200)
+                qDebug("currentPos:%d,diffY:%d\n",curPos1,gGblPara.m_pixelDiffX);
+                if(gGblPara.m_pixelDiffX<=-iMoveStep)
                 {
-                    qDebug("Y Move up by 200!\n");
-                    iTargetPos-=200;
-                    gGblPara.m_pixelDiffX+=200;
+                    qDebug("Y Move up by %d!\n",iMoveStep);
+                    tarPos1+=iMoveStep;
+                    gGblPara.m_pixelDiffX+=iMoveStep;
                 }else{
                     qDebug("Y Move up by %d!\n",gGblPara.m_pixelDiffX);
-                    iTargetPos-=gGblPara.m_pixelDiffX;
+                    tarPos1+=gGblPara.m_pixelDiffX;
                     gGblPara.m_pixelDiffX=0;
                 }
             }else{
                 //qDebug()<<"No need to move!";
             }
-            EC_WRITE_S32(domainIn_pd+offsetTarPos[1],iTargetPos);
-
 
             //read related PDOs.
             int iPosActVal=EC_READ_S32(domainOut_pd + offsetPosActVal[1]);
@@ -716,6 +707,17 @@ void ZEtherCATThread::ZDoCyclicTask()
             //A low-to-high transition of this bit makes the amplifier attemp to clear any latched fault condition.
             cmd=0x0080;
         }
+
+        //write Ctrl Word & Target Position.
+        if(tarPos0!=curPos0)
+        {
+            EC_WRITE_S32(domainIn_pd+offsetTarPos[0],tarPos0);
+        }
+        if(tarPos1!=curPos1)
+        {
+            EC_WRITE_S32(domainIn_pd+offsetTarPos[1],tarPos1);
+        }
+        EC_WRITE_U16(domainIn_pd+offsetCtrlWord[0],cmd);
         EC_WRITE_U16(domainIn_pd+offsetCtrlWord[1],cmd);
     }
         break;
