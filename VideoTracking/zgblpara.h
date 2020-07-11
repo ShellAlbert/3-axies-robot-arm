@@ -20,6 +20,13 @@ public:
 
     //slave1 Target Position.
     int m_iSlave1TarPos;
+
+    //pixel diff.
+    int m_pixelDiffX;
+    int m_pixelDiffY;
+    //position diff.
+    int m_posDiffX;
+    int m_posDiffY;
 };
 extern ZGblPara gGblPara;
 

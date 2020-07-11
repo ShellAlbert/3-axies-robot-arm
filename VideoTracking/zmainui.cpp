@@ -169,7 +169,21 @@ void ZMainUI::paintEvent(QPaintEvent *e)
         return;
     }
 
+    //draw center rectange on image.
+    QPainter painterImg(&this->m_img);
+    int centerBoxWidth=200;
+    int centerBoxHeight=200;
+    QRectF rectCenter(this->m_img.width()/2-centerBoxWidth/2,///<
+                       this->m_img.height()/2-centerBoxHeight,///<
+                       centerBoxWidth,centerBoxHeight);
+    painterImg.setPen(QPen(Qt::red,2));
+    painterImg.drawRect(rectCenter);
+    //qDebug()<<"Image Center:"<<rectCenter;
+    this->m_ptCenter=rectCenter.center().toPoint();
+
+    //draw the image.
     painter.drawImage(QRectF(0,0,this->width(),this->height()),this->m_img);
+
 }
 void ZMainUI::ZSlotPDO(qint32 iSlave,qint32 iActPos,qint32 iTarPos,qint32 iActVel)
 {
@@ -236,7 +250,27 @@ void ZMainUI::keyReleaseEvent(QKeyEvent *event)
     }
     QWidget::keyReleaseEvent(event);
 }
+void ZMainUI::mousePressEvent(QMouseEvent *event)
+{
+    this->m_ptNew=event->pos();
+    gGblPara.m_pixelDiffX=this->m_ptNew.x()-this->m_ptCenter.x();
+    gGblPara.m_pixelDiffY=this->m_ptNew.y()-this->m_ptCenter.y();
+    gGblPara.m_pixelDiffX*=100;
+    gGblPara.m_pixelDiffY*=100;
+    //if (gGblPara.m_pixelDiffX>0), move torward to right.
+    //if (gGblPara.m_pixelDiffX<0), move torward to left.
 
+    //if (gGblPara.m_pixelDiffY>0), move torward to down.
+    //if (gGblPara.m_pixelDiffY<0), move torward to up.
+
+    //qDebug("diff x=%d,y=%d\n",gGblPara.m_pixelDiffX,gGblPara.m_pixelDiffY);
+    this->ZSlotLog(false,QString("(%1,%2) -> (%3,%4),X:%5,Y:%6").arg(this->m_ptCenter.x()).arg(this->m_ptCenter.y()).arg(this->m_ptNew.x()).arg(this->m_ptNew.y()).arg(gGblPara.m_pixelDiffX).arg(gGblPara.m_pixelDiffY));
+    QWidget::mousePressEvent(event);
+}
+void ZMainUI::mouseReleaseEvent(QMouseEvent *event)
+{
+    QWidget::mouseReleaseEvent(event);
+}
 void ZMainUI::ZSlotLog(bool bErrFlag,QString log)
 {
     if(bErrFlag)

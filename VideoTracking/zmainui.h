@@ -34,6 +34,8 @@ protected:
     void closeEvent(QCloseEvent *event);
     void keyPressEvent(QKeyEvent *event);
     void keyReleaseEvent(QKeyEvent *event);
+    void mousePressEvent(QMouseEvent *event);
+    void mouseReleaseEvent(QMouseEvent *event);
     QSize sizeHint() const;
 private:
     //left,right,up,down control.
@@ -73,6 +75,10 @@ private:
     QVBoxLayout *m_vLayoutMain;
 private:
     QImage m_img;
+
+private:
+    QPoint m_ptCenter;
+    QPoint m_ptNew;
 };
 
 #endif // ZMAINUI_H

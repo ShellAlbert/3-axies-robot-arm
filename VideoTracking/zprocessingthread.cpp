@@ -15,7 +15,7 @@ void ZProcessingThread::run()
     while(!gGblPara.m_bExitFlag)
     {
         cv::Mat mat=this->m_fifo->ZGetFrame();
-        cv::cvtColor(mat,mat,cv::COLOR_RGB2GRAY);
+        //cv::cvtColor(mat,mat,cv::COLOR_RGB2GRAY);
         img=cvMat2QImage(mat);
         emit this->ZSigNewImg(img);
 

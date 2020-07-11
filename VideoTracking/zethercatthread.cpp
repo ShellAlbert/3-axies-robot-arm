@@ -539,10 +539,46 @@ void ZEtherCATThread::ZDoCyclicTask()
             //emit this->ZSigLog(false,"slave(0) in Operation Enabled.");
             cmd=0x001F;
 
+            //slave0: up/down direction control.
+            //if (gGblPara.m_pixelDiffY>0), move torward to down.
+            //if (gGblPara.m_pixelDiffY<0), move torward to up.
+
             //read position actual value.
             iCurrentPos=EC_READ_S32(domainOut_pd + offsetPosActVal[0]);
+            //EC_WRITE_S32(domainIn_pd+offsetTarPos[0],gGblPara.m_iSlave0TarPos);
             //iTargetPos=iCurrentPos+1000;//set target positon.
-            EC_WRITE_S32(domainIn_pd+offsetTarPos[0],gGblPara.m_iSlave0TarPos);
+            int iTargetPos=iCurrentPos;
+
+            if(gGblPara.m_pixelDiffY>0)//(gGblPara.m_pixelDiffY>0), move torward to down.
+            {
+                qDebug("currentPos:%d,diffY:%d\n",iCurrentPos,gGblPara.m_pixelDiffY);
+                if(gGblPara.m_pixelDiffY>=200)
+                {
+                    qDebug("Y Move down by 200!\n");
+                    iTargetPos+=200;
+                    gGblPara.m_pixelDiffY-=200;
+                }else{
+                    qDebug("Y Move down by %d!\n",gGblPara.m_pixelDiffY);
+                    iTargetPos+=gGblPara.m_pixelDiffY;
+                    gGblPara.m_pixelDiffY=0;
+                }
+            }else if(gGblPara.m_pixelDiffY<0)//if (gGblPara.m_pixelDiffY<0), move torward to up.
+            {
+                qDebug("currentPos:%d,diffY:%d\n",iCurrentPos,gGblPara.m_pixelDiffY);
+                if(gGblPara.m_pixelDiffY<=-200)
+                {
+                    qDebug("Y Move up by 200!\n");
+                    iTargetPos-=200;
+                    gGblPara.m_pixelDiffY+=200;
+                }else{
+                    qDebug("Y Move up by %d!\n",gGblPara.m_pixelDiffY);
+                    iTargetPos-=gGblPara.m_pixelDiffY;
+                    gGblPara.m_pixelDiffY=0;
+                }
+            }else{
+                //qDebug()<<"No need to move!";
+            }
+            EC_WRITE_S32(domainIn_pd+offsetTarPos[0],iTargetPos);
 
             //read related PDOs.
             int iPosActVal=EC_READ_S32(domainOut_pd + offsetPosActVal[0]);
@@ -550,7 +586,7 @@ void ZEtherCATThread::ZDoCyclicTask()
             int iActVel=EC_READ_S32(domainOut_pd + offsetActVel[0]);
             int iTorActVal=EC_READ_S32(domainOut_pd + offsetTorActVal[0]);
             //qDebug("%d,%d,%d,%d\n",iPosActVal,iPosErr,iActVel,iTorActVal);
-            qDebug("%d -> %d , diff=%d\n",iCurrentPos,gGblPara.m_iSlave0TarPos,gGblPara.m_iSlave0TarPos-iCurrentPos);
+            //qDebug("%d -> %d , diff=%d\n",iCurrentPos,gGblPara.m_iSlave0TarPos,gGblPara.m_iSlave0TarPos-iCurrentPos);
             emit this->ZSigPDO(0,iPosActVal,gGblPara.m_iSlave0TarPos,iActVel);
             //emit this->ZSigPDO(1,gActPosition2,gTarPosition2,gActVelocity2);
         }else{
@@ -616,8 +652,41 @@ void ZEtherCATThread::ZDoCyclicTask()
 
             //read position actual value.
             iCurrentPos=EC_READ_S32(domainOut_pd + offsetPosActVal[1]);
+            //EC_WRITE_S32(domainIn_pd+offsetTarPos[1],gGblPara.m_iSlave1TarPos);
             //iTargetPos=iCurrentPos+1000;//set target positon.
-            EC_WRITE_S32(domainIn_pd+offsetTarPos[1],gGblPara.m_iSlave1TarPos);
+            int iTargetPos=iCurrentPos;
+
+            if(gGblPara.m_pixelDiffX>0)//(gGblPara.m_pixelDiffX>0), move torward to left.
+            {
+                qDebug("currentPos:%d,diffX:%d\n",iCurrentPos,gGblPara.m_pixelDiffX);
+                if(gGblPara.m_pixelDiffX>=200)
+                {
+                    qDebug("X Move down by 200!\n");
+                    iTargetPos+=200;
+                    gGblPara.m_pixelDiffX-=200;
+                }else{
+                    qDebug("X Move down by %d!\n",gGblPara.m_pixelDiffX);
+                    iTargetPos+=gGblPara.m_pixelDiffX;
+                    gGblPara.m_pixelDiffX=0;
+                }
+            }else if(gGblPara.m_pixelDiffX<0)//if (gGblPara.m_pixelDiffY<0), move torward to up.
+            {
+                qDebug("currentPos:%d,diffY:%d\n",iCurrentPos,gGblPara.m_pixelDiffX);
+                if(gGblPara.m_pixelDiffX<=-200)
+                {
+                    qDebug("Y Move up by 200!\n");
+                    iTargetPos-=200;
+                    gGblPara.m_pixelDiffX+=200;
+                }else{
+                    qDebug("Y Move up by %d!\n",gGblPara.m_pixelDiffX);
+                    iTargetPos-=gGblPara.m_pixelDiffX;
+                    gGblPara.m_pixelDiffX=0;
+                }
+            }else{
+                //qDebug()<<"No need to move!";
+            }
+            EC_WRITE_S32(domainIn_pd+offsetTarPos[1],iTargetPos);
+
 
             //read related PDOs.
             int iPosActVal=EC_READ_S32(domainOut_pd + offsetPosActVal[1]);
@@ -625,7 +694,7 @@ void ZEtherCATThread::ZDoCyclicTask()
             int iActVel=EC_READ_S32(domainOut_pd + offsetActVel[1]);
             int iTorActVal=EC_READ_S32(domainOut_pd + offsetTorActVal[1]);
             //qDebug("%d,%d,%d,%d\n",iPosActVal,iPosErr,iActVel,iTorActVal);
-            qDebug("%d -> %d , diff=%d\n",iCurrentPos,gGblPara.m_iSlave1TarPos,gGblPara.m_iSlave1TarPos-iCurrentPos);
+            //qDebug("%d -> %d , diff=%d\n",iCurrentPos,gGblPara.m_iSlave1TarPos,gGblPara.m_iSlave1TarPos-iCurrentPos);
             emit this->ZSigPDO(1,iPosActVal,gGblPara.m_iSlave1TarPos,iActVel);
         }else{
             //0x0100:0000,0001,0000,0000
