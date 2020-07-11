@@ -11,6 +11,11 @@
 #include <QImage>
 #include <QPaintEvent>
 #include <QKeyEvent>
+#include <QVector>
+typedef struct{
+    bool bErrFlag;
+    QString log;
+}ZVectorLog;
 class ZMainUI : public QWidget
 {
     Q_OBJECT
@@ -32,18 +37,10 @@ public slots:
 protected:
     void paintEvent(QPaintEvent *e);
     void closeEvent(QCloseEvent *event);
-    void keyPressEvent(QKeyEvent *event);
-    void keyReleaseEvent(QKeyEvent *event);
     void mousePressEvent(QMouseEvent *event);
     void mouseReleaseEvent(QMouseEvent *event);
     QSize sizeHint() const;
 private:
-    //left,right,up,down control.
-    QToolButton *m_tbMoveLft;
-    QToolButton *m_tbMoveRht;
-    QToolButton *m_tbMoveUp;
-    QToolButton *m_tbMoveDn;
-    QGridLayout *m_gLayoutMove;
 
     //slave 0 Position Actual Value.
     QLabel *m_llS0PosActVal;
@@ -67,18 +64,26 @@ private:
 
     QGridLayout *m_gLayLft;
 
-    //the main layout.
-    QHBoxLayout *m_hLayoutTop;
+
+    //left,right,up,down control.
+    QToolButton *m_tbMoveLft;
+    QToolButton *m_tbMoveRht;
+    QToolButton *m_tbMoveUp;
+    QToolButton *m_tbMoveDn;
+    QGridLayout *m_gLayoutMove;
+    QVBoxLayout *m_vLayRht;
 
     //the main layout.
-    QTextEdit *m_teLog;
-    QVBoxLayout *m_vLayoutMain;
+    QHBoxLayout *m_hLayoutTop;
 private:
     QImage m_img;
 
 private:
     QPoint m_ptCenter;
     QPoint m_ptNew;
+
+private:
+    QVector<ZVectorLog> m_vecLog;
 };
 
 #endif // ZMAINUI_H

@@ -15,18 +15,9 @@ public:
     //enabled if bit was set,disabled if bit was clear.
     int m_iSlavesEnBitMask;
 
-    //slave0 Target Position.
-    int m_iSlave0TarPos;
-
-    //slave1 Target Position.
-    int m_iSlave1TarPos;
-
     //pixel diff.
     int m_pixelDiffX;
     int m_pixelDiffY;
-    //position diff.
-    int m_posDiffX;
-    int m_posDiffY;
 };
 extern ZGblPara gGblPara;
 

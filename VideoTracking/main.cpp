@@ -4,10 +4,19 @@
 #include "zmatfifo.h"
 #include "zprocessingthread.h"
 #include "zethercatthread.h"
-
+#include <QFile>
 int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
+    //load skin.
+    QFile fileSkin(":/skin/skin_default.qss");
+    if(fileSkin.open(QIODevice::ReadOnly))
+    {
+        QString skinQss=fileSkin.readAll();
+        app.setStyleSheet(skinQss);
+        fileSkin.close();
+    }
+
     ZMatFIFO fifoCap1(25,false);
     ZCaptureThread cap1("192.168.137.12",&fifoCap1);
     ZProcessingThread proc1(&fifoCap1);
@@ -21,7 +30,7 @@ int main(int argc, char *argv[])
     {
         return -1;
     }
-    win.show();
+    win.showMaximized();
     cap1.start();
     proc1.start();
     ecThread.start();

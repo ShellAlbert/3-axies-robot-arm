@@ -475,16 +475,35 @@ void ZEtherCATThread::ZDoCyclicTask()
         break;
     case FSM_CfgCSP:
         //setup "Mode of Operation" via SDO.
+        //Slave-0.
         //(0x6060,0)=8 CSP:Cyclic Synchronous Position mode
         ecrt_slave_config_sdo8(sc_copley[0],0x6060,0,8);
         //ecrt_slave_config_sdo8(sc_copley[0],0x60c2,1,100);
+        //Motion Profile Type(0x6086).
+        ecrt_slave_config_sdo16(sc_copley[0],0x6086,0,0);
+        //Target Positon(0x607A).
+        //Profile Velocity(0x6081).
+        ecrt_slave_config_sdo32(sc_copley[0],0x6081,0,8000000);
+        //Profile Acceleration(0x6083).
+        ecrt_slave_config_sdo32(sc_copley[0],0x6083,0,5000);
+        //Profile Deceleration(0x6084).
+        ecrt_slave_config_sdo32(sc_copley[0],0x6084,0,5000);
+        //Trajectory Jerk Limit(0x2121).
 
+        //Slave-1.
+        //(0x6060,0)=8 CSP:Cyclic Synchronous Position mode
         ecrt_slave_config_sdo8(sc_copley[1],0x6060,0,8);
         //ecrt_slave_config_sdo8(sc_copley[1],0x60c2,1,1);
-
-        //read position actual value.
-        gGblPara.m_iSlave0TarPos=EC_READ_S32(domainOut_pd + offsetPosActVal[0]);
-        gGblPara.m_iSlave1TarPos=EC_READ_S32(domainOut_pd + offsetPosActVal[1]);
+        //Motion Profile Type(0x6086).
+        ecrt_slave_config_sdo16(sc_copley[1],0x6086,0,0);
+        //Target Positon(0x607A).
+        //Profile Velocity(0x6081).
+        ecrt_slave_config_sdo32(sc_copley[1],0x6081,0,8000000);
+        //Profile Acceleration(0x6083).
+        ecrt_slave_config_sdo32(sc_copley[1],0x6083,0,5000);
+        //Profile Deceleration(0x6084).
+        ecrt_slave_config_sdo32(sc_copley[1],0x6084,0,5000);
+        //Trajectory Jerk Limit(0x2121).
 
         g_SysFSM=FSM_RunCSP;
         emit this->ZSigLog(false,"FSM --->>> FSM_RunCSP");
@@ -546,7 +565,7 @@ void ZEtherCATThread::ZDoCyclicTask()
 
             //slave0: up/down direction control.
             //we move by a small step to avoid amplifier driver error.
-            int iMoveStep=100;
+            int iMoveStep=200;
             if(gGblPara.m_pixelDiffY>0)//(gGblPara.m_pixelDiffY>0), move torward to down.
             {
                 qDebug("currentPos:%d,diffY:%d\n",curPos0,gGblPara.m_pixelDiffY);
@@ -584,7 +603,7 @@ void ZEtherCATThread::ZDoCyclicTask()
             int iTorActVal=EC_READ_S32(domainOut_pd + offsetTorActVal[0]);
             //qDebug("%d,%d,%d,%d\n",iPosActVal,iPosErr,iActVel,iTorActVal);
             //qDebug("%d -> %d , diff=%d\n",iCurrentPos,gGblPara.m_iSlave0TarPos,gGblPara.m_iSlave0TarPos-iCurrentPos);
-            emit this->ZSigPDO(0,iPosActVal,gGblPara.m_iSlave0TarPos,iActVel);
+            //emit this->ZSigPDO(0,iPosActVal,gGblPara.m_iSlave0TarPos,iActVel);
             //emit this->ZSigPDO(1,gActPosition2,gTarPosition2,gActVelocity2);
         }else{
             //0x0100:0000,0001,0000,0000
@@ -648,7 +667,7 @@ void ZEtherCATThread::ZDoCyclicTask()
 
             //slave0: up/down direction control.
             //we move by a small step to avoid amplifier driver error.
-            int iMoveStep=100;
+            int iMoveStep=200;
             if(gGblPara.m_pixelDiffX>0)//(gGblPara.m_pixelDiffX>0), move torward to left.
             {
                 qDebug("currentPos:%d,diffX:%d\n",iCurrentPos,gGblPara.m_pixelDiffX);
@@ -686,7 +705,7 @@ void ZEtherCATThread::ZDoCyclicTask()
             int iTorActVal=EC_READ_S32(domainOut_pd + offsetTorActVal[1]);
             //qDebug("%d,%d,%d,%d\n",iPosActVal,iPosErr,iActVel,iTorActVal);
             //qDebug("%d -> %d , diff=%d\n",iCurrentPos,gGblPara.m_iSlave1TarPos,gGblPara.m_iSlave1TarPos-iCurrentPos);
-            emit this->ZSigPDO(1,iPosActVal,gGblPara.m_iSlave1TarPos,iActVel);
+            //emit this->ZSigPDO(1,iPosActVal,gGblPara.m_iSlave1TarPos,iActVel);
         }else{
             //0x0100:0000,0001,0000,0000
             //bit8:Set if the last trajectory was aborted rather than finishing normally.
@@ -879,7 +898,7 @@ void ZEtherCATThread::run()
                 //usleep(1000000/TASK_FREQUENCY);
                 //if the time is less, the motor has no time to run.
                 //so we set the time longer to wait for the motor executed the previous command.
-                usleep(3000);
+                usleep(1000);
                 //usleep(8000);
                 //usleep(10000);
                 //usleep(20000);

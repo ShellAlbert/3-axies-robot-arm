@@ -1,0 +1,12 @@
+QTextEdit{
+    background:transparent;
+    font-size:26px;
+    color:red;
+}
+QToolButton{
+    background:transparent;
+    border:none;
+}
+QToolButton:hover{
+    border:4px solid green;
+}

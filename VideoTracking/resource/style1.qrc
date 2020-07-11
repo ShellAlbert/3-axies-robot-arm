@@ -1,0 +1,15 @@
+<RCC>
+    <qresource prefix="/skin">
+        <file>skin_default.qss</file>
+    </qresource>
+    <qresource prefix="/images">
+        <file>arrow-d.png</file>
+        <file>arrow-l.png</file>
+        <file>arrow-r.png</file>
+        <file>arrow-u.png</file>
+        <file>arrow-o-d.png</file>
+        <file>arrow-o-l.png</file>
+        <file>arrow-o-r.png</file>
+        <file>arrow-o-u.png</file>
+    </qresource>
+</RCC>

@@ -9,13 +9,6 @@ ZMainUI::ZMainUI(QWidget *parent)
 
 ZMainUI::~ZMainUI()
 {
-    //left,right,up,down control.
-    delete this->m_tbMoveLft;
-    delete this->m_tbMoveRht;
-    delete this->m_tbMoveUp;
-    delete this->m_tbMoveDn;
-    delete this->m_gLayoutMove;
-
     //slave 0 Position Actual Value.
     delete this->m_llS0PosActVal;
     delete this->m_leS0PosActVal;
@@ -38,40 +31,19 @@ ZMainUI::~ZMainUI()
 
     delete this->m_gLayLft;
 
-    //the main layout.
-    delete this->m_hLayoutTop;
+    //left,right,up,down control.
+    delete this->m_tbMoveLft;
+    delete this->m_tbMoveRht;
+    delete this->m_tbMoveUp;
+    delete this->m_tbMoveDn;
+    delete this->m_gLayoutMove;
+    delete this->m_vLayRht;
 
     //the main layout.
-    delete this->m_teLog;
-    delete this->m_vLayoutMain;
+    delete this->m_hLayoutTop;
 }
 bool ZMainUI::ZDoInit()
 {
-    //left,right,up,down control.
-    this->m_tbMoveLft=new QToolButton;
-    this->m_tbMoveLft->setText(tr("Left"));
-    this->m_tbMoveLft->setFocusPolicy(Qt::NoFocus);
-    //this->m_tbMoveLft->setAutoRepeat(true);
-    //this->m_tbMoveLft->setAutoRepeatDelay(1000);//delay 100ms.
-    //this->m_tbMoveLft->setAutoRepeatInterval(100);//internal 100ms.
-
-    this->m_tbMoveRht=new QToolButton;
-    this->m_tbMoveRht->setText(tr("Right"));
-    this->m_tbMoveRht->setFocusPolicy(Qt::NoFocus);
-
-    this->m_tbMoveUp=new QToolButton;
-    this->m_tbMoveUp->setText(tr("Up"));
-    this->m_tbMoveUp->setFocusPolicy(Qt::NoFocus);
-
-    this->m_tbMoveDn=new QToolButton;
-    this->m_tbMoveDn->setText(tr("Down"));
-    this->m_tbMoveDn->setFocusPolicy(Qt::NoFocus);
-
-    this->m_gLayoutMove=new QGridLayout;
-    this->m_gLayoutMove->addWidget(this->m_tbMoveUp,0,1,1,1);
-    this->m_gLayoutMove->addWidget(this->m_tbMoveLft,1,0,1,1);
-    this->m_gLayoutMove->addWidget(this->m_tbMoveRht,1,2,1,1);
-    this->m_gLayoutMove->addWidget(this->m_tbMoveDn,2,1,1,1);
 
     //slave 0 Position Actual Value.
     this->m_llS0PosActVal=new QLabel(tr("CurPos"));
@@ -109,38 +81,71 @@ bool ZMainUI::ZDoInit()
     this->m_leS1ActVel->setFocusPolicy(Qt::NoFocus);
     this->m_leS1ActVel->setText("0");
 
-    this->m_gLayLft=new QGridLayout;
-    this->m_gLayLft->addLayout(this->m_gLayoutMove,0,0,1,2);
-    this->m_gLayLft->addWidget(this->m_llS0PosActVal,1,0,1,1);
-    this->m_gLayLft->addWidget(this->m_leS0PosActVal,1,1,1,1);
+//    this->m_gLayLft=new QGridLayout;
+//    this->m_gLayLft->addWidget(this->m_llS0PosActVal,0,0,1,1);
+//    this->m_gLayLft->addWidget(this->m_leS0PosActVal,0,1,1,1);
 
-    this->m_gLayLft->addWidget(this->m_llS0TarPos,2,0,1,1);
-    this->m_gLayLft->addWidget(this->m_leS0TarPos,2,1,1,1);
+//    this->m_gLayLft->addWidget(this->m_llS0TarPos,1,0,1,1);
+//    this->m_gLayLft->addWidget(this->m_leS0TarPos,1,1,1,1);
 
-    this->m_gLayLft->addWidget(this->m_llS0ActVel,3,0,1,1);
-    this->m_gLayLft->addWidget(this->m_leS0ActVel,3,1,1,1);
+//    this->m_gLayLft->addWidget(this->m_llS0ActVel,2,0,1,1);
+//    this->m_gLayLft->addWidget(this->m_leS0ActVel,2,1,1,1);
 
-    this->m_gLayLft->addWidget(this->m_llS1PosActVal,4,0,1,1);
-    this->m_gLayLft->addWidget(this->m_leS1PosActVal,4,1,1,1);
+//    this->m_gLayLft->addWidget(this->m_llS1PosActVal,3,0,1,1);
+//    this->m_gLayLft->addWidget(this->m_leS1PosActVal,3,1,1,1);
 
-    this->m_gLayLft->addWidget(this->m_llS1TarPos,5,0,1,1);
-    this->m_gLayLft->addWidget(this->m_leS1TarPos,5,1,1,1);
+//    this->m_gLayLft->addWidget(this->m_llS1TarPos,4,0,1,1);
+//    this->m_gLayLft->addWidget(this->m_leS1TarPos,4,1,1,1);
 
-    this->m_gLayLft->addWidget(this->m_llS1ActVel,6,0,1,1);
-    this->m_gLayLft->addWidget(this->m_leS1ActVel,6,1,1,1);
+//    this->m_gLayLft->addWidget(this->m_llS1ActVel,5,0,1,1);
+//    this->m_gLayLft->addWidget(this->m_leS1ActVel,5,1,1,1);
+
+
+    //left,right,up,down control.
+    this->m_tbMoveLft=new QToolButton;
+    this->m_tbMoveLft->setObjectName("leftButton");
+    this->m_tbMoveLft->setFocusPolicy(Qt::NoFocus);
+    this->m_tbMoveLft->setIcon(QIcon(":/images/arrow-l.png"));
+    this->m_tbMoveLft->setIconSize(QSize(72,72));
+
+    //this->m_tbMoveLft->setAutoRepeat(true);
+    //this->m_tbMoveLft->setAutoRepeatDelay(1000);//delay 100ms.
+    //this->m_tbMoveLft->setAutoRepeatInterval(100);//internal 100ms.
+
+    this->m_tbMoveRht=new QToolButton;
+    this->m_tbMoveRht->setText(tr("Right"));
+    this->m_tbMoveRht->setFocusPolicy(Qt::NoFocus);
+    this->m_tbMoveRht->setIcon(QIcon(":/images/arrow-r.png"));
+    this->m_tbMoveRht->setIconSize(QSize(72,72));
+
+    this->m_tbMoveUp=new QToolButton;
+    this->m_tbMoveUp->setText(tr("Up"));
+    this->m_tbMoveUp->setFocusPolicy(Qt::NoFocus);
+    this->m_tbMoveUp->setIcon(QIcon(":/images/arrow-u.png"));
+    this->m_tbMoveUp->setIconSize(QSize(72,72));
+
+    this->m_tbMoveDn=new QToolButton;
+    this->m_tbMoveDn->setText(tr("Down"));
+    this->m_tbMoveDn->setFocusPolicy(Qt::NoFocus);
+    this->m_tbMoveDn->setIcon(QIcon(":/images/arrow-d.png"));
+    this->m_tbMoveDn->setIconSize(QSize(72,72));
+
+    this->m_gLayoutMove=new QGridLayout;
+    this->m_gLayoutMove->addWidget(this->m_tbMoveUp,0,1,1,1);
+    this->m_gLayoutMove->addWidget(this->m_tbMoveLft,1,0,1,1);
+    this->m_gLayoutMove->addWidget(this->m_tbMoveRht,1,2,1,1);
+    this->m_gLayoutMove->addWidget(this->m_tbMoveDn,2,1,1,1);
+
+    this->m_vLayRht=new QVBoxLayout;
+    this->m_vLayRht->addStretch(1);
+    this->m_vLayRht->addLayout(this->m_gLayoutMove);
+    this->m_vLayRht->addStretch(1);
 
     //the layout top.
     this->m_hLayoutTop=new QHBoxLayout;
-    this->m_hLayoutTop->addLayout(this->m_gLayLft);
     this->m_hLayoutTop->addStretch(1);
-
-    //the main layout.
-    this->m_teLog=new QTextEdit;
-    this->m_vLayoutMain=new QVBoxLayout;
-    this->m_vLayoutMain->addLayout(this->m_hLayoutTop);
-    this->m_vLayoutMain->addStretch(1);
-    this->m_vLayoutMain->addWidget(this->m_teLog);
-    this->setLayout(this->m_vLayoutMain);
+    this->m_hLayoutTop->addLayout(this->m_vLayRht);
+    this->setLayout(this->m_hLayoutTop);
 
     //make connections.
     QObject::connect(this->m_tbMoveLft,SIGNAL(clicked(bool)),this,SLOT(ZSlotMoveToLeft()));
@@ -184,6 +189,17 @@ void ZMainUI::paintEvent(QPaintEvent *e)
     //draw the image.
     painter.drawImage(QRectF(0,0,this->width(),this->height()),this->m_img);
 
+    //draw logs.
+    painter.setPen(QPen(Qt::red,2));
+    QFont font=painter.font();
+    font.setPixelSize(20);
+    painter.setFont(font);
+    QPointF ptLog(10,0);
+    for(qint32 i=0;i<this->m_vecLog.size();i++)
+    {
+        ptLog.setY(ptLog.y()+painter.fontMetrics().height());
+        painter.drawText(ptLog,this->m_vecLog.at(i).log);
+    }
 }
 void ZMainUI::ZSlotPDO(qint32 iSlave,qint32 iActPos,qint32 iTarPos,qint32 iActVel)
 {
@@ -208,55 +224,14 @@ void ZMainUI::closeEvent(QCloseEvent *event)
     gGblPara.m_bExitFlag=true;
     QWidget::closeEvent(event);
 }
-void ZMainUI::keyPressEvent(QKeyEvent *event)
-{
-    switch(event->key())
-    {
-    case Qt::Key_Up:
-        qDebug()<<"keyup";
-        break;
-    case Qt::Key_Down:
-        qDebug()<<"keydown";
-        break;
-    case Qt::Key_Left:
-        qDebug()<<"keyleft";
-        break;
-    case Qt::Key_Right:
-        qDebug()<<"keyright";
-        break;
-    default:
-        break;
-    }
-    QWidget::keyPressEvent(event);
-}
-void ZMainUI::keyReleaseEvent(QKeyEvent *event)
-{
-    switch(event->key())
-    {
-    case Qt::Key_Up:
-        qDebug()<<"keyup_release";
-        break;
-    case Qt::Key_Down:
-        qDebug()<<"keydown_release";
-        break;
-    case Qt::Key_Left:
-        qDebug()<<"keyleft_release";
-        break;
-    case Qt::Key_Right:
-        qDebug()<<"keyright_release";
-        break;
-    default:
-        break;
-    }
-    QWidget::keyReleaseEvent(event);
-}
+
 void ZMainUI::mousePressEvent(QMouseEvent *event)
 {
     this->m_ptNew=event->pos();
     gGblPara.m_pixelDiffX=this->m_ptNew.x()-this->m_ptCenter.x();
     gGblPara.m_pixelDiffY=this->m_ptNew.y()-this->m_ptCenter.y();
-    gGblPara.m_pixelDiffX*=100;
-    gGblPara.m_pixelDiffY*=100;
+    gGblPara.m_pixelDiffX*=200;
+    gGblPara.m_pixelDiffY*=200;
     //if (gGblPara.m_pixelDiffX>0), move torward to right.
     //if (gGblPara.m_pixelDiffX<0), move torward to left.
 
@@ -273,28 +248,29 @@ void ZMainUI::mouseReleaseEvent(QMouseEvent *event)
 }
 void ZMainUI::ZSlotLog(bool bErrFlag,QString log)
 {
-    if(bErrFlag)
+    if(this->m_vecLog.size()>10)
     {
-        this->m_teLog->append(QString("<ERR> :")+log);
-    }else{
-        this->m_teLog->append(QString("<INFO>:")+log);
+        this->m_vecLog.takeFirst();
     }
+    ZVectorLog vecLog;
+    vecLog.bErrFlag=bErrFlag;
+    vecLog.log=log;
+    this->m_vecLog.append(vecLog);
 }
+
 void ZMainUI::ZSlotMoveToLeft()
 {
-    gGblPara.m_iSlave1TarPos+=200;
+    gGblPara.m_pixelDiffX=-2000;
 }
 void ZMainUI::ZSlotMoveToRight()
 {
-    gGblPara.m_iSlave1TarPos-=200;
+    gGblPara.m_pixelDiffX=+2000;
 }
 void ZMainUI::ZSlotMoveToUp()
 {
-    gGblPara.m_iSlave0TarPos+=200;
-
+    gGblPara.m_pixelDiffY=-2000;
 }
 void ZMainUI::ZSlotMoveToDown()
 {
-
-    gGblPara.m_iSlave0TarPos-=200;
+    gGblPara.m_pixelDiffY=+2000;
 }
