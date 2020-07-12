@@ -11,5 +11,9 @@
         <file>arrow-o-l.png</file>
         <file>arrow-o-r.png</file>
         <file>arrow-o-u.png</file>
+        <file>data.png</file>
+        <file>home.png</file>
+        <file>scan.png</file>
+        <file>track.png</file>
     </qresource>
 </RCC>

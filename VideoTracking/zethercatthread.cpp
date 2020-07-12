@@ -601,10 +601,7 @@ void ZEtherCATThread::ZDoCyclicTask()
             int iPosErr=EC_READ_S32(domainOut_pd + offsetPosError[0]);
             int iActVel=EC_READ_S32(domainOut_pd + offsetActVel[0]);
             int iTorActVal=EC_READ_S32(domainOut_pd + offsetTorActVal[0]);
-            //qDebug("%d,%d,%d,%d\n",iPosActVal,iPosErr,iActVel,iTorActVal);
-            //qDebug("%d -> %d , diff=%d\n",iCurrentPos,gGblPara.m_iSlave0TarPos,gGblPara.m_iSlave0TarPos-iCurrentPos);
-            //emit this->ZSigPDO(0,iPosActVal,gGblPara.m_iSlave0TarPos,iActVel);
-            //emit this->ZSigPDO(1,gActPosition2,gTarPosition2,gActVelocity2);
+            emit this->ZSigPDO(0,iPosActVal,tarPos0,iActVel);
         }else{
             //0x0100:0000,0001,0000,0000
             //bit8:Set if the last trajectory was aborted rather than finishing normally.
@@ -703,9 +700,7 @@ void ZEtherCATThread::ZDoCyclicTask()
             int iPosErr=EC_READ_S32(domainOut_pd + offsetPosError[1]);
             int iActVel=EC_READ_S32(domainOut_pd + offsetActVel[1]);
             int iTorActVal=EC_READ_S32(domainOut_pd + offsetTorActVal[1]);
-            //qDebug("%d,%d,%d,%d\n",iPosActVal,iPosErr,iActVel,iTorActVal);
-            //qDebug("%d -> %d , diff=%d\n",iCurrentPos,gGblPara.m_iSlave1TarPos,gGblPara.m_iSlave1TarPos-iCurrentPos);
-            //emit this->ZSigPDO(1,iPosActVal,gGblPara.m_iSlave1TarPos,iActVel);
+            emit this->ZSigPDO(1,iPosActVal,tarPos1,iActVel);
         }else{
             //0x0100:0000,0001,0000,0000
             //bit8:Set if the last trajectory was aborted rather than finishing normally.

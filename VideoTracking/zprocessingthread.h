@@ -11,6 +11,7 @@ public:
     ZProcessingThread(ZMatFIFO *fifo);
 signals:
     void ZSigNewImg(const QImage &img);
+    void ZSigNewInitBox(const QImage &img);
 protected:
     void run();
 private:

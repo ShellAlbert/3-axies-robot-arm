@@ -5,6 +5,7 @@
 #include <opencv2/imgproc.hpp>
 #include "zmatfifo.h"
 #include <QDebug>
+using namespace cv;
 ZProcessingThread::ZProcessingThread(ZMatFIFO *fifo)
 {
     this->m_fifo=fifo;

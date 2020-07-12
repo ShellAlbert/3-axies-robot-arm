@@ -30,7 +30,10 @@ SOURCES += \
     zgblpara.cpp \
     zcapturethread.cpp \
     zmatfifo.cpp \
-    zprocessingthread.cpp
+    zprocessingthread.cpp \
+    CSK_Tracker.cpp \
+    zctrlbar.cpp \
+    zdirectionbar.cpp
 
 HEADERS += \
         zmainui.h \
@@ -38,7 +41,10 @@ HEADERS += \
     zgblpara.h \
     zcapturethread.h \
     zmatfifo.h \
-    zprocessingthread.h
+    zprocessingthread.h \
+    CSK_Tracker.h \
+    zctrlbar.h \
+    zdirectionbar.h
 
 INCLUDEPATH += /opt/ethercat/include
 LIBS +=  -lethercat

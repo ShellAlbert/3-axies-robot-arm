@@ -12,6 +12,8 @@
 #include <QPaintEvent>
 #include <QKeyEvent>
 #include <QVector>
+#include "zctrlbar.h"
+#include "zdirectionbar.h"
 typedef struct{
     bool bErrFlag;
     QString log;
@@ -43,38 +45,24 @@ protected:
 private:
 
     //slave 0 Position Actual Value.
-    QLabel *m_llS0PosActVal;
-    QLineEdit *m_leS0PosActVal;
+    qint32 m_iS0PosActVal;
     //slave 0 Target Position.
-    QLabel *m_llS0TarPos;
-    QLineEdit *m_leS0TarPos;
+    qint32 m_iS0TarPos;
     //slave 0 Actual Velocity.
-    QLabel *m_llS0ActVel;
-    QLineEdit *m_leS0ActVel;
+    qint32 m_iS0ActVel;
 
     //slave 1 Position Actual Value.
-    QLabel *m_llS1PosActVal;
-    QLineEdit *m_leS1PosActVal;
+    qint32 m_iS1PosActVal;
     //slave 1 Target Position.
-    QLabel *m_llS1TarPos;
-    QLineEdit *m_leS1TarPos;
+    qint32 m_iS1TarPos;
     //slave 1 Actual Velocity.
-    QLabel *m_llS1ActVel;
-    QLineEdit *m_leS1ActVel;
+    qint32 m_iS1ActVel;
 
-    QGridLayout *m_gLayLft;
-
-
-    //left,right,up,down control.
-    QToolButton *m_tbMoveLft;
-    QToolButton *m_tbMoveRht;
-    QToolButton *m_tbMoveUp;
-    QToolButton *m_tbMoveDn;
-    QGridLayout *m_gLayoutMove;
-    QVBoxLayout *m_vLayRht;
-
-    //the main layout.
-    QHBoxLayout *m_hLayoutTop;
+    //the top ctrl bar.
+    ZCtrlBar *m_ctrlBar;
+    ZDirectionBar *m_dirBar;
+    QHBoxLayout *m_hLayDirBar;
+    QVBoxLayout *m_vLayMain;
 private:
     QImage m_img;
 
@@ -84,6 +72,9 @@ private:
 
 private:
     QVector<ZVectorLog> m_vecLog;
+
+private:
+    qint32 m_iFrmCounter;
 };
 
 #endif // ZMAINUI_H

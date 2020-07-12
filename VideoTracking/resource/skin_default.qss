@@ -4,7 +4,6 @@ QTextEdit{
     color:red;
 }
 QToolButton{
-    background:transparent;
     border:none;
 }
 QToolButton:hover{
