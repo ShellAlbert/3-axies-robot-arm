@@ -2,6 +2,8 @@
 #define ZGBLPARA_H
 
 #include <QObject>
+#include <QVector>
+#include <QMutex>
 class ZGblPara
 {
 public:
@@ -11,10 +13,9 @@ public:
     bool m_bExitFlag;
 
 public:
-    //slaves enabled bit mask.
-    //enabled if bit was set,disabled if bit was clear.
-    int m_iSlavesEnBitMask;
-
+    int m_iS0CurPos;
+    int m_iS1CurPos;
+public:
     //pixel diff.
     int m_pixelDiffX;
     int m_pixelDiffY;

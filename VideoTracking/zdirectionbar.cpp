@@ -4,6 +4,7 @@ ZDirectionBar::ZDirectionBar()
 {
     //left,right,up,down control.
     this->m_tbMoveLft=new QToolButton;
+    this->m_tbMoveLft->setObjectName("ZDirectionBarButton");
     this->m_tbMoveLft->setFocusPolicy(Qt::NoFocus);
     this->m_tbMoveLft->setIcon(QIcon(":/images/arrow-o-l.png"));
     this->m_tbMoveLft->setIconSize(QSize(72,72));
@@ -12,6 +13,7 @@ ZDirectionBar::ZDirectionBar()
     this->m_tbMoveLft->setAutoRepeatInterval(1);//internal 100ms.
 
     this->m_tbMoveRht=new QToolButton;
+    this->m_tbMoveRht->setObjectName("ZDirectionBarButton");
     this->m_tbMoveRht->setFocusPolicy(Qt::NoFocus);
     this->m_tbMoveRht->setIcon(QIcon(":/images/arrow-o-r.png"));
     this->m_tbMoveRht->setIconSize(QSize(72,72));
@@ -20,6 +22,7 @@ ZDirectionBar::ZDirectionBar()
     this->m_tbMoveRht->setAutoRepeatInterval(1);//internal 100ms.
 
     this->m_tbMoveUp=new QToolButton;
+    this->m_tbMoveUp->setObjectName("ZDirectionBarButton");
     this->m_tbMoveUp->setFocusPolicy(Qt::NoFocus);
     this->m_tbMoveUp->setIcon(QIcon(":/images/arrow-o-u.png"));
     this->m_tbMoveUp->setIconSize(QSize(72,72));
@@ -28,6 +31,7 @@ ZDirectionBar::ZDirectionBar()
     this->m_tbMoveUp->setAutoRepeatInterval(1);//internal 100ms.
 
     this->m_tbMoveDn=new QToolButton;
+    this->m_tbMoveDn->setObjectName("ZDirectionBarButton");
     this->m_tbMoveDn->setFocusPolicy(Qt::NoFocus);
     this->m_tbMoveDn->setIcon(QIcon(":/images/arrow-o-d.png"));
     this->m_tbMoveDn->setIconSize(QSize(72,72));

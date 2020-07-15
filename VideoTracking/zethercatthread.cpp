@@ -41,6 +41,7 @@ enum{
     FSM_CheckHomingAttained,
     FSM_RunPV,
     FSM_CfgCSP,
+    FSM_HomingCSP,
     FSM_RunCSP,
     FSM_IdleStatus,
 };
@@ -268,7 +269,6 @@ void print_bits_splitter(int bits)
 }
 void ZEtherCATThread::ZDoCyclicTask()
 {
-    static int i00TarPos=0,i01TarPos=0;
     static int cycle_counter=0;
     cycle_counter++;
     if(cycle_counter>=1000*2)
@@ -500,8 +500,12 @@ void ZEtherCATThread::ZDoCyclicTask()
 
         //Slave-1.
         //(0x6060,0)=8 CSP:Cyclic Synchronous Position mode
-        ecrt_slave_config_sdo8(slave[1],0x6060,0,1/*8*/);
+        //ecrt_slave_config_sdo8(slave[1],0x6060,0,8);
         //ecrt_slave_config_sdo8(slave[1],0x60c2,1,1);
+
+        //(0x6060,0)=1 Profile Position mode
+        ecrt_slave_config_sdo8(slave[1],0x6060,0,1);
+
         //Motion Profile Type(0x6086).
         ecrt_slave_config_sdo16(slave[1],0x6086,0,0);
         //Target Positon(0x607A).
@@ -521,19 +525,119 @@ void ZEtherCATThread::ZDoCyclicTask()
         ecrt_slave_config_sdo32(slave[0],0x607D,2,5000);
         ecrt_slave_config_sdo32(slave[1],0x607D,2,5000);
 
-        g_SysFSM=FSM_RunCSP;
-        emit this->ZSigLog(false,"FSM --->>> FSM_RunCSP");
+        g_SysFSM=FSM_HomingCSP;
+        emit this->ZSigLog(false,"FSM --->>> FSM_HomingCSP");
+        break;
+    case FSM_HomingCSP:
+    {
+        uint16_t cmd;
+        uint16_t s0,s1;
+        int iS0CurPos,iS1CurPos;
+        //read current position.
+        iS0CurPos=EC_READ_S32(domain0_pd + offsetPosActVal[0]);
+        iS1CurPos=EC_READ_S32(domain1_pd + offsetPosActVal[1]);
+        qDebug()<<"HomingCSP:"<<iS0CurPos;
+        if(iS0CurPos==0)
+        {
+            g_SysFSM=FSM_RunCSP;
+            emit this->ZSigLog(false,"FSM --->>> FSM_HomingCSP");
+        }else{
+
+            //Status Word(0x6041).
+            //bit6,bit5,bit3,bit2,bit1,bit0:determine the current states.
+            s0=EC_READ_U16(domain0_pd+offsetStatusWord[0]);
+            s1=EC_READ_U16(domain1_pd+offsetStatusWord[1]);
+
+            //slave0 finite state machine.
+            if((s0&0x004F)==0x0040)
+            {
+                //we conly concern bit6,bit3,bit2,bit1,bit0 in Switch On Disabled,
+                //so we use 0000,0000,0100,1111=0x4F as the bit mask.
+
+                //xxxx,xxxx,x1xx,0000=0x0040,Switch on Disabled.
+                emit this->ZSigLog(false,"slave(0) in Switch on Disabled.");
+
+                //issue "shutdown" command,From [Switch On Disabled] to [Ready to Switch On].
+                //shutdown:bit7=0,bit3=x,bit2=1,bit1=1,bit0=0.
+                //0000,0000,0000,0110=0x0006.
+                cmd=0x0006;
+            }else if((s0&0x006F)==0x0021)
+            {
+                //we conly concern bit6,bit3,bit2,bit1,bit0 in Ready to switch on,
+                //so we use 0000,0000,0110,1111=0x6F as the bit mask.
+
+                //xxxx,xxxx,x01x,0001=0x0021,Ready to switch on.
+                emit this->ZSigLog(false,"slave(0) in Ready to switch on.");
+                cmd=0x0007;
+            }else if((s0&0x006F)==0x0023)
+            {
+                //we conly concern bit6,bit5,bit3,bit2,bit1,bit0 in Switch on,
+                //so we use 0000,0000,0110,1111=0x006F as the bit mask.
+
+                //xxxx,xxxx,x01x,0011=0x0023,Switch on.
+                emit this->ZSigLog(false,"slave(0) in Switch on.");
+                cmd=0x000F;
+            }else if((s0&0x006F)==0x0027)
+            {
+                //we conly concern bit6,bit5,bit3,bit2,bit1,bit0 in Operation Enabled,
+                //so we use 0000,0000,0110,1111=0x006F as the bit mask.
+
+                //xxxx,xxxx,x01x,0111=0x0027,Operation Enabled.
+                //emit this->ZSigLog(false,"slave(0) in Operation Enabled.");
+                cmd=0x001F;
+
+                //we use small step to avoid amplifier error.
+                if(iS0CurPos>1000)
+                {
+                    //write 0 to slave0 target position.
+                    EC_WRITE_S32(domain0_pd+offsetTarPos[0],iS0CurPos-1000);
+                }else if(iS0CurPos<-1000)
+                {
+                    //write 0 to slave0 target position.
+                    EC_WRITE_S32(domain0_pd+offsetTarPos[0],iS0CurPos+1000);
+                }else{
+                    EC_WRITE_S32(domain0_pd+offsetTarPos[0],0);
+                }
+
+            }else{
+                //0x0100:0000,0001,0000,0000
+                //bit8:Set if the last trajectory was aborted rather than finishing normally.
+                if(s0&0x0100)
+                {
+                    emit this->ZSigLog(true,"slave(0):the last trajectory was aborted rather than finishing normally.");
+                }
+                //0x0800:0000,1000,0000,0000
+                //bit11:Internal Limit Active.
+                //This bit is set when one of the amplifier limits(current,voltage,velocity or position) is active.
+                if(s0&0x0800)
+                {
+                    emit this->ZSigLog(true,"slave(0):Internal Limit Active.");
+                }
+
+                //Fault.
+                //bit7:Reset Fault.
+                //A low-to-high transition of this bit makes the amplifier attemp to clear any latched fault condition.
+                cmd=0x0080;
+            }
+            EC_WRITE_U16(domain0_pd+offsetCtrlWord[0],cmd);
+        }
+    }
         break;
     case FSM_RunCSP:
     {
         uint16_t cmd;
         uint16_t s0,s1;
-        int curPos0,curPos1;
-        int tarPos0,tarPos1;
-        curPos0=EC_READ_S32(domain0_pd + offsetPosActVal[0]);
-        curPos1=EC_READ_S32(domain1_pd + offsetPosActVal[1]);
-        tarPos0=curPos0;
-        tarPos1=curPos1;
+        int iS0CurPos,iS1CurPos;
+        int iS0TarPos,iS1TarPos;
+        //read current position.
+        iS0CurPos=EC_READ_S32(domain0_pd + offsetPosActVal[0]);
+        iS1CurPos=EC_READ_S32(domain1_pd + offsetPosActVal[1]);
+        iS0TarPos=iS0CurPos;
+        iS1TarPos=iS1CurPos;
+
+        gGblPara.m_iS0CurPos=iS0CurPos;
+        gGblPara.m_iS1CurPos=iS1CurPos;
+
         //Status Word(0x6041).
         //bit6,bit5,bit3,bit2,bit1,bit0:determine the current states.
         s0=EC_READ_U16(domain0_pd+offsetStatusWord[0]);
@@ -571,7 +675,6 @@ void ZEtherCATThread::ZDoCyclicTask()
             cmd=0x000F;
         }else if((s0&0x006F)==0x0027)
         {
-            int iCurrentPos;
             //we conly concern bit6,bit5,bit3,bit2,bit1,bit0 in Operation Enabled,
             //so we use 0000,0000,0110,1111=0x006F as the bit mask.
 
@@ -582,42 +685,37 @@ void ZEtherCATThread::ZDoCyclicTask()
             //slave0: up/down direction control.
             //we move by a small step to avoid amplifier driver error.
             int iMoveStep=1000;
-            if(gGblPara.m_pixelDiffY>0)//(gGblPara.m_pixelDiffY>0), move torward to down.
+            if(gGblPara.m_pixelDiffY>0)//move down.
             {
-                qDebug("currentPos:%d,diffY:%d\n",curPos0,gGblPara.m_pixelDiffY);
                 if(gGblPara.m_pixelDiffY>=iMoveStep)
                 {
-                    qDebug("Y Move down by %d!\n",iMoveStep);
-                    tarPos0+=iMoveStep;
+                    iS0TarPos+=iMoveStep;
                     gGblPara.m_pixelDiffY-=iMoveStep;
                 }else{
-                    qDebug("Y Move down by %d!\n",gGblPara.m_pixelDiffY);
-                    tarPos0+=gGblPara.m_pixelDiffY;
+                    iS0TarPos+=gGblPara.m_pixelDiffY;
                     gGblPara.m_pixelDiffY=0;
                 }
             }else if(gGblPara.m_pixelDiffY<0)//if (gGblPara.m_pixelDiffY<0), move torward to up.
             {
-                qDebug("currentPos:%d,diffY:%d\n",iCurrentPos,gGblPara.m_pixelDiffY);
                 if(gGblPara.m_pixelDiffY<=-iMoveStep)
                 {
-                    qDebug("Y Move up by %d!\n",iMoveStep);
-                    tarPos0-=iMoveStep;
+                    iS0TarPos-=iMoveStep;
                     gGblPara.m_pixelDiffY+=iMoveStep;
                 }else{
-                    qDebug("Y Move up by %d!\n",gGblPara.m_pixelDiffY);
-                    tarPos0-=gGblPara.m_pixelDiffY;
+                    iS0TarPos-=gGblPara.m_pixelDiffY;
                     gGblPara.m_pixelDiffY=0;
                 }
             }else{
                 //qDebug()<<"No need to move!";
             }
 
+
             //read related PDOs.
             int iPosActVal=EC_READ_S32(domain0_pd + offsetPosActVal[0]);
             int iPosErr=EC_READ_S32(domain0_pd + offsetPosError[0]);
             int iActVel=EC_READ_S32(domain0_pd + offsetActVel[0]);
             int iTorActVal=EC_READ_S32(domain0_pd + offsetTorActVal[0]);
-            emit this->ZSigPDO(0,iPosActVal,tarPos0,iActVel);
+            emit this->ZSigPDO(0,iPosActVal,0,iActVel);
         }else{
             //0x0100:0000,0001,0000,0000
             //bit8:Set if the last trajectory was aborted rather than finishing normally.
@@ -678,44 +776,39 @@ void ZEtherCATThread::ZDoCyclicTask()
             //emit this->ZSigLog(false,"slave(0) in Operation Enabled.");
             cmd=0x001F;
 
-            //slave0: up/down direction control.
+            //slave1: up/down direction control.
             //we move by a small step to avoid amplifier driver error.
             int iMoveStep=1000;
             if(gGblPara.m_pixelDiffX>0)//(gGblPara.m_pixelDiffX>0), move torward to left.
             {
-                qDebug("currentPos:%d,diffX:%d\n",iCurrentPos,gGblPara.m_pixelDiffX);
                 if(gGblPara.m_pixelDiffX>=iMoveStep)
                 {
-                    qDebug("X Move down by %d!\n",iMoveStep);
-                    tarPos1-=iMoveStep;
+                    iS1TarPos-=iMoveStep;
                     gGblPara.m_pixelDiffX-=iMoveStep;
                 }else{
-                    qDebug("X Move down by %d!\n",gGblPara.m_pixelDiffX);
-                    tarPos1-=gGblPara.m_pixelDiffX;
+                    iS1TarPos-=gGblPara.m_pixelDiffX;
                     gGblPara.m_pixelDiffX=0;
                 }
             }else if(gGblPara.m_pixelDiffX<0)//if (gGblPara.m_pixelDiffY<0), move torward to right.
             {
-                qDebug("currentPos:%d,diffY:%d\n",curPos1,gGblPara.m_pixelDiffX);
                 if(gGblPara.m_pixelDiffX<=-iMoveStep)
                 {
-                    qDebug("Y Move up by %d!\n",iMoveStep);
-                    tarPos1+=iMoveStep;
+                    iS1TarPos+=iMoveStep;
                     gGblPara.m_pixelDiffX+=iMoveStep;
                 }else{
-                    qDebug("Y Move up by %d!\n",gGblPara.m_pixelDiffX);
-                    tarPos1+=gGblPara.m_pixelDiffX;
+                    iS1TarPos+=gGblPara.m_pixelDiffX;
                     gGblPara.m_pixelDiffX=0;
                 }
             }else{
                 //qDebug()<<"No need to move!";
             }
+
             //read related PDOs.
             int iPosActVal=EC_READ_S32(domain1_pd + offsetPosActVal[1]);
             int iPosErr=EC_READ_S32(domain1_pd + offsetPosError[1]);
             int iActVel=EC_READ_S32(domain1_pd + offsetActVel[1]);
             int iTorActVal=EC_READ_S32(domain1_pd + offsetTorActVal[1]);
-            emit this->ZSigPDO(1,iPosActVal,tarPos1,iActVel);
+            emit this->ZSigPDO(1,iPosActVal,0,iActVel);
         }else{
             //0x0100:0000,0001,0000,0000
             //bit8:Set if the last trajectory was aborted rather than finishing normally.
@@ -739,13 +832,15 @@ void ZEtherCATThread::ZDoCyclicTask()
 
         //write Ctrl Word & Target Position.
         //CAUTION:if we donot judge here will cause motor vibration.
-        if(tarPos0!=curPos0)
+        if(iS0TarPos!=iS0CurPos)
         {
-            EC_WRITE_S32(domain0_pd+offsetTarPos[0],tarPos0);
+            EC_WRITE_S32(domain0_pd+offsetTarPos[0],iS0TarPos);
+            qDebug()<<"write s0 target position:"<<iS0TarPos;
         }
-        if(tarPos1!=curPos1)
+        if(iS1TarPos!=iS1CurPos)
         {
-            EC_WRITE_S32(domain1_pd+offsetTarPos[1],tarPos1);
+            EC_WRITE_S32(domain1_pd+offsetTarPos[1],iS1TarPos);
+            qDebug()<<"write s1 target position:"<<iS1TarPos;
         }
         EC_WRITE_U16(domain0_pd+offsetCtrlWord[0],cmd);
         EC_WRITE_U16(domain1_pd+offsetCtrlWord[1],cmd);

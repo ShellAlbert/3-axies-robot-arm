@@ -13,6 +13,8 @@ public:
     ~ZCtrlBar();
 private slots:
     void ZSlotTrackBtn();
+signals:
+    void ZSigHome();
 private:
     QToolButton *m_tbHome;
     QToolButton *m_tbTrack;

@@ -3,9 +3,10 @@
 ZGblPara::ZGblPara()
 {
     this->m_bExitFlag=false;
-    this->m_iSlavesEnBitMask=0;
 
-    this->m_bTrackingEnabled=false;
+    //pixel diff.
+    this->m_pixelDiffX=0;
+    this->m_pixelDiffY=0;
 }
 ZGblPara gGblPara;
 

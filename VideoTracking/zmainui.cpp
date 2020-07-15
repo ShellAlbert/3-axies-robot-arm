@@ -2,6 +2,7 @@
 #include <QPainter>
 #include <QDebug>
 #include "zgblpara.h"
+#include "zdialoghome.h"
 ZMainUI::ZMainUI(QWidget *parent)
     : QWidget(parent)
 {
@@ -54,6 +55,8 @@ bool ZMainUI::ZDoInit()
     this->setLayout(this->m_vLayMain);
 
     //make connections.
+    QObject::connect(this->m_ctrlBar,SIGNAL(ZSigHome()),this,SLOT(ZSlotHome()));
+
     QObject::connect(this->m_dirBar,SIGNAL(ZSigLeft()),this,SLOT(ZSlotMoveToLeft()));
     QObject::connect(this->m_dirBar,SIGNAL(ZSigRight()),this,SLOT(ZSlotMoveToRight()));
     QObject::connect(this->m_dirBar,SIGNAL(ZSigUp()),this,SLOT(ZSlotMoveToUp()));
@@ -204,17 +207,24 @@ void ZMainUI::ZSlotLog(bool bErrFlag,QString log)
 
 void ZMainUI::ZSlotMoveToLeft()
 {
-    gGblPara.m_pixelDiffX=+8000;
+    gGblPara.m_pixelDiffX=+1000;
 }
 void ZMainUI::ZSlotMoveToRight()
 {
-    gGblPara.m_pixelDiffX=-8000;
+    gGblPara.m_pixelDiffX=-1000;
 }
 void ZMainUI::ZSlotMoveToUp()
 {
-    gGblPara.m_pixelDiffY=+8000;
+    qDebug()<<"MoveUp,CurPos="<<gGblPara.m_iS0CurPos;
+    gGblPara.m_pixelDiffY=+1000;
 }
 void ZMainUI::ZSlotMoveToDown()
 {
-    gGblPara.m_pixelDiffY=-8000;
+    qDebug()<<"MoveDown,CurPos="<<gGblPara.m_iS0CurPos;
+    gGblPara.m_pixelDiffY=-1000;
+}
+void ZMainUI::ZSlotHome()
+{
+    ZDialogHome diaHome;
+    diaHome.exec();
 }

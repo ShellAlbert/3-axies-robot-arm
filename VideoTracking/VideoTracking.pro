@@ -32,7 +32,9 @@ SOURCES += \
     zmatfifo.cpp \
     zprocessingthread.cpp \
     zctrlbar.cpp \
-    zdirectionbar.cpp
+    zdirectionbar.cpp \
+    zpidcalc.cpp \
+    zdialoghome.cpp
 
 HEADERS += \
         zmainui.h \
@@ -42,7 +44,9 @@ HEADERS += \
     zmatfifo.h \
     zprocessingthread.h \
     zctrlbar.h \
-    zdirectionbar.h
+    zdirectionbar.h \
+    zpidcalc.h \
+    zdialoghome.h
 
 #IgH EtherCAT Master.
 INCLUDEPATH += /opt/ethercat/include

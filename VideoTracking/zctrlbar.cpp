@@ -6,21 +6,25 @@ ZCtrlBar::ZCtrlBar()
     this->setObjectName("ZCtrlBar");
 
     this->m_tbHome=new QToolButton;
+    this->m_tbHome->setObjectName("ZCtrlBarButton");
     this->m_tbHome->setFocusPolicy(Qt::NoFocus);
     this->m_tbHome->setIcon(QIcon(":/images/home.png"));
     this->m_tbHome->setIconSize(QSize(72,72));
 
     this->m_tbTrack=new QToolButton;
+    this->m_tbTrack->setObjectName("ZCtrlBarButton");
     this->m_tbTrack->setFocusPolicy(Qt::NoFocus);
     this->m_tbTrack->setIcon(QIcon(":/images/track.png"));
     this->m_tbTrack->setIconSize(QSize(72,72));
 
     this->m_tbData=new QToolButton;
+    this->m_tbData->setObjectName("ZCtrlBarButton");
     this->m_tbData->setFocusPolicy(Qt::NoFocus);
     this->m_tbData->setIcon(QIcon(":/images/data.png"));
     this->m_tbData->setIconSize(QSize(72,72));
 
     this->m_tbScan=new QToolButton;
+    this->m_tbScan->setObjectName("ZCtrlBarButton");
     this->m_tbScan->setFocusPolicy(Qt::NoFocus);
     this->m_tbScan->setIcon(QIcon(":/images/scan.png"));
     this->m_tbScan->setIconSize(QSize(72,72));
@@ -39,6 +43,7 @@ ZCtrlBar::ZCtrlBar()
 
     this->m_bTrackEn=false;
     QObject::connect(this->m_tbTrack,SIGNAL(clicked(bool)),this,SLOT(ZSlotTrackBtn()));
+    QObject::connect(this->m_tbHome,SIGNAL(clicked(bool)),this,SIGNAL(ZSigHome()));
 }
 ZCtrlBar::~ZCtrlBar()
 {

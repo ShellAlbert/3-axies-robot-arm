@@ -36,6 +36,8 @@ public slots:
     void ZSlotMoveToRight();
     void ZSlotMoveToUp();
     void ZSlotMoveToDown();
+private slots:
+    void ZSlotHome();
 protected:
     void paintEvent(QPaintEvent *e);
     void closeEvent(QCloseEvent *event);
