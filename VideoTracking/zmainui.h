@@ -60,6 +60,7 @@ private:
 
     //the top ctrl bar.
     ZCtrlBar *m_ctrlBar;
+    QHBoxLayout *m_hLayCtrlBar;
     ZDirectionBar *m_dirBar;
     QHBoxLayout *m_hLayDirBar;
     QVBoxLayout *m_vLayMain;

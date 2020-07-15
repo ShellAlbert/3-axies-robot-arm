@@ -4,7 +4,7 @@
 #include <QQueue>
 #include <QMutex>
 #include <QSemaphore>
-#include <opencv2/highgui.hpp>
+#include <opencv4/opencv2/highgui.hpp>
 class ZMatFIFO
 {
 public:

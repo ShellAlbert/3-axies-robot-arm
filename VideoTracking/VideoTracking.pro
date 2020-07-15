@@ -31,7 +31,6 @@ SOURCES += \
     zcapturethread.cpp \
     zmatfifo.cpp \
     zprocessingthread.cpp \
-    CSK_Tracker.cpp \
     zctrlbar.cpp \
     zdirectionbar.cpp
 
@@ -42,13 +41,47 @@ HEADERS += \
     zcapturethread.h \
     zmatfifo.h \
     zprocessingthread.h \
-    CSK_Tracker.h \
     zctrlbar.h \
     zdirectionbar.h
 
+#IgH EtherCAT Master.
 INCLUDEPATH += /opt/ethercat/include
 LIBS +=  -lethercat
-LIBS += -lopencv_core -lopencv_flann -lopencv_videostab -lopencv_video -lopencv_videoio -lopencv_imgproc -lopencv_objdetect -lopencv_superres -lopencv_photo -lopencv_calib3d  -lopencv_highgui  -lopencv_features2d -lopencv_stitching -lopencv_ml -lopencv_imgcodecs -lopencv_dnn -lopencv_shape
+
+#openCV.
+INCLUDEPATH += /home/zhangshaoyan/ethercat/libopencv4/include
+INCLUDEPATH += /home/zhangshaoyan/ethercat/libopencv4/include/opencv4
+LIBS += -L/home/zhangshaoyan/ethercat/libopencv4/lib
+LIBS += -lopencv_cudabgsegm \
+-lopencv_cudaobjdetect \
+-lopencv_cudastereo \
+-lopencv_dnn \
+-lopencv_ml \
+-lopencv_shape \
+-lopencv_stitching \
+-lopencv_cudafeatures2d \
+-lopencv_superres \
+-lopencv_cudacodec \
+-lopencv_videostab \
+-lopencv_cudaoptflow \
+-lopencv_cudalegacy \
+-lopencv_calib3d \
+-lopencv_features2d \
+-lopencv_highgui \
+-lopencv_videoio \
+-lopencv_photo \
+-lopencv_imgcodecs \
+-lopencv_cudawarping \
+-lopencv_cudaimgproc \
+-lopencv_cudafilters \
+-lopencv_video \
+-lopencv_objdetect \
+-lopencv_imgproc \
+-lopencv_flann \
+-lopencv_cudaarithm \
+-lopencv_core \
+-lopencv_cudev \
+-lopencv_tracking
 
 RESOURCES += \
     resource/style1.qrc

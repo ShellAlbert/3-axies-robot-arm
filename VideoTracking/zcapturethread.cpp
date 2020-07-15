@@ -1,8 +1,9 @@
 #include "zcapturethread.h"
 #include "zgblpara.h"
-#include <opencv2/core.hpp>
-#include <opencv2/highgui.hpp>
-#include <opencv2/imgproc.hpp>
+
+#include <opencv4/opencv2/core.hpp>
+#include <opencv4/opencv2/highgui.hpp>
+#include <opencv4/opencv2/imgproc.hpp>
 
 #include <QDebug>
 #include <QTime>
@@ -22,7 +23,7 @@ void ZCaptureThread::run()
             QString rtspAddr=QString("rtsp://%1:554/user=admin&password=&channel=1&stream=0.sdp?real_stream").arg(this->m_ip);
             if(cap.open(rtspAddr.toStdString()))
             {
-                double dRate=cap.get(CV_CAP_PROP_FPS);
+                double dRate=0;//cap.get(CV_CAP_PROP_FPS);
                 qDebug()<<"rate:"<<dRate;
             }else{
                 qDebug()<<"open rtsp failed.";

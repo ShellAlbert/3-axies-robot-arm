@@ -4,6 +4,8 @@ ZGblPara::ZGblPara()
 {
     this->m_bExitFlag=false;
     this->m_iSlavesEnBitMask=0;
+
+    this->m_bTrackingEnabled=false;
 }
 ZGblPara gGblPara;
 

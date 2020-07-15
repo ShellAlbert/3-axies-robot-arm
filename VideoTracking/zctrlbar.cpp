@@ -1,7 +1,10 @@
 #include "zctrlbar.h"
-
+#include "zgblpara.h"
+#include <QDebug>
 ZCtrlBar::ZCtrlBar()
 {
+    this->setObjectName("ZCtrlBar");
+
     this->m_tbHome=new QToolButton;
     this->m_tbHome->setFocusPolicy(Qt::NoFocus);
     this->m_tbHome->setIcon(QIcon(":/images/home.png"));
@@ -33,6 +36,9 @@ ZCtrlBar::ZCtrlBar()
     this->m_hLay->addStretch(1);
 
     this->setLayout(this->m_hLay);
+
+    this->m_bTrackEn=false;
+    QObject::connect(this->m_tbTrack,SIGNAL(clicked(bool)),this,SLOT(ZSlotTrackBtn()));
 }
 ZCtrlBar::~ZCtrlBar()
 {
@@ -41,4 +47,19 @@ ZCtrlBar::~ZCtrlBar()
     delete this->m_tbData;
     delete this->m_tbScan;
     delete this->m_hLay;
+}
+void ZCtrlBar::ZSlotTrackBtn()
+{
+    this->m_bTrackEn=!this->m_bTrackEn;
+    qDebug()<<this->m_bTrackEn;
+    if(this->m_bTrackEn)
+    {
+        //change icon.
+        this->m_tbTrack->setIcon(QIcon(":/images/arrow-u.png"));
+        gGblPara.m_bTrackingEnabled=true;
+    }else{
+        //change icon.
+        this->m_tbTrack->setIcon(QIcon(":/images/track.png"));
+        gGblPara.m_bTrackingEnabled=false;
+    }
 }

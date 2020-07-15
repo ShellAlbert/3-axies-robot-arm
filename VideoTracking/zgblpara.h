@@ -18,6 +18,9 @@ public:
     //pixel diff.
     int m_pixelDiffX;
     int m_pixelDiffY;
+
+    //tracking enabled.
+    bool m_bTrackingEnabled;
 };
 extern ZGblPara gGblPara;
 

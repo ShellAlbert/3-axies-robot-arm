@@ -27,6 +27,7 @@ ZMainUI::~ZMainUI()
 {
     //the top ctrl bar.
     delete this->m_ctrlBar;
+    delete this->m_hLayCtrlBar;
     delete this->m_dirBar;
     delete this->m_hLayDirBar;
     delete this->m_vLayMain;
@@ -34,13 +35,19 @@ ZMainUI::~ZMainUI()
 bool ZMainUI::ZDoInit()
 {
     this->m_ctrlBar=new ZCtrlBar;
+    this->m_hLayCtrlBar=new QHBoxLayout;
+    this->m_hLayCtrlBar->addStretch(1);
+    this->m_hLayCtrlBar->addWidget(this->m_ctrlBar);
+    this->m_hLayCtrlBar->addStretch(1);
+
     this->m_dirBar=new ZDirectionBar;
     this->m_hLayDirBar=new QHBoxLayout;
     this->m_hLayDirBar->addStretch(1);
     this->m_hLayDirBar->addWidget(this->m_dirBar);
 
     this->m_vLayMain=new QVBoxLayout;
-    this->m_vLayMain->addWidget(this->m_ctrlBar);
+    this->m_vLayMain->setContentsMargins(0,0,0,0);
+    this->m_vLayMain->addLayout(this->m_hLayCtrlBar);
     this->m_vLayMain->addStretch(1);
     this->m_vLayMain->addLayout(this->m_hLayDirBar);
     this->m_vLayMain->addStretch(1);
@@ -69,21 +76,9 @@ void ZMainUI::paintEvent(QPaintEvent *e)
     QPainter painter(this);
     if(this->m_img.isNull())
     {
+        //if image is invalid,draw a black background.
         painter.fillRect(QRectF(0,0,this->width(),this->height()),Qt::black);
-    }else
-    {
-        //draw center rectange on image.
-        QPainter painterImg(&this->m_img);
-        int centerBoxWidth=200;
-        int centerBoxHeight=200;
-        QRectF rectCenter(this->m_img.width()/2-centerBoxWidth/2,///<
-                           this->m_img.height()/2-centerBoxHeight,///<
-                           centerBoxWidth,centerBoxHeight);
-        painterImg.setPen(QPen(Qt::red,2));
-        painterImg.drawRect(rectCenter);
-        //qDebug()<<"Image Center:"<<rectCenter;
-        this->m_ptCenter=rectCenter.center().toPoint();
-
+    }else{
         //draw the image.
         painter.drawImage(QRectF(0,0,this->width(),this->height()),this->m_img);
     }
@@ -113,18 +108,22 @@ void ZMainUI::paintEvent(QPaintEvent *e)
 
 
     //draw the Axies0,Axies1 on the bottom.
-    QString strAxies=QString("Axies(0):%1/%2/%3  Axies(1):%4/%5/%6").arg(this->m_iS0PosActVal).arg(this->m_iS0TarPos).arg(this->m_iS0ActVel).arg(this->m_iS1PosActVal).arg(this->m_iS1TarPos).arg(this->m_iS1ActVel);
-    //we keep 10 pixels space.
+    QString strAxis0=QString::number(this->m_iS0PosActVal);
+    QString strAxis1=QString::number(this->m_iS1PosActVal);
     QFont fontAxies=painter.font();
-    fontAxies.setPixelSize(30);
+    fontAxies.setPixelSize(36);
     painter.setFont(fontAxies);
-    painter.setPen(QPen(Qt::white,2));
-    QRect rectAxies(0,///< x
-                    this->height()-painter.fontMetrics().height()-10,///< y
-                    painter.fontMetrics().width(strAxies)+200,///<width
+    painter.setPen(QPen(Qt::red,2));
+    QRect rectAxis0(this->width()-painter.fontMetrics().width(strAxis0),///< x
+                    this->height()-painter.fontMetrics().height()*2,///< y
+                    painter.fontMetrics().width(strAxis0),///<width
                     painter.fontMetrics().height());///<height
-    painter.fillRect(rectAxies,Qt::black);
-    painter.drawText(rectAxies,strAxies);
+    QRect rectAxis1(this->width()-painter.fontMetrics().width(strAxis1),///< x
+                    this->height()-painter.fontMetrics().height()*1,///< y
+                    painter.fontMetrics().width(strAxis1),///<width
+                    painter.fontMetrics().height());///<height
+    painter.drawText(rectAxis0,strAxis0);
+    painter.drawText(rectAxis1,strAxis1);
 }
 void ZMainUI::ZSlotPDO(qint32 iSlave,qint32 iActPos,qint32 iTarPos,qint32 iActVel)
 {
@@ -185,17 +184,17 @@ void ZMainUI::ZSlotLog(bool bErrFlag,QString log)
 
 void ZMainUI::ZSlotMoveToLeft()
 {
-    gGblPara.m_pixelDiffX=-2000;
+    gGblPara.m_pixelDiffX=+2000;
 }
 void ZMainUI::ZSlotMoveToRight()
 {
-    gGblPara.m_pixelDiffX=+2000;
+    gGblPara.m_pixelDiffX=-2000;
 }
 void ZMainUI::ZSlotMoveToUp()
 {
-    gGblPara.m_pixelDiffY=-2000;
+    gGblPara.m_pixelDiffY=+2000;
 }
 void ZMainUI::ZSlotMoveToDown()
 {
-    gGblPara.m_pixelDiffY=+2000;
+    gGblPara.m_pixelDiffY=-2000;
 }
