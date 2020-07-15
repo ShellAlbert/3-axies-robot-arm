@@ -7,9 +7,10 @@ ZGblPara::ZGblPara()
     //pixel diff.
     this->m_pixelDiffX=0;
     this->m_pixelDiffY=0;
+
+    this->m_bGotoZeroPoint=false;
 }
 ZGblPara gGblPara;
-
 
 #include <QTime>
 #include <QDebug>

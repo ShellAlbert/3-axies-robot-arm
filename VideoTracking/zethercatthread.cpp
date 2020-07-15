@@ -289,6 +289,11 @@ void ZEtherCATThread::ZDoCyclicTask()
     check_master_state();
     check_slave_config_state();
 
+//    if(gGblPara.m_bGotoZeroPoint)
+//    {
+//        g_SysFSM=FSM_CfgCSP;
+//    }
+
     switch(g_SysFSM)
     {
     case FSM_SafeOp:
@@ -530,15 +535,16 @@ void ZEtherCATThread::ZDoCyclicTask()
         break;
     case FSM_HomingCSP:
     {
-        uint16_t cmd;
+        uint16_t cmd0,cmd1;
         uint16_t s0,s1;
         int iS0CurPos,iS1CurPos;
         //read current position.
         iS0CurPos=EC_READ_S32(domain0_pd + offsetPosActVal[0]);
         iS1CurPos=EC_READ_S32(domain1_pd + offsetPosActVal[1]);
         qDebug()<<"HomingCSP:"<<iS0CurPos;
-        if(iS0CurPos==0)
+        if(iS0CurPos==0 && iS1CurPos==0)
         {
+            gGblPara.m_bGotoZeroPoint=false;
             g_SysFSM=FSM_RunCSP;
             emit this->ZSigLog(false,"FSM --->>> FSM_HomingCSP");
         }else{
@@ -560,7 +566,7 @@ void ZEtherCATThread::ZDoCyclicTask()
                 //issue "shutdown" command,From [Switch On Disabled] to [Ready to Switch On].
                 //shutdown:bit7=0,bit3=x,bit2=1,bit1=1,bit0=0.
                 //0000,0000,0000,0110=0x0006.
-                cmd=0x0006;
+                cmd0=0x0006;
             }else if((s0&0x006F)==0x0021)
             {
                 //we conly concern bit6,bit3,bit2,bit1,bit0 in Ready to switch on,
@@ -568,7 +574,7 @@ void ZEtherCATThread::ZDoCyclicTask()
 
                 //xxxx,xxxx,x01x,0001=0x0021,Ready to switch on.
                 emit this->ZSigLog(false,"slave(0) in Ready to switch on.");
-                cmd=0x0007;
+                cmd0=0x0007;
             }else if((s0&0x006F)==0x0023)
             {
                 //we conly concern bit6,bit5,bit3,bit2,bit1,bit0 in Switch on,
@@ -576,7 +582,7 @@ void ZEtherCATThread::ZDoCyclicTask()
 
                 //xxxx,xxxx,x01x,0011=0x0023,Switch on.
                 emit this->ZSigLog(false,"slave(0) in Switch on.");
-                cmd=0x000F;
+                cmd0=0x000F;
             }else if((s0&0x006F)==0x0027)
             {
                 //we conly concern bit6,bit5,bit3,bit2,bit1,bit0 in Operation Enabled,
@@ -584,17 +590,18 @@ void ZEtherCATThread::ZDoCyclicTask()
 
                 //xxxx,xxxx,x01x,0111=0x0027,Operation Enabled.
                 //emit this->ZSigLog(false,"slave(0) in Operation Enabled.");
-                cmd=0x001F;
+                cmd0=0x001F;
 
                 //we use small step to avoid amplifier error.
-                if(iS0CurPos>1000)
+                int iMoveStep=1000;
+                if(iS0CurPos>iMoveStep)
                 {
                     //write 0 to slave0 target position.
-                    EC_WRITE_S32(domain0_pd+offsetTarPos[0],iS0CurPos-1000);
-                }else if(iS0CurPos<-1000)
+                    EC_WRITE_S32(domain0_pd+offsetTarPos[0],iS0CurPos-iMoveStep);
+                }else if(iS0CurPos<-iMoveStep)
                 {
                     //write 0 to slave0 target position.
-                    EC_WRITE_S32(domain0_pd+offsetTarPos[0],iS0CurPos+1000);
+                    EC_WRITE_S32(domain0_pd+offsetTarPos[0],iS0CurPos+iMoveStep);
                 }else{
                     EC_WRITE_S32(domain0_pd+offsetTarPos[0],0);
                 }
@@ -617,15 +624,89 @@ void ZEtherCATThread::ZDoCyclicTask()
                 //Fault.
                 //bit7:Reset Fault.
                 //A low-to-high transition of this bit makes the amplifier attemp to clear any latched fault condition.
-                cmd=0x0080;
+                cmd0=0x0080;
             }
-            EC_WRITE_U16(domain0_pd+offsetCtrlWord[0],cmd);
+
+            //slave1 finite state machine.
+            if((s1&0x004F)==0x0040)
+            {
+                //we conly concern bit6,bit3,bit2,bit1,bit0 in Switch On Disabled,
+                //so we use 0000,0000,0100,1111=0x4F as the bit mask.
+
+                //xxxx,xxxx,x1xx,0000=0x0040,Switch on Disabled.
+                emit this->ZSigLog(false,"slave(1) in Switch on Disabled.");
+
+                //issue "shutdown" command,From [Switch On Disabled] to [Ready to Switch On].
+                //shutdown:bit7=0,bit3=x,bit2=1,bit1=1,bit0=0.
+                //0000,0000,0000,0110=0x0006.
+                cmd1=0x0006;
+            }else if((s1&0x006F)==0x0021)
+            {
+                //we conly concern bit6,bit3,bit2,bit1,bit0 in Ready to switch on,
+                //so we use 0000,0000,0110,1111=0x6F as the bit mask.
+
+                //xxxx,xxxx,x01x,0001=0x0021,Ready to switch on.
+                emit this->ZSigLog(false,"slave(1) in Ready to switch on.");
+                cmd1=0x0007;
+            }else if((s1&0x006F)==0x0023)
+            {
+                //we conly concern bit6,bit5,bit3,bit2,bit1,bit0 in Switch on,
+                //so we use 0000,0000,0110,1111=0x006F as the bit mask.
+
+                //xxxx,xxxx,x01x,0011=0x0023,Switch on.
+                emit this->ZSigLog(false,"slave(1) in Switch on.");
+                cmd1=0x000F;
+            }else if((s1&0x006F)==0x0027)
+            {
+                //we conly concern bit6,bit5,bit3,bit2,bit1,bit0 in Operation Enabled,
+                //so we use 0000,0000,0110,1111=0x006F as the bit mask.
+
+                //xxxx,xxxx,x01x,0111=0x0027,Operation Enabled.
+                //emit this->ZSigLog(false,"slave(0) in Operation Enabled.");
+                cmd1=0x001F;
+
+                //we use small step to avoid amplifier error.
+                int iMoveStep=1000;
+                if(iS1CurPos>iMoveStep)
+                {
+                    //write 0 to slave1 target position.
+                    EC_WRITE_S32(domain1_pd+offsetTarPos[1],iS1CurPos-iMoveStep);
+                }else if(iS1CurPos<-iMoveStep)
+                {
+                    //write 0 to slave1 target position.
+                    EC_WRITE_S32(domain1_pd+offsetTarPos[1],iS1CurPos+iMoveStep);
+                }else{
+                    EC_WRITE_S32(domain1_pd+offsetTarPos[1],0);
+                }
+
+            }else{
+                //0x0100:0000,0001,0000,0000
+                //bit8:Set if the last trajectory was aborted rather than finishing normally.
+                if(s1&0x0100)
+                {
+                    emit this->ZSigLog(true,"slave(1):the last trajectory was aborted rather than finishing normally.");
+                }
+                //0x0800:0000,1000,0000,0000
+                //bit11:Internal Limit Active.
+                //This bit is set when one of the amplifier limits(current,voltage,velocity or position) is active.
+                if(s1&0x0800)
+                {
+                    emit this->ZSigLog(true,"slave(1):Internal Limit Active.");
+                }
+
+                //Fault.
+                //bit7:Reset Fault.
+                //A low-to-high transition of this bit makes the amplifier attemp to clear any latched fault condition.
+                cmd1=0x0080;
+            }
+            EC_WRITE_U16(domain0_pd+offsetCtrlWord[0],cmd0);
+            EC_WRITE_U16(domain1_pd+offsetCtrlWord[1],cmd1);
         }
     }
         break;
     case FSM_RunCSP:
     {
-        uint16_t cmd;
+        uint16_t cmd0,cmd1;
         uint16_t s0,s1;
         int iS0CurPos,iS1CurPos;
         int iS0TarPos,iS1TarPos;
@@ -656,7 +737,7 @@ void ZEtherCATThread::ZDoCyclicTask()
             //issue "shutdown" command,From [Switch On Disabled] to [Ready to Switch On].
             //shutdown:bit7=0,bit3=x,bit2=1,bit1=1,bit0=0.
             //0000,0000,0000,0110=0x0006.
-            cmd=0x0006;
+            cmd0=0x0006;
         }else if((s0&0x006F)==0x0021)
         {
             //we conly concern bit6,bit3,bit2,bit1,bit0 in Ready to switch on,
@@ -664,7 +745,7 @@ void ZEtherCATThread::ZDoCyclicTask()
 
             //xxxx,xxxx,x01x,0001=0x0021,Ready to switch on.
             emit this->ZSigLog(false,"slave(0) in Ready to switch on.");
-            cmd=0x0007;
+            cmd0=0x0007;
         }else if((s0&0x006F)==0x0023)
         {
             //we conly concern bit6,bit5,bit3,bit2,bit1,bit0 in Switch on,
@@ -672,7 +753,7 @@ void ZEtherCATThread::ZDoCyclicTask()
 
             //xxxx,xxxx,x01x,0011=0x0023,Switch on.
             emit this->ZSigLog(false,"slave(0) in Switch on.");
-            cmd=0x000F;
+            cmd0=0x000F;
         }else if((s0&0x006F)==0x0027)
         {
             //we conly concern bit6,bit5,bit3,bit2,bit1,bit0 in Operation Enabled,
@@ -680,7 +761,7 @@ void ZEtherCATThread::ZDoCyclicTask()
 
             //xxxx,xxxx,x01x,0111=0x0027,Operation Enabled.
             //emit this->ZSigLog(false,"slave(0) in Operation Enabled.");
-            cmd=0x001F;
+            cmd0=0x001F;
 
             //slave0: up/down direction control.
             //we move by a small step to avoid amplifier driver error.
@@ -734,7 +815,7 @@ void ZEtherCATThread::ZDoCyclicTask()
             //Fault.
             //bit7:Reset Fault.
             //A low-to-high transition of this bit makes the amplifier attemp to clear any latched fault condition.
-            cmd=0x0080;
+            cmd0=0x0080;
         }
 
         //slave1 finite state machine.
@@ -749,7 +830,7 @@ void ZEtherCATThread::ZDoCyclicTask()
             //issue "shutdown" command,From [Switch On Disabled] to [Ready to Switch On].
             //shutdown:bit7=0,bit3=x,bit2=1,bit1=1,bit0=0.
             //0000,0000,0000,0110=0x0006.
-            cmd=0x0006;
+            cmd1=0x0006;
         }else if((s1&0x006F)==0x0021)
         {
             //we conly concern bit6,bit3,bit2,bit1,bit0 in Ready to switch on,
@@ -757,7 +838,7 @@ void ZEtherCATThread::ZDoCyclicTask()
 
             //xxxx,xxxx,x01x,0001=0x0021,Ready to switch on.
             emit this->ZSigLog(false,"slave(1) in Ready to switch on.");
-            cmd=0x0007;
+            cmd1=0x0007;
         }else if((s1&0x006F)==0x0023)
         {
             //we conly concern bit6,bit5,bit3,bit2,bit1,bit0 in Switch on,
@@ -765,7 +846,7 @@ void ZEtherCATThread::ZDoCyclicTask()
 
             //xxxx,xxxx,x01x,0011=0x0023,Switch on.
             emit this->ZSigLog(false,"slave(1) in Switch on.");
-            cmd=0x000F;
+            cmd1=0x000F;
         }else if((s1&0x006F)==0x0027)
         {
             int iCurrentPos;
@@ -774,7 +855,7 @@ void ZEtherCATThread::ZDoCyclicTask()
 
             //xxxx,xxxx,x01x,0111=0x0027,Operation Enabled.
             //emit this->ZSigLog(false,"slave(0) in Operation Enabled.");
-            cmd=0x001F;
+            cmd1=0x001F;
 
             //slave1: up/down direction control.
             //we move by a small step to avoid amplifier driver error.
@@ -827,7 +908,7 @@ void ZEtherCATThread::ZDoCyclicTask()
             //Fault.
             //bit7:Reset Fault.
             //A low-to-high transition of this bit makes the amplifier attemp to clear any latched fault condition.
-            cmd=0x0080;
+            cmd1=0x0080;
         }
 
         //write Ctrl Word & Target Position.
@@ -842,8 +923,8 @@ void ZEtherCATThread::ZDoCyclicTask()
             EC_WRITE_S32(domain1_pd+offsetTarPos[1],iS1TarPos);
             qDebug()<<"write s1 target position:"<<iS1TarPos;
         }
-        EC_WRITE_U16(domain0_pd+offsetCtrlWord[0],cmd);
-        EC_WRITE_U16(domain1_pd+offsetCtrlWord[1],cmd);
+        EC_WRITE_U16(domain0_pd+offsetCtrlWord[0],cmd0);
+        EC_WRITE_U16(domain1_pd+offsetCtrlWord[1],cmd1);
     }
         break;
     case FSM_IdleStatus:

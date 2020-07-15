@@ -34,14 +34,7 @@ ZDialogHome::~ZDialogHome()
 }
 void ZDialogHome::ZSlotS0Homing()
 {
-    if(gGblPara.m_iS0CurPos>0)
-    {
-        gGblPara.m_pixelDiffY=-gGblPara.m_iS0CurPos;
-    }else if(gGblPara.m_iS0CurPos<0)
-    {
-        gGblPara.m_pixelDiffY=+gGblPara.m_iS0CurPos;
-    }
-    qDebug()<<"Homing:"<<gGblPara.m_iS0CurPos<<",diff:"<<gGblPara.m_pixelDiffY;
+    gGblPara.m_bGotoZeroPoint=true;
 }
 void ZDialogHome::ZSlotS1Homing()
 {

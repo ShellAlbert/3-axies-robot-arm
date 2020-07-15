@@ -22,6 +22,9 @@ public:
 
     //tracking enabled.
     bool m_bTrackingEnabled;
+
+public:
+    bool m_bGotoZeroPoint;
 };
 extern ZGblPara gGblPara;
 
