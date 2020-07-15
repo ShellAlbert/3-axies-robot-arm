@@ -58,8 +58,8 @@ static ec_domain_t *domain1=NULL;
 static ec_domain_state_t domain1_state={};
 static uint8_t *domain1_pd=NULL;
 /*Copley slave configuration*/
-static ec_slave_config_t *sc_copley[2]={NULL,NULL};
-static ec_slave_config_state_t sc_copley_state[2]={};
+static ec_slave_config_t *slave[2]={NULL,NULL};
+static ec_slave_config_state_t slave_state[2]={};
 
 /**< Pointer to a variable to store the PDO entry's (byte-)offset in the process data. */
 //offset for PDO entries just like a alias or symbol.
@@ -217,37 +217,37 @@ void check_slave_config_state(void)
 {
     //slave:0:0
     ec_slave_config_state_t s={};
-    ecrt_slave_config_state(sc_copley[0],&s);
-    if(s.al_state != sc_copley_state[0].al_state)
+    ecrt_slave_config_state(slave[0],&s);
+    if(s.al_state != slave_state[0].al_state)
     {
-        //printf("sc_copley_state[0]: State 0x%02x.\n",s.al_state);
+        //printf("slave_state[0]: State 0x%02x.\n",s.al_state);
     }
-    if(s.online != sc_copley_state[0].online)
+    if(s.online != slave_state[0].online)
     {
-        //printf("sc_copley_sate[0]: %s.\n",s.online ? "online" : "offline");
+        //printf("slave_sate[0]: %s.\n",s.online ? "online" : "offline");
     }
-    if(s.operational != sc_copley_state[0].operational)
+    if(s.operational != slave_state[0].operational)
     {
-        //printf("sc_copley_sate[0]: %soperational.\n",s.operational ? "" : "Not ");
+        //printf("slave_sate[0]: %soperational.\n",s.operational ? "" : "Not ");
     }
-    sc_copley_state[0]=s;
+    slave_state[0]=s;
 
     //slave:0:1
     ec_slave_config_state_t s1={};
-    ecrt_slave_config_state(sc_copley[1],&s1);
-    if(s1.al_state != sc_copley_state[1].al_state)
+    ecrt_slave_config_state(slave[1],&s1);
+    if(s1.al_state != slave_state[1].al_state)
     {
-        //printf("sc_copley_state[1]: State 0x%02x.\n",s1.al_state);
+        //printf("slave_state[1]: State 0x%02x.\n",s1.al_state);
     }
-    if(s1.online != sc_copley_state[1].online)
+    if(s1.online != slave_state[1].online)
     {
-        //printf("sc_copley_sate[1]: %s.\n",s1.online ? "online" : "offline");
+        //printf("slave_sate[1]: %s.\n",s1.online ? "online" : "offline");
     }
-    if(s1.operational != sc_copley_state[1].operational)
+    if(s1.operational != slave_state[1].operational)
     {
-        //printf("sc_copley_sate[1]: %soperational.\n",s1.operational ? "" : "Not ");
+        //printf("slave_sate[1]: %soperational.\n",s1.operational ? "" : "Not ");
     }
-    sc_copley_state[1]=s1;
+    slave_state[1]=s1;
 }
 void print_bits_splitter(int bits)
 {
@@ -308,7 +308,7 @@ void ZEtherCATThread::ZDoCyclicTask()
             //The application-layer state of the slave.
             //- 1: \a INIT,- 2: \a PREOP,- 4: \a SAFEOP,- 8: \a OP
             //Note that each state is coded in a different bit!
-            if((sc_copley_state[0].al_state!=0x08) || (sc_copley_state[1].al_state!=0x08))
+            if((slave_state[0].al_state!=0x08) || (slave_state[1].al_state!=0x08))
             {
                 //do not change FSM,wait for next time checking.
             }else{
@@ -324,27 +324,27 @@ void ZEtherCATThread::ZDoCyclicTask()
         int curPos;
         //Mode of Operation.
         //(0x6060,0)=6:Homing mode.
-        ecrt_slave_config_sdo8(sc_copley[0],0x6060,0,6);
-        ecrt_slave_config_sdo8(sc_copley[1],0x6060,0,6);
+        ecrt_slave_config_sdo8(slave[0],0x6060,0,6);
+        ecrt_slave_config_sdo8(slave[1],0x6060,0,6);
 
         //Home offset=0.
-        ecrt_slave_config_sdo32(sc_copley[0],0x607C,0,0);
-        ecrt_slave_config_sdo32(sc_copley[1],0x607C,0,0);
+        ecrt_slave_config_sdo32(slave[0],0x607C,0,0);
+        ecrt_slave_config_sdo32(slave[1],0x607C,0,0);
 
         //Home velocity-fast.
-        ecrt_slave_config_sdo32(sc_copley[0],0x6099,1,10000);
-        ecrt_slave_config_sdo32(sc_copley[1],0x6099,1,10000);
+        ecrt_slave_config_sdo32(slave[0],0x6099,1,10000);
+        ecrt_slave_config_sdo32(slave[1],0x6099,1,10000);
         //Home velocity-slow.
-        ecrt_slave_config_sdo32(sc_copley[0],0x6099,2,500);
-        ecrt_slave_config_sdo32(sc_copley[1],0x6099,2,500);
+        ecrt_slave_config_sdo32(slave[0],0x6099,2,500);
+        ecrt_slave_config_sdo32(slave[1],0x6099,2,500);
 
         //Homing Acceleration.
-        ecrt_slave_config_sdo32(sc_copley[0],0x609A,0,200000);
-        ecrt_slave_config_sdo32(sc_copley[1],0x609A,0,200000);
+        ecrt_slave_config_sdo32(slave[0],0x609A,0,200000);
+        ecrt_slave_config_sdo32(slave[1],0x609A,0,200000);
 
         //Homing method.
-        ecrt_slave_config_sdo8(sc_copley[0],0x6098,0,-1);
-        ecrt_slave_config_sdo8(sc_copley[1],0x6098,0,-1);
+        ecrt_slave_config_sdo8(slave[0],0x6098,0,-1);
+        ecrt_slave_config_sdo8(slave[1],0x6098,0,-1);
         usleep(100);
 
         //master read from slave domain Wr process data.
@@ -423,17 +423,17 @@ void ZEtherCATThread::ZDoCyclicTask()
     {
         //Mode of Operation.
         //(0x6060,0)=3,Profile Velocity mode.
-        ecrt_slave_config_sdo8(sc_copley[0],0x6060,0,3);
+        ecrt_slave_config_sdo8(slave[0],0x6060,0,3);
         //Profile Acceleration.
-        ecrt_slave_config_sdo32(sc_copley[0],0x6083,0,1000);
+        ecrt_slave_config_sdo32(slave[0],0x6083,0,1000);
         //Profile Deceleration.
-        ecrt_slave_config_sdo32(sc_copley[0],0x6084,0,1000);
+        ecrt_slave_config_sdo32(slave[0],0x6084,0,1000);
         //Target Velocity.
-        ecrt_slave_config_sdo32(sc_copley[0],0x60FF,0,100000);
+        ecrt_slave_config_sdo32(slave[0],0x60FF,0,100000);
         //Motion Profile Type.
-        ecrt_slave_config_sdo16(sc_copley[0],0x6086,0,-1);
+        ecrt_slave_config_sdo16(slave[0],0x6086,0,-1);
         //Profile Velocity.
-        ecrt_slave_config_sdo32(sc_copley[0],0x6081,0,100000);
+        ecrt_slave_config_sdo32(slave[0],0x6081,0,100000);
 
         EC_WRITE_U16(domain0_pd+offsetCtrlWord[0],0x0080);
         usleep(100);
@@ -449,8 +449,8 @@ void ZEtherCATThread::ZDoCyclicTask()
 
 #if 0
         //Target Velocity(0x60FF,0)
-        ecrt_slave_config_sdo32(sc_copley[0],0x60FF,0,28388608);
-        ecrt_slave_config_sdo32(sc_copley[1],0x60FF,0,38388608);
+        ecrt_slave_config_sdo32(slave[0],0x60FF,0,28388608);
+        ecrt_slave_config_sdo32(slave[1],0x60FF,0,38388608);
 
         //Reset Fault.
         //A low-to-high transition of this bit makes the amplifier attempt to clear any latched fault condition.
@@ -481,41 +481,45 @@ void ZEtherCATThread::ZDoCyclicTask()
         //setup "Mode of Operation" via SDO.
         //Slave-0.
         //(0x6060,0)=8 CSP:Cyclic Synchronous Position mode
-        ecrt_slave_config_sdo8(sc_copley[0],0x6060,0,8);
-        //ecrt_slave_config_sdo8(sc_copley[0],0x60c2,1,100);
+        //ecrt_slave_config_sdo8(slave[0],0x6060,0,8);
+        //ecrt_slave_config_sdo8(slave[0],0x60c2,1,100);
+
+        //(0x6060,0)=1 Profile Position mode
+        ecrt_slave_config_sdo8(slave[0],0x6060,0,1);
+
         //Motion Profile Type(0x6086).
-        ecrt_slave_config_sdo16(sc_copley[0],0x6086,0,0);
+        ecrt_slave_config_sdo16(slave[0],0x6086,0,0);
         //Target Positon(0x607A).
         //Profile Velocity(0x6081).
-        ecrt_slave_config_sdo32(sc_copley[0],0x6081,0,8000000);
+        ecrt_slave_config_sdo32(slave[0],0x6081,0,8000000);
         //Profile Acceleration(0x6083).
-        ecrt_slave_config_sdo32(sc_copley[0],0x6083,0,5000);
+        ecrt_slave_config_sdo32(slave[0],0x6083,0,5000);
         //Profile Deceleration(0x6084).
-        ecrt_slave_config_sdo32(sc_copley[0],0x6084,0,5000);
+        ecrt_slave_config_sdo32(slave[0],0x6084,0,5000);
         //Trajectory Jerk Limit(0x2121).
 
         //Slave-1.
         //(0x6060,0)=8 CSP:Cyclic Synchronous Position mode
-        ecrt_slave_config_sdo8(sc_copley[1],0x6060,0,8);
-        //ecrt_slave_config_sdo8(sc_copley[1],0x60c2,1,1);
+        ecrt_slave_config_sdo8(slave[1],0x6060,0,1/*8*/);
+        //ecrt_slave_config_sdo8(slave[1],0x60c2,1,1);
         //Motion Profile Type(0x6086).
-        ecrt_slave_config_sdo16(sc_copley[1],0x6086,0,0);
+        ecrt_slave_config_sdo16(slave[1],0x6086,0,0);
         //Target Positon(0x607A).
         //Profile Velocity(0x6081).
-        ecrt_slave_config_sdo32(sc_copley[1],0x6081,0,8000000);
+        ecrt_slave_config_sdo32(slave[1],0x6081,0,8000000);
         //Profile Acceleration(0x6083).
-        ecrt_slave_config_sdo32(sc_copley[1],0x6083,0,5000);
+        ecrt_slave_config_sdo32(slave[1],0x6083,0,5000);
         //Profile Deceleration(0x6084).
-        ecrt_slave_config_sdo32(sc_copley[1],0x6084,0,5000);
+        ecrt_slave_config_sdo32(slave[1],0x6084,0,5000);
         //Trajectory Jerk Limit(0x2121).
 
 
         //Minimum Software Position limit.
-        ecrt_slave_config_sdo32(sc_copley[0],0x607D,1,-5000);
-        ecrt_slave_config_sdo32(sc_copley[1],0x607D,1,-5000);
+        ecrt_slave_config_sdo32(slave[0],0x607D,1,-5000);
+        ecrt_slave_config_sdo32(slave[1],0x607D,1,-5000);
         //Maximum Software Position limit.
-        ecrt_slave_config_sdo32(sc_copley[0],0x607D,2,5000);
-        ecrt_slave_config_sdo32(sc_copley[1],0x607D,2,5000);
+        ecrt_slave_config_sdo32(slave[0],0x607D,2,5000);
+        ecrt_slave_config_sdo32(slave[1],0x607D,2,5000);
 
         g_SysFSM=FSM_RunCSP;
         emit this->ZSigLog(false,"FSM --->>> FSM_RunCSP");
@@ -577,7 +581,7 @@ void ZEtherCATThread::ZDoCyclicTask()
 
             //slave0: up/down direction control.
             //we move by a small step to avoid amplifier driver error.
-            int iMoveStep=200;
+            int iMoveStep=1000;
             if(gGblPara.m_pixelDiffY>0)//(gGblPara.m_pixelDiffY>0), move torward to down.
             {
                 qDebug("currentPos:%d,diffY:%d\n",curPos0,gGblPara.m_pixelDiffY);
@@ -676,7 +680,7 @@ void ZEtherCATThread::ZDoCyclicTask()
 
             //slave0: up/down direction control.
             //we move by a small step to avoid amplifier driver error.
-            int iMoveStep=200;
+            int iMoveStep=1000;
             if(gGblPara.m_pixelDiffX>0)//(gGblPara.m_pixelDiffX>0), move torward to left.
             {
                 qDebug("currentPos:%d,diffX:%d\n",iCurrentPos,gGblPara.m_pixelDiffX);
@@ -706,7 +710,6 @@ void ZEtherCATThread::ZDoCyclicTask()
             }else{
                 //qDebug()<<"No need to move!";
             }
-
             //read related PDOs.
             int iPosActVal=EC_READ_S32(domain1_pd + offsetPosActVal[1]);
             int iPosErr=EC_READ_S32(domain1_pd + offsetPosError[1]);
@@ -735,6 +738,7 @@ void ZEtherCATThread::ZDoCyclicTask()
         }
 
         //write Ctrl Word & Target Position.
+        //CAUTION:if we donot judge here will cause motor vibration.
         if(tarPos0!=curPos0)
         {
             EC_WRITE_S32(domain0_pd+offsetTarPos[0],tarPos0);
@@ -820,13 +824,13 @@ void ZEtherCATThread::run()
         //If the slave with the given address is found during the bus configuration,
         //its vendor ID and product code are matched against the given value.
         //On mismatch, the slave is not configured and an error message is raised.
-        if(!(sc_copley[0]=ecrt_master_slave_config(master,CopleySlavePos,Copley_VID_PID)))
+        if(!(slave[0]=ecrt_master_slave_config(master,CopleySlavePos,Copley_VID_PID)))
         {
             emit this->ZSigLog(true,"failed to get slave(0) configuration.");
             iThreadExitCode=-1;
             break;
         }
-        if(!(sc_copley[1]=ecrt_master_slave_config(master,CopleySlavePos2,Copley_VID_PID)))
+        if(!(slave[1]=ecrt_master_slave_config(master,CopleySlavePos2,Copley_VID_PID)))
         {
             emit this->ZSigLog(true,"failed to get slave(1) configuration.");
             iThreadExitCode=-1;
@@ -836,39 +840,42 @@ void ZEtherCATThread::run()
 
 #if 0
         //configure PDO.
-        //clear RxPdo.
-        ecrt_slave_config_sdo8(sc_copley[0],0x1C12,0,0);//clear sm pdo 0x1c12.
-        ecrt_slave_config_sdo8(sc_copley[0],0x1600,0,0);//clear RxPdo 0x1600.
-        ecrt_slave_config_sdo8(sc_copley[0],0x1601,0,0);//clear RxPdo 0x1601.
-        ecrt_slave_config_sdo8(sc_copley[0],0x1602,0,0);//clear RxPdo 0x1602.
-        ecrt_slave_config_sdo8(sc_copley[0],0x1603,0,0);//clear RxPdo 0x1603.
-        //define RxPdo.
-        ecrt_slave_config_sdo32(sc_copley[0],0x1600,1,0x60400010);//0x6040:0,16bit.Control Word.
-        ecrt_slave_config_sdo32(sc_copley[0],0x1600,2,0x607A0020);//0x607A:0,32bit.Profile Target Position.
-        ecrt_slave_config_sdo8(sc_copley[0],0x1600,0,2);//set number of PDO entries for 0x1600.
+        for(int i=0;i<2;i++)
+        {
+            //clear RxPdo.
+            ecrt_slave_config_sdo8(slave[i],0x1C12,0,0);//clear sm pdo 0x1c12.
+            ecrt_slave_config_sdo8(slave[i],0x1600,0,0);//clear RxPdo 0x1600.
+            ecrt_slave_config_sdo8(slave[i],0x1601,0,0);//clear RxPdo 0x1601.
+            ecrt_slave_config_sdo8(slave[i],0x1602,0,0);//clear RxPdo 0x1602.
+            ecrt_slave_config_sdo8(slave[i],0x1603,0,0);//clear RxPdo 0x1603.
+            //define RxPdo.
+            ecrt_slave_config_sdo32(slave[i],0x1600,1,0x60400010);//0x6040:0,16bit.Control Word.
+            ecrt_slave_config_sdo32(slave[i],0x1600,2,0x607A0020);//0x607A:0,32bit.Profile Target Position.
+            ecrt_slave_config_sdo8(slave[i],0x1600,0,2);//set number of PDO entries for 0x1600.
 
-        ecrt_slave_config_sdo16(sc_copley[0],0x1C12,1,0x1600);//list all RxPdo in 0x1c12:1-4.
-        ecrt_slave_config_sdo8(sc_copley[0],0x1C12,0,1);//set number of RxPdo.
+            ecrt_slave_config_sdo16(slave[i],0x1C12,1,0x1600);//list all RxPdo in 0x1c12:1-4.
+            ecrt_slave_config_sdo8(slave[i],0x1C12,0,1);//set number of RxPdo.
 
-        //Clear TxPdo.
-        ecrt_slave_config_sdo8(sc_copley[0],0x1C13,0,0);//clear sm pdo 0x1c13.
-        ecrt_slave_config_sdo8(sc_copley[0],0x1A00,0,0);//clear RxPdo 0x1A00.
-        ecrt_slave_config_sdo8(sc_copley[0],0x1A01,0,0);//clear RxPdo 0x1A01.
-        ecrt_slave_config_sdo8(sc_copley[0],0x1A02,0,0);//clear RxPdo 0x1A02.
-        ecrt_slave_config_sdo8(sc_copley[0],0x1A03,0,0);//clear RxPdo 0x1A03.
-        //Define TxPdo.
-        ecrt_slave_config_sdo32(sc_copley[0],0x1A00,1,0x60410010);//0x6041:0,16bit,Status Word.
-        ecrt_slave_config_sdo32(sc_copley[0],0x1A00,2,0x60640020);//0x6064:0,32bit,Position Actual Value.
-        ecrt_slave_config_sdo32(sc_copley[0],0x1A00,3,0x60F40020);//0x60F4:0,32bit,Position Error.
-        ecrt_slave_config_sdo32(sc_copley[0],0x1A00,4,0x606C0020);//0x606C:0,32bit,Actual Velocity.
-        ecrt_slave_config_sdo8(sc_copley[0],0x1A00,0,4);//set number of PDO entries for 0x1A00.
+            //Clear TxPdo.
+            ecrt_slave_config_sdo8(slave[i],0x1C13,0,0);//clear sm pdo 0x1c13.
+            ecrt_slave_config_sdo8(slave[i],0x1A00,0,0);//clear RxPdo 0x1A00.
+            ecrt_slave_config_sdo8(slave[i],0x1A01,0,0);//clear RxPdo 0x1A01.
+            ecrt_slave_config_sdo8(slave[i],0x1A02,0,0);//clear RxPdo 0x1A02.
+            ecrt_slave_config_sdo8(slave[i],0x1A03,0,0);//clear RxPdo 0x1A03.
+            //Define TxPdo.
+            ecrt_slave_config_sdo32(slave[i],0x1A00,1,0x60410010);//0x6041:0,16bit,Status Word.
+            ecrt_slave_config_sdo32(slave[i],0x1A00,2,0x60640020);//0x6064:0,32bit,Position Actual Value.
+            ecrt_slave_config_sdo32(slave[i],0x1A00,3,0x60F40020);//0x60F4:0,32bit,Position Error.
+            ecrt_slave_config_sdo8(slave[i],0x1A00,0,3);//set number of PDO entries for 0x1A00.
 
-        ecrt_slave_config_sdo32(sc_copley[0],0x1A01,1,0x60770020);//0x6077:0,32bit,Torque Actual Value.
-        ecrt_slave_config_sdo8(sc_copley[0],0x1A01,0,1);//set number of PDO entries for 0x1A01.
+            ecrt_slave_config_sdo32(slave[i],0x1A01,1,0x606C0020);//0x606C:0,32bit,Actual Velocity.
+            ecrt_slave_config_sdo32(slave[i],0x1A01,2,0x60770020);//0x6077:0,32bit,Torque Actual Value.
+            ecrt_slave_config_sdo8(slave[i],0x1A01,0,2);//set number of PDO entries for 0x1A01.
 
-        ecrt_slave_config_sdo16(sc_copley[0],0x1C13,1,0x1A00);//list all TxPdo in 0x1c13:1-4.
-        ecrt_slave_config_sdo16(sc_copley[0],0x1C13,2,0x1A01);//list all TxPdo in 0x1c13:1-4.
-        ecrt_slave_config_sdo8(sc_copley[0],0x1C13,0,2);//set number of TxPdo.
+            ecrt_slave_config_sdo16(slave[i],0x1C13,1,0x1A00);//list all TxPdo in 0x1c13:1-4.
+            ecrt_slave_config_sdo16(slave[i],0x1C13,2,0x1A01);//list all TxPdo in 0x1c13:1-4.
+            ecrt_slave_config_sdo8(slave[i],0x1C13,0,2);//set number of TxPdo.
+        }
 #endif
         //Specify a complete PDO configuration.
         //This function is a convenience wrapper for the functions
@@ -877,13 +884,13 @@ void ZEtherCATThread::run()
         //and ecrt_slave_config_pdo_mapping_add(), that are better suitable for
         //automatic code generation.
         emit this->ZSigLog(false,"configuring PDOs...");
-        if(ecrt_slave_config_pdos(sc_copley[0],EC_END,slave0_syncs))
+        if(ecrt_slave_config_pdos(slave[0],EC_END,slave0_syncs))
         {
             emit this->ZSigLog(true,"failed to configure slave(0) PDOs.");
             iThreadExitCode=-1;
             break;
         }
-        if(ecrt_slave_config_pdos(sc_copley[1],EC_END,slave1_syncs))
+        if(ecrt_slave_config_pdos(slave[1],EC_END,slave1_syncs))
         {
             emit this->ZSigLog(true,"failed to configure slave(1) PDOs.");
             iThreadExitCode=-1;

@@ -108,22 +108,42 @@ void ZMainUI::paintEvent(QPaintEvent *e)
 
 
     //draw the Axies0,Axies1 on the bottom.
-    QString strAxis0=QString::number(this->m_iS0PosActVal);
-    QString strAxis1=QString::number(this->m_iS1PosActVal);
+    QString strS0Pos=QString::number(this->m_iS0PosActVal);
+    QString strS0Vel=QString::number(this->m_iS0ActVel);
+    QString strS1Pos=QString::number(this->m_iS1PosActVal);
+    QString strS1Vel=QString::number(this->m_iS1ActVel);
     QFont fontAxies=painter.font();
     fontAxies.setPixelSize(36);
     painter.setFont(fontAxies);
-    painter.setPen(QPen(Qt::red,2));
-    QRect rectAxis0(this->width()-painter.fontMetrics().width(strAxis0),///< x
+    //Slave 0 Position. (red color).
+    //Slave 0 Velocity. (yellow).
+    //Slave 1 Position. (red color).
+    //Slave 1 Velocity. (yellow).
+    //define rectangel.
+    QRect rectS0Pos(this->width()-painter.fontMetrics().width(strS0Pos),///< x
+                    this->height()-painter.fontMetrics().height()*4,///< y
+                    painter.fontMetrics().width(strS0Pos),///<width
+                    painter.fontMetrics().height());///<height
+    QRect rectS0Vel(this->width()-painter.fontMetrics().width(strS0Vel),///< x
+                    this->height()-painter.fontMetrics().height()*3,///< y
+                    painter.fontMetrics().width(strS0Vel),///<width
+                    painter.fontMetrics().height());///<height
+    QRect rectS1Pos(this->width()-painter.fontMetrics().width(strS1Pos),///< x
                     this->height()-painter.fontMetrics().height()*2,///< y
-                    painter.fontMetrics().width(strAxis0),///<width
+                    painter.fontMetrics().width(strS1Pos),///<width
                     painter.fontMetrics().height());///<height
-    QRect rectAxis1(this->width()-painter.fontMetrics().width(strAxis1),///< x
+    QRect rectS1Vel(this->width()-painter.fontMetrics().width(strS1Vel),///< x
                     this->height()-painter.fontMetrics().height()*1,///< y
-                    painter.fontMetrics().width(strAxis1),///<width
+                    painter.fontMetrics().width(strS1Vel),///<width
                     painter.fontMetrics().height());///<height
-    painter.drawText(rectAxis0,strAxis0);
-    painter.drawText(rectAxis1,strAxis1);
+    //draw Position with red color.
+    painter.setPen(QPen(Qt::red,2));
+    painter.drawText(rectS0Pos,strS0Pos);
+    painter.drawText(rectS1Pos,strS1Pos);
+    //draw velocity with yellow color.
+    painter.setPen(QPen(Qt::yellow,2));
+    painter.drawText(rectS0Vel,strS0Vel);
+    painter.drawText(rectS1Vel,strS1Vel);
 }
 void ZMainUI::ZSlotPDO(qint32 iSlave,qint32 iActPos,qint32 iTarPos,qint32 iActVel)
 {
@@ -184,17 +204,17 @@ void ZMainUI::ZSlotLog(bool bErrFlag,QString log)
 
 void ZMainUI::ZSlotMoveToLeft()
 {
-    gGblPara.m_pixelDiffX=+2000;
+    gGblPara.m_pixelDiffX=+8000;
 }
 void ZMainUI::ZSlotMoveToRight()
 {
-    gGblPara.m_pixelDiffX=-2000;
+    gGblPara.m_pixelDiffX=-8000;
 }
 void ZMainUI::ZSlotMoveToUp()
 {
-    gGblPara.m_pixelDiffY=+2000;
+    gGblPara.m_pixelDiffY=+8000;
 }
 void ZMainUI::ZSlotMoveToDown()
 {
-    gGblPara.m_pixelDiffY=-2000;
+    gGblPara.m_pixelDiffY=-8000;
 }
