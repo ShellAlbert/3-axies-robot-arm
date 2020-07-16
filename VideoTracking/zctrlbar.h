@@ -15,6 +15,9 @@ private slots:
     void ZSlotTrackBtn();
 signals:
     void ZSigHome();
+    void ZSigTrack();
+    void ZSigData();
+    void ZSigScan();
 private:
     QToolButton *m_tbHome;
     QToolButton *m_tbTrack;

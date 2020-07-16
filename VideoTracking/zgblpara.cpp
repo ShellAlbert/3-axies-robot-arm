@@ -5,10 +5,9 @@ ZGblPara::ZGblPara()
     this->m_bExitFlag=false;
 
     //pixel diff.
-    this->m_pixelDiffX=0;
-    this->m_pixelDiffY=0;
+    this->m_moveDiffX=0;
+    this->m_moveDiffY=0;
 
-    this->m_bGotoZeroPoint=false;
 }
 ZGblPara gGblPara;
 

@@ -56,6 +56,7 @@ bool ZMainUI::ZDoInit()
 
     //make connections.
     QObject::connect(this->m_ctrlBar,SIGNAL(ZSigHome()),this,SLOT(ZSlotHome()));
+    QObject::connect(this->m_ctrlBar,SIGNAL(ZSigScan()),this,SLOT(ZSlotScan()));
 
     QObject::connect(this->m_dirBar,SIGNAL(ZSigLeft()),this,SLOT(ZSlotMoveToLeft()));
     QObject::connect(this->m_dirBar,SIGNAL(ZSigRight()),this,SLOT(ZSlotMoveToRight()));
@@ -66,6 +67,10 @@ bool ZMainUI::ZDoInit()
 QSize ZMainUI::sizeHint() const
 {
     return QSize(800,600);
+}
+void ZMainUI::resizeEvent(QResizeEvent *event)
+{
+    this->m_ptCenter=QPoint(this->width()/2,this->height()/2);
 }
 void ZMainUI::ZSlotUpdateImg(const QImage &img)
 {
@@ -147,6 +152,19 @@ void ZMainUI::paintEvent(QPaintEvent *e)
     painter.setPen(QPen(Qt::yellow,2));
     painter.drawText(rectS0Vel,strS0Vel);
     painter.drawText(rectS1Vel,strS1Vel);
+
+
+    //draw the track difference X&Y.
+    if(gGblPara.m_bTrackingEnabled)
+    {
+        QString strDiffXY=QString::number(gGblPara.m_trackDiffX)+","+QString::number(gGblPara.m_trackDiffY);
+        QRect rectDiffXY(0,///< x
+                         this->height()-painter.fontMetrics().height()*1,///< y
+                         painter.fontMetrics().width(strDiffXY),///<width
+                         painter.fontMetrics().height());///<height
+        painter.setPen(QPen(Qt::yellow,2));
+        painter.drawText(rectDiffXY,strDiffXY);
+    }
 }
 void ZMainUI::ZSlotPDO(qint32 iSlave,qint32 iActPos,qint32 iTarPos,qint32 iActVel)
 {
@@ -174,19 +192,27 @@ void ZMainUI::closeEvent(QCloseEvent *event)
 
 void ZMainUI::mousePressEvent(QMouseEvent *event)
 {
+#if 0
     this->m_ptNew=event->pos();
-    gGblPara.m_pixelDiffX=this->m_ptNew.x()-this->m_ptCenter.x();
-    gGblPara.m_pixelDiffY=this->m_ptNew.y()-this->m_ptCenter.y();
-    gGblPara.m_pixelDiffX*=200;
-    gGblPara.m_pixelDiffY*=200;
-    //if (gGblPara.m_pixelDiffX>0), move torward to right.
-    //if (gGblPara.m_pixelDiffX<0), move torward to left.
 
-    //if (gGblPara.m_pixelDiffY>0), move torward to down.
-    //if (gGblPara.m_pixelDiffY<0), move torward to up.
+    //map image pixel coordinate to physical motor move increasement.
+    //y=kx+b for axis0.
+    float kX=100.0;
+    float kBx=0.0;
+    //y=kx+b for axis1.
+    float kY=100.0;
+    float kBy=0.0;
 
-    //qDebug("diff x=%d,y=%d\n",gGblPara.m_pixelDiffX,gGblPara.m_pixelDiffY);
-    this->ZSlotLog(false,QString("(%1,%2) -> (%3,%4),X:%5,Y:%6").arg(this->m_ptCenter.x()).arg(this->m_ptCenter.y()).arg(this->m_ptNew.x()).arg(this->m_ptNew.y()).arg(gGblPara.m_pixelDiffX).arg(gGblPara.m_pixelDiffY));
+    //image pixel diff.
+    qint32 nPixDiffX=this->m_ptNew.x()-this->m_ptCenter.x();
+    qint32 nPixDiffY=this->m_ptNew.y()-this->m_ptCenter.y();
+
+    //map pixel diff to motor move diff.
+    //set new motor move diff.
+    gGblPara.m_moveDiffX=kX*nPixDiffX+kBx;
+    gGblPara.m_moveDiffY=kY*nPixDiffY+kBy;
+    qDebug("newMove:%d,%d\n",gGblPara.m_moveDiffX,gGblPara.m_moveDiffY);
+#endif
     QWidget::mousePressEvent(event);
 }
 void ZMainUI::mouseReleaseEvent(QMouseEvent *event)
@@ -207,24 +233,37 @@ void ZMainUI::ZSlotLog(bool bErrFlag,QString log)
 
 void ZMainUI::ZSlotMoveToLeft()
 {
-    gGblPara.m_pixelDiffX=+1000;
+    gGblPara.m_moveDiffX=+5000;
 }
 void ZMainUI::ZSlotMoveToRight()
 {
-    gGblPara.m_pixelDiffX=-1000;
+    gGblPara.m_moveDiffX=-5000;
 }
 void ZMainUI::ZSlotMoveToUp()
 {
-    qDebug()<<"MoveUp,CurPos="<<gGblPara.m_iS0CurPos;
-    gGblPara.m_pixelDiffY=+1000;
+    gGblPara.m_moveDiffY=+5000;
 }
 void ZMainUI::ZSlotMoveToDown()
 {
-    qDebug()<<"MoveDown,CurPos="<<gGblPara.m_iS0CurPos;
-    gGblPara.m_pixelDiffY=-1000;
+    gGblPara.m_moveDiffY=-5000;
 }
 void ZMainUI::ZSlotHome()
 {
     ZDialogHome diaHome;
     diaHome.exec();
+}
+void ZMainUI::ZSlotScan()
+{
+    //map image pixel coordinate to physical motor move increasement.
+    //y=kx+b for axis0.
+    float kX=1000.0;
+    float kBx=0.0;
+    //y=kx+b for axis1.
+    float kY=100.0;
+    float kBy=0.0;
+
+    //map pixel diff to motor move diff.
+    //set new motor move diff.
+    gGblPara.m_moveDiffX=(kX*gGblPara.m_trackDiffX+kBx);
+    gGblPara.m_moveDiffY=(kY*gGblPara.m_trackDiffY+kBy);
 }

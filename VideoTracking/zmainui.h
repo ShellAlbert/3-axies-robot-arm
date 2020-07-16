@@ -38,12 +38,14 @@ public slots:
     void ZSlotMoveToDown();
 private slots:
     void ZSlotHome();
+    void ZSlotScan();
 protected:
     void paintEvent(QPaintEvent *e);
     void closeEvent(QCloseEvent *event);
     void mousePressEvent(QMouseEvent *event);
     void mouseReleaseEvent(QMouseEvent *event);
     QSize sizeHint() const;
+    void resizeEvent(QResizeEvent *event);
 private:
 
     //slave 0 Position Actual Value.

@@ -44,6 +44,7 @@ ZCtrlBar::ZCtrlBar()
     this->m_bTrackEn=false;
     QObject::connect(this->m_tbTrack,SIGNAL(clicked(bool)),this,SLOT(ZSlotTrackBtn()));
     QObject::connect(this->m_tbHome,SIGNAL(clicked(bool)),this,SIGNAL(ZSigHome()));
+    QObject::connect(this->m_tbScan,SIGNAL(clicked(bool)),this,SIGNAL(ZSigScan()));
 }
 ZCtrlBar::~ZCtrlBar()
 {

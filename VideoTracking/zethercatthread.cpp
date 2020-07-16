@@ -14,17 +14,6 @@ extern "C"
 #include <sys/types.h>
 }
 
-//used to emit UI.
-int gStatusWord=0;
-int gActVelocity=0;
-int gActPosition=0;
-int gTarPosition=0;
-
-int gStatusWord2=0;
-int gActVelocity2=0;
-int gActPosition2=0;
-int gTarPosition2=0;
-
 /*EtherCAT slave address on the bus*/
 #define CopleySlavePos    0, 0
 #define CopleySlavePos2    0, 1
@@ -267,97 +256,6 @@ void print_bits_splitter(int bits)
     }
     printf("< %s >",bitsBuffer);
 }
-//0:slave 0 , 1:slave 1.
-//true: move okay.false:move failed.
-bool ZEtherCATThread::ZMove2Position(qint32 iWhich,qint32 iTarPos)
-{
-
-    if(iWhich==0)
-    {
-        while(1)
-        {
-            //read current position.
-            int iCurPos=EC_READ_S32(domain0_pd + offsetPosActVal[0]);
-            if(iCurPos==iTarPos)
-            {
-                return true;
-            }
-            //check Status Word.
-            uint16_t cmd0;
-            uint16_t s0;
-            s0=EC_READ_U16(domain0_pd+offsetStatusWord[0]);
-            if((s0&0x004F)==0x0040)
-            {
-                //we conly concern bit6,bit3,bit2,bit1,bit0 in Switch On Disabled,
-                //so we use 0000,0000,0100,1111=0x4F as the bit mask.
-
-                //xxxx,xxxx,x1xx,0000=0x0040,Switch on Disabled.
-                emit this->ZSigLog(false,"slave(0) in Switch on Disabled.");
-
-                //issue "shutdown" command,From [Switch On Disabled] to [Ready to Switch On].
-                //shutdown:bit7=0,bit3=x,bit2=1,bit1=1,bit0=0.
-                //0000,0000,0000,0110=0x0006.
-                cmd0=0x0006;
-            }else if((s0&0x006F)==0x0021)
-            {
-                //we conly concern bit6,bit3,bit2,bit1,bit0 in Ready to switch on,
-                //so we use 0000,0000,0110,1111=0x6F as the bit mask.
-
-                //xxxx,xxxx,x01x,0001=0x0021,Ready to switch on.
-                emit this->ZSigLog(false,"slave(0) in Ready to switch on.");
-                cmd0=0x0007;
-            }else if((s0&0x006F)==0x0023)
-            {
-                //we conly concern bit6,bit5,bit3,bit2,bit1,bit0 in Switch on,
-                //so we use 0000,0000,0110,1111=0x006F as the bit mask.
-
-                //xxxx,xxxx,x01x,0011=0x0023,Switch on.
-                emit this->ZSigLog(false,"slave(0) in Switch on.");
-                cmd0=0x000F;
-            }else if((s0&0x006F)==0x0027)
-            {
-                //we conly concern bit6,bit5,bit3,bit2,bit1,bit0 in Operation Enabled,
-                //so we use 0000,0000,0110,1111=0x006F as the bit mask.
-
-                //xxxx,xxxx,x01x,0111=0x0027,Operation Enabled.
-                //emit this->ZSigLog(false,"slave(0) in Operation Enabled.");
-                cmd0=0x001F;
-
-                //write TargetPosition in Operational Enabled Mode.
-                int iMoveStep=1000;
-                if((iTarPos-iCurPos)>iMoveStep)
-                {
-                    EC_WRITE_S32(domain0_pd+offsetTarPos[0],iCurPos+iMoveStep);
-                }else if((iTarPos-iCurPos)<-iMoveStep){
-                    EC_WRITE_S32(domain0_pd+offsetTarPos[0],iCurPos+(-iMoveStep));
-                }else{
-                    EC_WRITE_S32(domain0_pd+offsetTarPos[0],(iTarPos-iCurPos));
-                }
-            }else{
-                //0x0100:0000,0001,0000,0000
-                //bit8:Set if the last trajectory was aborted rather than finishing normally.
-                if(s0&0x0100)
-                {
-                    emit this->ZSigLog(true,"slave(0):the last trajectory was aborted rather than finishing normally.");
-                }
-                //0x0800:0000,1000,0000,0000
-                //bit11:Internal Limit Active.
-                //This bit is set when one of the amplifier limits(current,voltage,velocity or position) is active.
-                if(s0&0x0800)
-                {
-                    emit this->ZSigLog(true,"slave(0):Internal Limit Active.");
-                }
-
-                //Fault.
-                //bit7:Reset Fault.
-                //A low-to-high transition of this bit makes the amplifier attemp to clear any latched fault condition.
-                cmd0=0x0080;
-            }
-            EC_WRITE_U16(domain0_pd+offsetCtrlWord[0],cmd0);
-        }
-    }
-    return true;
-}
 
 void ZEtherCATThread::ZDoCyclicTask()
 {
@@ -373,11 +271,6 @@ void ZEtherCATThread::ZDoCyclicTask()
     check_domain_state();
     check_master_state();
     check_slave_config_state();
-
-    //    if(gGblPara.m_bGotoZeroPoint)
-    //    {
-    //        g_SysFSM=FSM_CfgCSP;
-    //    }
 
     switch(g_SysFSM)
     {
@@ -521,12 +414,14 @@ void ZEtherCATThread::ZDoCyclicTask()
         //Motion Profile Type(0x6086).
         ecrt_slave_config_sdo16(slave[0],0x6086,0,0);
         //Target Positon(0x607A).
+        //maximum motor speed.
+        ecrt_slave_config_sdo32(slave[0],0x6080,0,200);
         //Profile Velocity(0x6081).
-        ecrt_slave_config_sdo32(slave[0],0x6081,0,8000000);
+        ecrt_slave_config_sdo32(slave[0],0x6081,0,100);
         //Profile Acceleration(0x6083).
-        ecrt_slave_config_sdo32(slave[0],0x6083,0,5000);
+        ecrt_slave_config_sdo32(slave[0],0x6083,0,30);
         //Profile Deceleration(0x6084).
-        ecrt_slave_config_sdo32(slave[0],0x6084,0,5000);
+        ecrt_slave_config_sdo32(slave[0],0x6084,0,30);
         //Trajectory Jerk Limit(0x2121).
 
         //Slave-1.
@@ -540,12 +435,15 @@ void ZEtherCATThread::ZDoCyclicTask()
         //Motion Profile Type(0x6086).
         ecrt_slave_config_sdo16(slave[1],0x6086,0,0);
         //Target Positon(0x607A).
+        //maximum motor speed.
+        ecrt_slave_config_sdo32(slave[1],0x6080,0,200);
         //Profile Velocity(0x6081).
-        ecrt_slave_config_sdo32(slave[1],0x6081,0,8000000);
+        ecrt_slave_config_sdo32(slave[1],0x6081,0,100);
+        ecrt_slave_config_sdo32(slave[1],0x60ff,0,100);
         //Profile Acceleration(0x6083).
-        ecrt_slave_config_sdo32(slave[1],0x6083,0,5000);
+        ecrt_slave_config_sdo32(slave[1],0x6083,0,30);
         //Profile Deceleration(0x6084).
-        ecrt_slave_config_sdo32(slave[1],0x6084,0,5000);
+        ecrt_slave_config_sdo32(slave[1],0x6084,0,39);
         //Trajectory Jerk Limit(0x2121).
 
 
@@ -737,10 +635,12 @@ void ZEtherCATThread::ZDoCyclicTask()
         //read current position.
         iS0CurPos=EC_READ_S32(domain0_pd + offsetPosActVal[0]);
         iS1CurPos=EC_READ_S32(domain1_pd + offsetPosActVal[1]);
-        qDebug("curPos(%d,%d), ptLast(%d,%d)\n",iS0CurPos,iS1CurPos,ptLast.x(),ptLast.y());
+
+        //qDebug("curPos(%d,%d), ptLast(%d,%d)\n",iS0CurPos,iS1CurPos,ptLast.x(),ptLast.y());
 
         if(iS0CurPos==ptLast.x() && iS1CurPos==ptLast.y())
         {
+
             if(this->m_vecPathPlan.size()==0)
             {
                 //if CurrentPosisition reached TargetPosition and all PathPlan vector were cleared.
@@ -966,25 +866,25 @@ void ZEtherCATThread::ZDoCyclicTask()
             //slave0: up/down direction control.
             //we move by a small step to avoid amplifier driver error.
             int iMoveStep=1000;
-            if(gGblPara.m_pixelDiffY>0)//move down.
+            if(gGblPara.m_moveDiffY>0)//move down.
             {
-                if(gGblPara.m_pixelDiffY>=iMoveStep)
+                if(gGblPara.m_moveDiffY>=iMoveStep)
                 {
                     iS0TarPos+=iMoveStep;
-                    gGblPara.m_pixelDiffY-=iMoveStep;
+                    gGblPara.m_moveDiffY-=iMoveStep;
                 }else{
-                    iS0TarPos+=gGblPara.m_pixelDiffY;
-                    gGblPara.m_pixelDiffY=0;
+                    iS0TarPos+=gGblPara.m_moveDiffY;
+                    gGblPara.m_moveDiffY=0;
                 }
-            }else if(gGblPara.m_pixelDiffY<0)//if (gGblPara.m_pixelDiffY<0), move torward to up.
+            }else if(gGblPara.m_moveDiffY<0)//if (gGblPara.m_pixelDiffY<0), move torward to up.
             {
-                if(gGblPara.m_pixelDiffY<=-iMoveStep)
+                if(gGblPara.m_moveDiffY<=-iMoveStep)
                 {
                     iS0TarPos-=iMoveStep;
-                    gGblPara.m_pixelDiffY+=iMoveStep;
+                    gGblPara.m_moveDiffY+=iMoveStep;
                 }else{
-                    iS0TarPos-=gGblPara.m_pixelDiffY;
-                    gGblPara.m_pixelDiffY=0;
+                    iS0TarPos-=gGblPara.m_moveDiffY;
+                    gGblPara.m_moveDiffY=0;
                 }
             }else{
                 //qDebug()<<"No need to move!";
@@ -1060,29 +960,30 @@ void ZEtherCATThread::ZDoCyclicTask()
             //slave1: up/down direction control.
             //we move by a small step to avoid amplifier driver error.
             int iMoveStep=1000;
-            if(gGblPara.m_pixelDiffX>0)//(gGblPara.m_pixelDiffX>0), move torward to left.
+            if(gGblPara.m_moveDiffX>0)//(gGblPara.m_pixelDiffX>0), move torward to left.
             {
-                if(gGblPara.m_pixelDiffX>=iMoveStep)
+                if(gGblPara.m_moveDiffX>=iMoveStep)
                 {
                     iS1TarPos-=iMoveStep;
-                    gGblPara.m_pixelDiffX-=iMoveStep;
+                    gGblPara.m_moveDiffX-=iMoveStep;
                 }else{
-                    iS1TarPos-=gGblPara.m_pixelDiffX;
-                    gGblPara.m_pixelDiffX=0;
+                    iS1TarPos-=gGblPara.m_moveDiffX;
+                    gGblPara.m_moveDiffX=0;
                 }
-            }else if(gGblPara.m_pixelDiffX<0)//if (gGblPara.m_pixelDiffY<0), move torward to right.
+            }else if(gGblPara.m_moveDiffX<0)//if (gGblPara.m_pixelDiffY<0), move torward to right.
             {
-                if(gGblPara.m_pixelDiffX<=-iMoveStep)
+                if(gGblPara.m_moveDiffX<=-iMoveStep)
                 {
                     iS1TarPos+=iMoveStep;
-                    gGblPara.m_pixelDiffX+=iMoveStep;
+                    gGblPara.m_moveDiffX+=iMoveStep;
                 }else{
-                    iS1TarPos+=gGblPara.m_pixelDiffX;
-                    gGblPara.m_pixelDiffX=0;
+                    iS1TarPos+=gGblPara.m_moveDiffX;
+                    gGblPara.m_moveDiffX=0;
                 }
             }else{
                 //qDebug()<<"No need to move!";
             }
+
 
             //read related PDOs.
             int iPosActVal=EC_READ_S32(domain1_pd + offsetPosActVal[1]);
@@ -1116,12 +1017,12 @@ void ZEtherCATThread::ZDoCyclicTask()
         if(iS0TarPos!=iS0CurPos)
         {
             EC_WRITE_S32(domain0_pd+offsetTarPos[0],iS0TarPos);
-            qDebug()<<"write s0 target position:"<<iS0TarPos;
+            //qDebug()<<"write s0 target position:"<<iS0TarPos;
         }
         if(iS1TarPos!=iS1CurPos)
         {
             EC_WRITE_S32(domain1_pd+offsetTarPos[1],iS1TarPos);
-            qDebug()<<"write s1 target position:"<<iS1TarPos;
+            //qDebug()<<"write s1 target position:"<<iS1TarPos;
         }
         EC_WRITE_U16(domain0_pd+offsetCtrlWord[0],cmd0);
         EC_WRITE_U16(domain1_pd+offsetCtrlWord[1],cmd1);
@@ -1146,11 +1047,10 @@ void ZEtherCATThread::ZDoCyclicTask()
 }
 ZEtherCATThread::ZEtherCATThread()
 {
-    //move to (2000,3000).
-    this->m_vecPathPlan.append(QPoint(10000,10000));
-    this->m_vecPathPlan.append(QPoint(12,30));
-    this->m_vecPathPlan.append(QPoint(-8000,-9870));
-
+    //path planning,goto (x,y) automatically.
+//    this->m_vecPathPlan.append(QPoint(6666,6666));
+//    this->m_vecPathPlan.append(QPoint(-8888,-8888));
+    this->m_vecPathPlan.append(QPoint(2786,14823));
 }
 void ZEtherCATThread::run()
 {

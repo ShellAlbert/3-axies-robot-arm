@@ -30,13 +30,19 @@ void ZProcessingThread::run()
 
         //we do ImgProc on gray.
         //cv::cvtColor(mat,mat,cv::COLOR_RGB2GRAY);
+        cv::resize(mat,mat,cv::Size(mat.cols/2,mat.rows/2));
+
         //draw the ROI rectangle(200x200).
         Rect2d roi;
-        roi.width=200;
-        roi.height=200;
+        roi.width=100;
+        roi.height=100;
         roi.x=mat.cols/2-roi.width/2;
         roi.y=mat.rows/2-roi.height/2;
-        cv::rectangle(mat,roi,cv::Scalar(0,0,0),2,1);
+        cv::rectangle(mat,roi,cv::Scalar(0,255,0),3,1);
+
+        //define the center(x,y).
+        int iOrgCenterX=mat.cols/2-roi.width/2;
+        int iOrgCenterY=mat.rows/2-roi.height/2;
 
         if(gGblPara.m_bTrackingEnabled)
         {
@@ -48,34 +54,13 @@ void ZProcessingThread::run()
             //update the tracking result.
             if(tracker->update(mat,roi))
             {
+
                 //draw the tracked object.
                 cv::rectangle(mat,roi,cv::Scalar(255,255,255),2,1);
-                qDebug()<<"new roi:"<<roi.x<<roi.y<<roi.width<<roi.height;
-                int iOrgCenterX=mat.cols/2-roi.width/2;
-                int iOrgCenterY=mat.rows/2-roi.height/2;
-                if(roi.x>iOrgCenterX)
-                {
-                    //new X > old X,should move to right.
-                    qDebug()<<"Move2Right:"<<roi.x-iOrgCenterX;
-                    gGblPara.m_pixelDiffX=-(roi.x-iOrgCenterX);
-                }else if(roi.x<iOrgCenterX)
-                {
-                    //new X < old X,should move to left.
-                    qDebug()<<"Move2Left:"<<-(iOrgCenterX-roi.x);
-                    gGblPara.m_pixelDiffX=(iOrgCenterX-roi.x);
-                }
 
-                if(roi.y>iOrgCenterY)
-                {
-                    //new X > old X,should move to up.
-                    qDebug()<<"Up:"<<roi.y-iOrgCenterY;
-                    gGblPara.m_pixelDiffY=roi.y-iOrgCenterY;
-                }else if(roi.y<iOrgCenterY)
-                {
-                    //new X < old X,should move to down.
-                    qDebug()<<"Down:"<<roi.y-iOrgCenterY;
-                    gGblPara.m_pixelDiffY=roi.y-iOrgCenterY;
-                }
+                //calculate the track diff x&y.
+                gGblPara.m_trackDiffX=(roi.x+roi.width/2)-iOrgCenterX;
+                gGblPara.m_trackDiffY=(roi.y+roi.height/2)-iOrgCenterY;
             }else{
                 qDebug()<<"tracking failed.";
             }

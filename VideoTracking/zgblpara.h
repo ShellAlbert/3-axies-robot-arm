@@ -17,14 +17,13 @@ public:
     int m_iS1CurPos;
 public:
     //pixel diff.
-    int m_pixelDiffX;
-    int m_pixelDiffY;
+    int m_moveDiffX;
+    int m_moveDiffY;
 
     //tracking enabled.
     bool m_bTrackingEnabled;
-
-public:
-    bool m_bGotoZeroPoint;
+    int m_trackDiffX;
+    int m_trackDiffY;
 };
 extern ZGblPara gGblPara;
 

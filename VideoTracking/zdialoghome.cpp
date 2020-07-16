@@ -34,7 +34,7 @@ ZDialogHome::~ZDialogHome()
 }
 void ZDialogHome::ZSlotS0Homing()
 {
-    gGblPara.m_bGotoZeroPoint=true;
+
 }
 void ZDialogHome::ZSlotS1Homing()
 {

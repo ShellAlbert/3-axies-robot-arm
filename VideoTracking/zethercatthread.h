@@ -17,9 +17,6 @@ signals:
 signals:
     void ZSigLog(bool bErrFlag,QString log);
 private:
-    //0:slave 0 , 1:slave 1.
-    //true: move okay.false:move failed.
-    bool ZMove2Position(qint32 iWhich,qint32 iTarPos);
     void ZDoCyclicTask();
 private:
     QTimer *m_timer;
