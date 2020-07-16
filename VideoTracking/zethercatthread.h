@@ -17,11 +17,18 @@ signals:
 signals:
     void ZSigLog(bool bErrFlag,QString log);
 private:
+    //0:slave 0 , 1:slave 1.
+    //true: move okay.false:move failed.
+    bool ZMove2Position(qint32 iWhich,qint32 iTarPos);
     void ZDoCyclicTask();
 private:
     QTimer *m_timer;
     ZPIDCalc m_pidS0;//slave 0 pid.
     ZPIDCalc m_pidS1;//slave 1 pid.
+
+private:
+    //Path planning vector.
+    QVector<QPoint> m_vecPathPlan;
 };
 
 #endif // ZETHERCATTHREAD_H
