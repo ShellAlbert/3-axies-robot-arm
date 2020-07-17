@@ -11,6 +11,9 @@ ZGblPara::ZGblPara()
     //motor move step mode.
     //0:large step,1:middle step,2:small step.
     this->m_iStepMode=0;
+
+    //mapping pixel coordinate to motor move coordinate.
+    this->m_CalibrateFSM=FSM_Calibrate_Start;
 }
 ZGblPara gGblPara;
 

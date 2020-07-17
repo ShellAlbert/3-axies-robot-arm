@@ -39,6 +39,7 @@ public slots:
 private slots:
     void ZSlotHome();
     void ZSlotScan();
+    void ZSlotCalibrate();
 protected:
     void paintEvent(QPaintEvent *e);
     void closeEvent(QCloseEvent *event);
@@ -80,6 +81,8 @@ private:
 
 private:
     qint32 m_iFrmCounter;
+private:
+
 };
 
 #endif // ZMAINUI_H

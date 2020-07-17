@@ -111,14 +111,29 @@ void ZProcessingThread::run()
 
 
         //mapping pixel move to motor move,create linear relations.
-        if(1)
+        //define box size.
+        int iBoxWidth=100,iBoxHeight=100;
+        switch(gGblPara.m_CalibrateFSM)
         {
+        case FSM_Calibrate_Start:
+            break;
+        case FSM_Calibrate_Left:
             //draw the left rectange for x-axis calibration.
-            int iBoxWidth=100,iBoxHeight=100;
             cv::Rect rectLeft(0,mat.rows/2-iBoxHeight/2,iBoxWidth,iBoxHeight);
             cv::rectangle(mat,rectLeft,cv::Scalar(0,255,0),2);
+            break;
+        case FSM_Calibrate_Right:
+            //draw the right rectangle for x-axis calibration.
+            cv::Rect rectRight(mat.cols-iBoxWidth,mat.rows/2-iBoxHeight/2,iBoxWidth,iBoxHeight);
+            cv::rectangle(mat,rectRight,cv::Scalar(0,255,0),2);
+            break;
+        case FSM_Calibrate_Top:
+            break;
+        case FSM_Calibrate_Bottom:
+            break;
+        case FSM_Calibrate_Done:
+            break;
         }
-
 
         //convert mat to QImage for local display.
         img=cvMat2QImage(mat);

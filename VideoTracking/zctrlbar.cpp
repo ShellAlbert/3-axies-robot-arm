@@ -29,6 +29,12 @@ ZCtrlBar::ZCtrlBar()
     this->m_tbScan->setIcon(QIcon(":/images/scan.png"));
     this->m_tbScan->setIconSize(QSize(72,72));
 
+    this->m_tbCalibrate=new QToolButton;
+    this->m_tbCalibrate->setObjectName("ZCtrlBarButton");
+    this->m_tbCalibrate->setFocusPolicy(Qt::NoFocus);
+    this->m_tbCalibrate->setIcon(QIcon(":/images/cal_start.png"));
+    this->m_tbCalibrate->setIconSize(QSize(72,72));
+
     this->m_hLay=new QHBoxLayout;
     this->m_hLay->setContentsMargins(60,20,60,20);
     this->m_hLay->setSpacing(20);
@@ -37,6 +43,7 @@ ZCtrlBar::ZCtrlBar()
     this->m_hLay->addWidget(this->m_tbTrack);
     this->m_hLay->addWidget(this->m_tbData);
     this->m_hLay->addWidget(this->m_tbScan);
+    this->m_hLay->addWidget(this->m_tbCalibrate);
     this->m_hLay->addStretch(1);
 
     this->setLayout(this->m_hLay);
@@ -45,6 +52,7 @@ ZCtrlBar::ZCtrlBar()
     QObject::connect(this->m_tbTrack,SIGNAL(clicked(bool)),this,SLOT(ZSlotTrackBtn()));
     QObject::connect(this->m_tbHome,SIGNAL(clicked(bool)),this,SIGNAL(ZSigHome()));
     QObject::connect(this->m_tbScan,SIGNAL(clicked(bool)),this,SIGNAL(ZSigScan()));
+    QObject::connect(this->m_tbCalibrate,SIGNAL(clicked(bool)),this,SLOT(ZSlotCalibrate()));
 }
 ZCtrlBar::~ZCtrlBar()
 {
@@ -52,6 +60,7 @@ ZCtrlBar::~ZCtrlBar()
     delete this->m_tbTrack;
     delete this->m_tbData;
     delete this->m_tbScan;
+    delete this->m_tbCalibrate;
     delete this->m_hLay;
 }
 void ZCtrlBar::ZSlotTrackBtn()
@@ -67,5 +76,37 @@ void ZCtrlBar::ZSlotTrackBtn()
         //change icon.
         this->m_tbTrack->setIcon(QIcon(":/images/track.png"));
         gGblPara.m_bTrackingEnabled=false;
+    }
+}
+void ZCtrlBar::ZSlotCalibrate()
+{
+    switch(gGblPara.m_CalibrateFSM)
+    {
+    case FSM_Calibrate_Start:
+        gGblPara.m_CalibrateFSM=FSM_Calibrate_Left;
+        this->m_tbCalibrate->setIcon(QIcon(":/images/cal_1.png"));
+        break;
+    case FSM_Calibrate_Left:
+        gGblPara.m_CalibrateFSM=FSM_Calibrate_Right;
+        this->m_tbCalibrate->setIcon(QIcon(":/images/cal_2.png"));
+        break;
+    case FSM_Calibrate_Right:
+        gGblPara.m_CalibrateFSM=FSM_Calibrate_Top;
+        this->m_tbCalibrate->setIcon(QIcon(":/images/cal_3.png"));
+        break;
+    case FSM_Calibrate_Top:
+        gGblPara.m_CalibrateFSM=FSM_Calibrate_Bottom;
+        this->m_tbCalibrate->setIcon(QIcon(":/images/cal_4.png"));
+        break;
+    case FSM_Calibrate_Bottom:
+        gGblPara.m_CalibrateFSM=FSM_Calibrate_Done;
+        this->m_tbCalibrate->setIcon(QIcon(":/images/cal_done.png"));
+        break;
+    case FSM_Calibrate_Done:
+        gGblPara.m_CalibrateFSM=FSM_Calibrate_Start;
+        this->m_tbCalibrate->setIcon(QIcon(":/images/cal_start.png"));
+        break;
+    default:
+        break;
     }
 }

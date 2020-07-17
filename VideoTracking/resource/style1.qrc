@@ -18,5 +18,11 @@
         <file>L.png</file>
         <file>M.png</file>
         <file>S.png</file>
+        <file>cal_1.png</file>
+        <file>cal_2.png</file>
+        <file>cal_3.png</file>
+        <file>cal_4.png</file>
+        <file>cal_done.png</file>
+        <file>cal_start.png</file>
     </qresource>
 </RCC>

@@ -57,6 +57,7 @@ bool ZMainUI::ZDoInit()
     //make connections.
     QObject::connect(this->m_ctrlBar,SIGNAL(ZSigHome()),this,SLOT(ZSlotHome()));
     QObject::connect(this->m_ctrlBar,SIGNAL(ZSigScan()),this,SLOT(ZSlotScan()));
+    QObject::connect(this->m_ctrlBar,SIGNAL(ZSigCalibrate()),this,SLOT(ZSlotCalibrate()));
 
     QObject::connect(this->m_dirBar,SIGNAL(ZSigLeft()),this,SLOT(ZSlotMoveToLeft()));
     QObject::connect(this->m_dirBar,SIGNAL(ZSigRight()),this,SLOT(ZSlotMoveToRight()));
@@ -165,7 +166,6 @@ void ZMainUI::paintEvent(QPaintEvent *e)
         painter.setPen(QPen(Qt::yellow,2));
         painter.drawText(rectDiffXY,strDiffXY);
     }
-
 }
 void ZMainUI::ZSlotPDO(qint32 iSlave,qint32 iActPos,qint32 iTarPos,qint32 iActVel)
 {
@@ -320,4 +320,8 @@ void ZMainUI::ZSlotScan()
     //set new motor move diff.
     gGblPara.m_moveDiffX=(kX*gGblPara.m_trackDiffX+kBx);
     gGblPara.m_moveDiffY=(kY*gGblPara.m_trackDiffY+kBy);
+}
+void ZMainUI::ZSlotCalibrate()
+{
+
 }

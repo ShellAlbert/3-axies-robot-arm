@@ -4,6 +4,14 @@
 #include <QObject>
 #include <QVector>
 #include <QMutex>
+enum{
+    FSM_Calibrate_Start,
+    FSM_Calibrate_Left,
+    FSM_Calibrate_Right,
+    FSM_Calibrate_Top,
+    FSM_Calibrate_Bottom,
+    FSM_Calibrate_Done,
+};
 class ZGblPara
 {
 public:
@@ -29,6 +37,9 @@ public:
     //motor move step mode.
     //0:large step,1:middle step,2:small step.
     int m_iStepMode;
+
+    //mapping pixel coordinate to motor move coordinate.
+    int m_CalibrateFSM;
 };
 extern ZGblPara gGblPara;
 
