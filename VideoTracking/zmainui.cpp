@@ -165,6 +165,7 @@ void ZMainUI::paintEvent(QPaintEvent *e)
         painter.setPen(QPen(Qt::yellow,2));
         painter.drawText(rectDiffXY,strDiffXY);
     }
+
 }
 void ZMainUI::ZSlotPDO(qint32 iSlave,qint32 iActPos,qint32 iTarPos,qint32 iActVel)
 {
@@ -233,24 +234,77 @@ void ZMainUI::ZSlotLog(bool bErrFlag,QString log)
 
 void ZMainUI::ZSlotMoveToLeft()
 {
-    gGblPara.m_moveDiffX=+5000;
+    switch(gGblPara.m_iStepMode)
+    {
+    case 0:
+        gGblPara.m_moveDiffX=+8000;
+        break;
+    case 1:
+        gGblPara.m_moveDiffX=+1000;
+        break;
+    case 2:
+        gGblPara.m_moveDiffX=+100;
+        break;
+    default:
+        break;
+    }
 }
 void ZMainUI::ZSlotMoveToRight()
 {
-    gGblPara.m_moveDiffX=-5000;
+    switch(gGblPara.m_iStepMode)
+    {
+    case 0:
+        gGblPara.m_moveDiffX=-8000;
+        break;
+    case 1:
+        gGblPara.m_moveDiffX=-1000;
+        break;
+    case 2:
+        gGblPara.m_moveDiffX=-100;
+        break;
+    default:
+        break;
+    }
 }
 void ZMainUI::ZSlotMoveToUp()
 {
-    gGblPara.m_moveDiffY=+5000;
+    switch(gGblPara.m_iStepMode)
+    {
+    case 0:
+        gGblPara.m_moveDiffY=+8000;
+        break;
+    case 1:
+        gGblPara.m_moveDiffY=+1000;
+        break;
+    case 2:
+        gGblPara.m_moveDiffY=+100;
+        break;
+    default:
+        break;
+    }
 }
 void ZMainUI::ZSlotMoveToDown()
 {
-    gGblPara.m_moveDiffY=-5000;
+    switch(gGblPara.m_iStepMode)
+    {
+    case 0:
+        gGblPara.m_moveDiffY=-8000;
+        break;
+    case 1:
+        gGblPara.m_moveDiffY=-1000;
+        break;
+    case 2:
+        gGblPara.m_moveDiffY=-100;
+        break;
+    default:
+        break;
+    }
 }
 void ZMainUI::ZSlotHome()
 {
-    ZDialogHome diaHome;
-    diaHome.exec();
+    ZDialogHome diaHome(this);
+    diaHome.setGeometry(0,0,600,300);
+    diaHome.show();
 }
 void ZMainUI::ZSlotScan()
 {

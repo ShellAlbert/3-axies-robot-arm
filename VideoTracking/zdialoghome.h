@@ -11,11 +11,13 @@ class ZDialogHome : public QDialog
 {
     Q_OBJECT
 public:
-    ZDialogHome();
+    ZDialogHome(QWidget *parent=NULL);
     ~ZDialogHome();
 private slots:
     void ZSlotS0Homing();
     void ZSlotS1Homing();
+protected:
+    QSize sizeHint() const;
 private:
     QGroupBox *m_grp1;
     QToolButton *m_tbS0Homing;

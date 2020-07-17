@@ -24,6 +24,11 @@ public:
     bool m_bTrackingEnabled;
     int m_trackDiffX;
     int m_trackDiffY;
+
+
+    //motor move step mode.
+    //0:large step,1:middle step,2:small step.
+    int m_iStepMode;
 };
 extern ZGblPara gGblPara;
 

@@ -25,12 +25,14 @@ void ZProcessingThread::run()
     while(!gGblPara.m_bExitFlag)
     {
         cv::Mat mat=this->m_fifo->ZGetFrame();
-//        img=cvMat2QImage(mat);
-//        emit this->ZSigNewImg(img);
+        //        img=cvMat2QImage(mat);
+        //        emit this->ZSigNewImg(img);
 
         //we do ImgProc on gray.
         //cv::cvtColor(mat,mat,cv::COLOR_RGB2GRAY);
-        cv::resize(mat,mat,cv::Size(mat.cols/2,mat.rows/2));
+
+        //resize to reduce time in tracking mode.
+        //cv::resize(mat,mat,cv::Size(mat.cols/2,mat.rows/2));
 
         //draw the ROI rectangle(200x200).
         Rect2d roi;
@@ -38,7 +40,37 @@ void ZProcessingThread::run()
         roi.height=100;
         roi.x=mat.cols/2-roi.width/2;
         roi.y=mat.rows/2-roi.height/2;
-        cv::rectangle(mat,roi,cv::Scalar(0,255,0),3,1);
+        //cv::rectangle(mat,roi,cv::Scalar(0,255,0),1,1);
+
+        //we draw a radius=100 circle.//RGB  //BGR
+        cv::circle(mat,cv::Point(mat.cols/2,mat.rows/2),100,cv::Scalar(0xd3,0x06,0xff),4,1);
+        //draw a line from left to right.
+        cv::Point ptLeft1,ptLeft2,ptRight1,ptRight2;
+        ptLeft1.x=mat.cols/2-100;
+        ptLeft1.y=mat.rows/2;
+        ptLeft2.x=mat.cols/2-20;
+        ptLeft2.y=mat.rows/2;
+        cv::line(mat,ptLeft1,ptLeft2,cv::Scalar(0xd3,0x06,0xff),2,1);
+
+        ptRight1.x=mat.cols/2+20;
+        ptRight1.y=mat.rows/2;
+        ptRight2.x=mat.cols/2+100;
+        ptRight2.y=mat.rows/2;
+        cv::line(mat,ptRight1,ptRight2,cv::Scalar(0xd3,0x06,0xff),2,1);
+
+        //draw a line from top to bottom.
+        cv::Point ptTop1,ptTop2,ptBottom1,ptBottom2;
+        ptTop1.x=mat.cols/2;
+        ptTop1.y=mat.rows/2-100;
+        ptTop2.x=mat.cols/2;
+        ptTop2.y=mat.rows/2-20;
+        cv::line(mat,ptTop1,ptTop2,cv::Scalar(0xd3,0x06,0xff),2,1);
+
+        ptBottom1.x=mat.cols/2;
+        ptBottom1.y=mat.rows/2+20;
+        ptBottom2.x=mat.cols/2;
+        ptBottom2.y=mat.rows/2+100;
+        cv::line(mat,ptBottom1,ptBottom2,cv::Scalar(0xd3,0x06,0xff),2,1);
 
         //define the center(x,y).
         int iOrgCenterX=mat.cols/2-roi.width/2;
@@ -77,6 +109,18 @@ void ZProcessingThread::run()
         //    cv::rectangle(mat,regions[i],cv::Scalar(0,255,0),2);
         //}
 
+
+        //mapping pixel move to motor move,create linear relations.
+        if(1)
+        {
+            //draw the left rectange for x-axis calibration.
+            int iBoxWidth=100,iBoxHeight=100;
+            cv::Rect rectLeft(0,mat.rows/2-iBoxHeight/2,iBoxWidth,iBoxHeight);
+            cv::rectangle(mat,rectLeft,cv::Scalar(0,255,0),2);
+        }
+
+
+        //convert mat to QImage for local display.
         img=cvMat2QImage(mat);
         emit this->ZSigNewImg(img);
         this->usleep(100);

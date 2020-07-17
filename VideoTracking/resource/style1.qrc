@@ -15,5 +15,8 @@
         <file>home.png</file>
         <file>scan.png</file>
         <file>track.png</file>
+        <file>L.png</file>
+        <file>M.png</file>
+        <file>S.png</file>
     </qresource>
 </RCC>

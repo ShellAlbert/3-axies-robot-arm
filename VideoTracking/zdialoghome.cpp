@@ -1,6 +1,6 @@
 #include "zdialoghome.h"
 #include <QDebug>
-ZDialogHome::ZDialogHome()
+ZDialogHome::ZDialogHome(QWidget *parent):QDialog(parent)
 {
     this->m_grp1=new QGroupBox(tr("Axis(es) Zero Calibration"));
 
@@ -31,6 +31,10 @@ ZDialogHome::~ZDialogHome()
     delete this->m_grp1;
 
     delete this->m_vLayMain;
+}
+QSize ZDialogHome::sizeHint() const
+{
+    return QSize(600,300);
 }
 void ZDialogHome::ZSlotS0Homing()
 {

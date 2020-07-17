@@ -8,6 +8,9 @@ ZGblPara::ZGblPara()
     this->m_moveDiffX=0;
     this->m_moveDiffY=0;
 
+    //motor move step mode.
+    //0:large step,1:middle step,2:small step.
+    this->m_iStepMode=0;
 }
 ZGblPara gGblPara;
 

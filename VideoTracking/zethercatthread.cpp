@@ -866,7 +866,7 @@ void ZEtherCATThread::ZDoCyclicTask()
             //slave0: up/down direction control.
             //we move by a small step to avoid amplifier driver error.
             int iMoveStep=1000;
-            if(gGblPara.m_moveDiffY>0)//move down.
+            if(gGblPara.m_moveDiffY>0)//move up.
             {
                 if(gGblPara.m_moveDiffY>=iMoveStep)
                 {
@@ -876,14 +876,14 @@ void ZEtherCATThread::ZDoCyclicTask()
                     iS0TarPos+=gGblPara.m_moveDiffY;
                     gGblPara.m_moveDiffY=0;
                 }
-            }else if(gGblPara.m_moveDiffY<0)//if (gGblPara.m_pixelDiffY<0), move torward to up.
+            }else if(gGblPara.m_moveDiffY<0)//move down.
             {
                 if(gGblPara.m_moveDiffY<=-iMoveStep)
                 {
                     iS0TarPos-=iMoveStep;
                     gGblPara.m_moveDiffY+=iMoveStep;
                 }else{
-                    iS0TarPos-=gGblPara.m_moveDiffY;
+                    iS0TarPos+=gGblPara.m_moveDiffY;
                     gGblPara.m_moveDiffY=0;
                 }
             }else{
@@ -960,7 +960,7 @@ void ZEtherCATThread::ZDoCyclicTask()
             //slave1: up/down direction control.
             //we move by a small step to avoid amplifier driver error.
             int iMoveStep=1000;
-            if(gGblPara.m_moveDiffX>0)//(gGblPara.m_pixelDiffX>0), move torward to left.
+            if(gGblPara.m_moveDiffX>0)//move to left.
             {
                 if(gGblPara.m_moveDiffX>=iMoveStep)
                 {
@@ -970,14 +970,14 @@ void ZEtherCATThread::ZDoCyclicTask()
                     iS1TarPos-=gGblPara.m_moveDiffX;
                     gGblPara.m_moveDiffX=0;
                 }
-            }else if(gGblPara.m_moveDiffX<0)//if (gGblPara.m_pixelDiffY<0), move torward to right.
+            }else if(gGblPara.m_moveDiffX<0)//move to right.
             {
                 if(gGblPara.m_moveDiffX<=-iMoveStep)
                 {
                     iS1TarPos+=iMoveStep;
                     gGblPara.m_moveDiffX+=iMoveStep;
                 }else{
-                    iS1TarPos+=gGblPara.m_moveDiffX;
+                    iS1TarPos-=gGblPara.m_moveDiffX;
                     gGblPara.m_moveDiffX=0;
                 }
             }else{
@@ -1050,7 +1050,7 @@ ZEtherCATThread::ZEtherCATThread()
     //path planning,goto (x,y) automatically.
 //    this->m_vecPathPlan.append(QPoint(6666,6666));
 //    this->m_vecPathPlan.append(QPoint(-8888,-8888));
-    this->m_vecPathPlan.append(QPoint(2786,14823));
+    this->m_vecPathPlan.append(QPoint(9870,63480));
 }
 void ZEtherCATThread::run()
 {

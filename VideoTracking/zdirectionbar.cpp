@@ -1,5 +1,5 @@
 #include "zdirectionbar.h"
-
+#include "zgblpara.h"
 ZDirectionBar::ZDirectionBar()
 {
     //left,right,up,down control.
@@ -39,17 +39,26 @@ ZDirectionBar::ZDirectionBar()
     this->m_tbMoveDn->setAutoRepeatDelay(1);//delay 100ms.
     this->m_tbMoveDn->setAutoRepeatInterval(1);//internal 100ms.
 
+    this->m_tbStepMode=new QToolButton;
+    this->m_tbStepMode->setObjectName("ZDirectionBarButton");
+    this->m_tbStepMode->setFocusPolicy(Qt::NoFocus);
+    this->m_tbStepMode->setIcon(QIcon(":/images/L.png"));
+    this->m_tbStepMode->setIconSize(QSize(48,48));
+
     this->m_gLayoutMove=new QGridLayout;
-    this->m_gLayoutMove->addWidget(this->m_tbMoveUp,0,1,1,1);
-    this->m_gLayoutMove->addWidget(this->m_tbMoveLft,1,0,1,1);
-    this->m_gLayoutMove->addWidget(this->m_tbMoveRht,1,2,1,1);
-    this->m_gLayoutMove->addWidget(this->m_tbMoveDn,2,1,1,1);
+    this->m_gLayoutMove->addWidget(this->m_tbMoveUp,0,1,1,1,Qt::AlignCenter);
+    this->m_gLayoutMove->addWidget(this->m_tbMoveLft,1,0,1,1,Qt::AlignCenter);
+    this->m_gLayoutMove->addWidget(this->m_tbStepMode,1,1,1,1,Qt::AlignCenter);
+    this->m_gLayoutMove->addWidget(this->m_tbMoveRht,1,2,1,1,Qt::AlignCenter);
+    this->m_gLayoutMove->addWidget(this->m_tbMoveDn,2,1,1,1,Qt::AlignCenter);
     this->setLayout(this->m_gLayoutMove);
 
     QObject::connect(this->m_tbMoveLft,SIGNAL(clicked(bool)),this,SIGNAL(ZSigLeft()));
     QObject::connect(this->m_tbMoveRht,SIGNAL(clicked(bool)),this,SIGNAL(ZSigRight()));
     QObject::connect(this->m_tbMoveUp,SIGNAL(clicked(bool)),this,SIGNAL(ZSigUp()));
     QObject::connect(this->m_tbMoveDn,SIGNAL(clicked(bool)),this,SIGNAL(ZSigDown()));
+
+    QObject::connect(this->m_tbStepMode,SIGNAL(clicked(bool)),this,SLOT(ZSlotStepMode()));
 }
 ZDirectionBar::~ZDirectionBar()
 {
@@ -58,4 +67,24 @@ ZDirectionBar::~ZDirectionBar()
     delete this->m_tbMoveUp;
     delete this->m_tbMoveDn;
     delete this->m_gLayoutMove;
+}
+void ZDirectionBar::ZSlotStepMode()
+{
+    switch(gGblPara.m_iStepMode)
+    {
+    case 0:
+        gGblPara.m_iStepMode=1;
+        this->m_tbStepMode->setIcon(QIcon(":/images/M.png"));
+        break;
+    case 1:
+        gGblPara.m_iStepMode=2;
+        this->m_tbStepMode->setIcon(QIcon(":/images/S.png"));
+        break;
+    case 2:
+        gGblPara.m_iStepMode=0;
+        this->m_tbStepMode->setIcon(QIcon(":/images/L.png"));
+        break;
+    default:
+        break;
+    }
 }
