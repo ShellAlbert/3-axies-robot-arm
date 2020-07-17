@@ -87,18 +87,30 @@ void ZCtrlBar::ZSlotCalibrate()
         this->m_tbCalibrate->setIcon(QIcon(":/images/cal_1.png"));
         break;
     case FSM_Calibrate_Left:
+        gGblPara.m_CalibrateFSM=FSM_Calibrate_LeftConfirm;
+        break;
+    case FSM_Calibrate_LeftConfirm:
         gGblPara.m_CalibrateFSM=FSM_Calibrate_Right;
         this->m_tbCalibrate->setIcon(QIcon(":/images/cal_2.png"));
         break;
     case FSM_Calibrate_Right:
+        gGblPara.m_CalibrateFSM=FSM_Calibrate_RightConfirm;
+        break;
+    case FSM_Calibrate_RightConfirm:
         gGblPara.m_CalibrateFSM=FSM_Calibrate_Top;
         this->m_tbCalibrate->setIcon(QIcon(":/images/cal_3.png"));
         break;
     case FSM_Calibrate_Top:
+        gGblPara.m_CalibrateFSM=FSM_Calibrate_TopConfirm;
+        break;
+    case FSM_Calibrate_TopConfirm:
         gGblPara.m_CalibrateFSM=FSM_Calibrate_Bottom;
         this->m_tbCalibrate->setIcon(QIcon(":/images/cal_4.png"));
         break;
     case FSM_Calibrate_Bottom:
+        gGblPara.m_CalibrateFSM=FSM_Calibrate_BottomConfirm;
+        break;
+    case FSM_Calibrate_BottomConfirm:
         gGblPara.m_CalibrateFSM=FSM_Calibrate_Done;
         this->m_tbCalibrate->setIcon(QIcon(":/images/cal_done.png"));
         break;

@@ -93,18 +93,22 @@ void ZMainUI::paintEvent(QPaintEvent *e)
     }
 
     //draw logs.
-    painter.setPen(QPen(Qt::red,2));
-    QFont font=painter.font();
-    font.setPixelSize(20);
-    painter.setFont(font);
-    QPointF ptLog(10,0);
-    for(qint32 i=0;i<this->m_vecLog.size();i++)
+    if(0)
     {
-        ptLog.setY(ptLog.y()+painter.fontMetrics().height());
-        painter.drawText(ptLog,this->m_vecLog.at(i).log);
+        painter.setPen(QPen(Qt::red,2));
+        QFont font=painter.font();
+        font.setPixelSize(20);
+        painter.setFont(font);
+        QPointF ptLog(10,0);
+        for(qint32 i=0;i<this->m_vecLog.size();i++)
+        {
+            ptLog.setY(ptLog.y()+painter.fontMetrics().height());
+            painter.drawText(ptLog,this->m_vecLog.at(i).log);
+        }
     }
 
     //draw frame counter & fps.
+    painter.setPen(QPen(Qt::red,2));
     QString strFrmCount=QString::number(this->m_iFrmCounter++);
     //we keep 10 pixels space.
     QFont fontFrm=painter.font();
@@ -154,16 +158,27 @@ void ZMainUI::paintEvent(QPaintEvent *e)
     painter.drawText(rectS0Vel,strS0Vel);
     painter.drawText(rectS1Vel,strS1Vel);
 
-
     //draw the track difference X&Y.
     if(gGblPara.m_bTrackingEnabled)
     {
+        QString strTips;
+        if(gGblPara.m_bObjectLocked)
+        {
+            strTips=QString("TargetLocked");
+        }else{
+            strTips=QString("Tracking...");
+        }
         QString strDiffXY=QString::number(gGblPara.m_trackDiffX)+","+QString::number(gGblPara.m_trackDiffY);
+        QRect rectTips(0,///< x
+                         this->height()-painter.fontMetrics().height()*2,///< y
+                         painter.fontMetrics().width(strTips),///<width
+                         painter.fontMetrics().height());///<height
         QRect rectDiffXY(0,///< x
                          this->height()-painter.fontMetrics().height()*1,///< y
                          painter.fontMetrics().width(strDiffXY),///<width
                          painter.fontMetrics().height());///<height
         painter.setPen(QPen(Qt::yellow,2));
+        painter.drawText(rectTips,strTips);
         painter.drawText(rectDiffXY,strDiffXY);
     }
 }

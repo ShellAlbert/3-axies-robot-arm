@@ -4,6 +4,12 @@ ZGblPara::ZGblPara()
 {
     this->m_bExitFlag=false;
 
+    //tracking enabled.
+    this->m_bTrackingEnabled=false;
+    this->m_trackDiffX=0;
+    this->m_trackDiffY=0;
+    this->m_bObjectLocked=false;
+
     //pixel diff.
     this->m_moveDiffX=0;
     this->m_moveDiffY=0;

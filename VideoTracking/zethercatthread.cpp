@@ -468,7 +468,6 @@ void ZEtherCATThread::ZDoCyclicTask()
         {
             //change to next state when two axises reached zero point.
             g_SysFSM=FSM_DoPathPlan;
-            //g_SysFSM=FSM_IdleStatus;
             emit this->ZSigLog(false,"FSM --->>> FSM_DoPathPlan");
         }else{
             uint16_t cmd0,cmd1;
@@ -709,6 +708,10 @@ void ZEtherCATThread::ZDoCyclicTask()
                 EC_WRITE_S32(domain0_pd+offsetTarPos[0],ptLast.x());
             }
 
+            //read related PDOs.
+            int iPosActVal=EC_READ_S32(domain0_pd + offsetPosActVal[0]);
+            int iActVel=EC_READ_S32(domain0_pd + offsetActVel[0]);
+            emit this->ZSigPDO(0,iPosActVal,0,iActVel);
         }else{
             //0x0100:0000,0001,0000,0000
             //bit8:Set if the last trajectory was aborted rather than finishing normally.
@@ -780,6 +783,11 @@ void ZEtherCATThread::ZDoCyclicTask()
             }else{
                 EC_WRITE_S32(domain1_pd+offsetTarPos[1],ptLast.y());
             }
+
+            //read related PDOs.
+            int iPosActVal=EC_READ_S32(domain1_pd + offsetPosActVal[1]);
+            int iActVel=EC_READ_S32(domain1_pd + offsetActVel[1]);
+            emit this->ZSigPDO(1,iPosActVal,0,iActVel);
         }else{
             //0x0100:0000,0001,0000,0000
             //bit8:Set if the last trajectory was aborted rather than finishing normally.

@@ -30,7 +30,8 @@ int main(int argc, char *argv[])
     {
         return -1;
     }
-    win.show();
+    //win.show();
+    win.showFullScreen();
     cap1.start();
     proc1.start();
     ecThread.start();
