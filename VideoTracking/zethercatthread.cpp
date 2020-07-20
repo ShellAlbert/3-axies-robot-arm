@@ -814,18 +814,15 @@ void ZEtherCATThread::ZDoCyclicTask()
         break;
     case FSM_FreeMoveCSP:
     {
-        uint16_t cmd0,cmd1;
+        uint16_t cmdY,cmdX;
         uint16_t s0,s1;
-        int iS0CurPos,iS1CurPos;
-        int iS0TarPos,iS1TarPos;
-        //read current position.
-        iS0CurPos=EC_READ_S32(domain0_pd + offsetPosActVal[0]);
-        iS1CurPos=EC_READ_S32(domain1_pd + offsetPosActVal[1]);
-        iS0TarPos=iS0CurPos;
-        iS1TarPos=iS1CurPos;
+        int iXAxisTarPos,iYAxisTarPos;
+        //read current position.,
+        gGblPara.m_iYAxisCurPos=EC_READ_S32(domain0_pd + offsetPosActVal[0]);
+        gGblPara.m_iXAxisCurPos=EC_READ_S32(domain1_pd + offsetPosActVal[1]);
+        iYAxisTarPos=gGblPara.m_iYAxisCurPos;
+        iXAxisTarPos=gGblPara.m_iXAxisCurPos;
 
-        gGblPara.m_iS0CurPos=iS0CurPos;
-        gGblPara.m_iS1CurPos=iS1CurPos;
 
         //Status Word(0x6041).
         //bit6,bit5,bit3,bit2,bit1,bit0:determine the current states.
@@ -845,7 +842,7 @@ void ZEtherCATThread::ZDoCyclicTask()
             //issue "shutdown" command,From [Switch On Disabled] to [Ready to Switch On].
             //shutdown:bit7=0,bit3=x,bit2=1,bit1=1,bit0=0.
             //0000,0000,0000,0110=0x0006.
-            cmd0=0x0006;
+            cmdY=0x0006;
         }else if((s0&0x006F)==0x0021)
         {
             //we conly concern bit6,bit3,bit2,bit1,bit0 in Ready to switch on,
@@ -853,7 +850,7 @@ void ZEtherCATThread::ZDoCyclicTask()
 
             //xxxx,xxxx,x01x,0001=0x0021,Ready to switch on.
             emit this->ZSigLog(false,"slave(0) in Ready to switch on.");
-            cmd0=0x0007;
+            cmdY=0x0007;
         }else if((s0&0x006F)==0x0023)
         {
             //we conly concern bit6,bit5,bit3,bit2,bit1,bit0 in Switch on,
@@ -861,7 +858,7 @@ void ZEtherCATThread::ZDoCyclicTask()
 
             //xxxx,xxxx,x01x,0011=0x0023,Switch on.
             emit this->ZSigLog(false,"slave(0) in Switch on.");
-            cmd0=0x000F;
+            cmdY=0x000F;
         }else if((s0&0x006F)==0x0027)
         {
             //we conly concern bit6,bit5,bit3,bit2,bit1,bit0 in Operation Enabled,
@@ -869,7 +866,7 @@ void ZEtherCATThread::ZDoCyclicTask()
 
             //xxxx,xxxx,x01x,0111=0x0027,Operation Enabled.
             //emit this->ZSigLog(false,"slave(0) in Operation Enabled.");
-            cmd0=0x001F;
+            cmdY=0x001F;
 
             //slave0: up/down direction control.
             //we move by a small step to avoid amplifier driver error.
@@ -878,26 +875,25 @@ void ZEtherCATThread::ZDoCyclicTask()
             {
                 if(gGblPara.m_moveDiffY>=iMoveStep)
                 {
-                    iS0TarPos+=iMoveStep;
+                    iYAxisTarPos+=iMoveStep;
                     gGblPara.m_moveDiffY-=iMoveStep;
                 }else{
-                    iS0TarPos+=gGblPara.m_moveDiffY;
+                    iYAxisTarPos+=gGblPara.m_moveDiffY;
                     gGblPara.m_moveDiffY=0;
                 }
             }else if(gGblPara.m_moveDiffY<0)//move down.
             {
                 if(gGblPara.m_moveDiffY<=-iMoveStep)
                 {
-                    iS0TarPos-=iMoveStep;
+                    iYAxisTarPos-=iMoveStep;
                     gGblPara.m_moveDiffY+=iMoveStep;
                 }else{
-                    iS0TarPos+=gGblPara.m_moveDiffY;
+                    iYAxisTarPos+=gGblPara.m_moveDiffY;
                     gGblPara.m_moveDiffY=0;
                 }
             }else{
                 //qDebug()<<"No need to move!";
             }
-
 
             //read related PDOs.
             int iPosActVal=EC_READ_S32(domain0_pd + offsetPosActVal[0]);
@@ -923,7 +919,7 @@ void ZEtherCATThread::ZDoCyclicTask()
             //Fault.
             //bit7:Reset Fault.
             //A low-to-high transition of this bit makes the amplifier attemp to clear any latched fault condition.
-            cmd0=0x0080;
+            cmdX=0x0080;
         }
 
         //slave1 finite state machine.
@@ -938,7 +934,7 @@ void ZEtherCATThread::ZDoCyclicTask()
             //issue "shutdown" command,From [Switch On Disabled] to [Ready to Switch On].
             //shutdown:bit7=0,bit3=x,bit2=1,bit1=1,bit0=0.
             //0000,0000,0000,0110=0x0006.
-            cmd1=0x0006;
+            cmdX=0x0006;
         }else if((s1&0x006F)==0x0021)
         {
             //we conly concern bit6,bit3,bit2,bit1,bit0 in Ready to switch on,
@@ -946,7 +942,7 @@ void ZEtherCATThread::ZDoCyclicTask()
 
             //xxxx,xxxx,x01x,0001=0x0021,Ready to switch on.
             emit this->ZSigLog(false,"slave(1) in Ready to switch on.");
-            cmd1=0x0007;
+            cmdX=0x0007;
         }else if((s1&0x006F)==0x0023)
         {
             //we conly concern bit6,bit5,bit3,bit2,bit1,bit0 in Switch on,
@@ -954,7 +950,7 @@ void ZEtherCATThread::ZDoCyclicTask()
 
             //xxxx,xxxx,x01x,0011=0x0023,Switch on.
             emit this->ZSigLog(false,"slave(1) in Switch on.");
-            cmd1=0x000F;
+            cmdX=0x000F;
         }else if((s1&0x006F)==0x0027)
         {
             int iCurrentPos;
@@ -963,29 +959,29 @@ void ZEtherCATThread::ZDoCyclicTask()
 
             //xxxx,xxxx,x01x,0111=0x0027,Operation Enabled.
             //emit this->ZSigLog(false,"slave(0) in Operation Enabled.");
-            cmd1=0x001F;
+            cmdX=0x001F;
 
-            //slave1: up/down direction control.
+            //slave1: X axis left/right direction control.
             //we move by a small step to avoid amplifier driver error.
             int iMoveStep=1000;
             if(gGblPara.m_moveDiffX>0)//move to left.
             {
                 if(gGblPara.m_moveDiffX>=iMoveStep)
                 {
-                    iS1TarPos-=iMoveStep;
+                    iXAxisTarPos-=iMoveStep;
                     gGblPara.m_moveDiffX-=iMoveStep;
                 }else{
-                    iS1TarPos-=gGblPara.m_moveDiffX;
+                    iXAxisTarPos-=gGblPara.m_moveDiffX;
                     gGblPara.m_moveDiffX=0;
                 }
             }else if(gGblPara.m_moveDiffX<0)//move to right.
             {
                 if(gGblPara.m_moveDiffX<=-iMoveStep)
                 {
-                    iS1TarPos+=iMoveStep;
+                    iXAxisTarPos+=iMoveStep;
                     gGblPara.m_moveDiffX+=iMoveStep;
                 }else{
-                    iS1TarPos-=gGblPara.m_moveDiffX;
+                    iXAxisTarPos-=gGblPara.m_moveDiffX;
                     gGblPara.m_moveDiffX=0;
                 }
             }else{
@@ -1017,23 +1013,23 @@ void ZEtherCATThread::ZDoCyclicTask()
             //Fault.
             //bit7:Reset Fault.
             //A low-to-high transition of this bit makes the amplifier attemp to clear any latched fault condition.
-            cmd1=0x0080;
+            cmdX=0x0080;
         }
 
         //write Ctrl Word & Target Position.
         //CAUTION:if we donot judge here will cause motor vibration.
-        if(iS0TarPos!=iS0CurPos)
+        if(iYAxisTarPos!=gGblPara.m_iYAxisCurPos)
         {
-            EC_WRITE_S32(domain0_pd+offsetTarPos[0],iS0TarPos);
+            EC_WRITE_S32(domain0_pd+offsetTarPos[0],iYAxisTarPos);
             //qDebug()<<"write s0 target position:"<<iS0TarPos;
         }
-        if(iS1TarPos!=iS1CurPos)
+        if(iXAxisTarPos!=gGblPara.m_iXAxisCurPos)
         {
-            EC_WRITE_S32(domain1_pd+offsetTarPos[1],iS1TarPos);
+            EC_WRITE_S32(domain1_pd+offsetTarPos[1],iXAxisTarPos);
             //qDebug()<<"write s1 target position:"<<iS1TarPos;
         }
-        EC_WRITE_U16(domain0_pd+offsetCtrlWord[0],cmd0);
-        EC_WRITE_U16(domain1_pd+offsetCtrlWord[1],cmd1);
+        EC_WRITE_U16(domain0_pd+offsetCtrlWord[0],cmdY);
+        EC_WRITE_U16(domain1_pd+offsetCtrlWord[1],cmdX);
     }
         break;
     case FSM_IdleStatus:

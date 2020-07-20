@@ -3,6 +3,7 @@
 
 #include <QObject>
 #include <QVector>
+#include <QPoint>
 #include <QMutex>
 enum{
     FSM_Calibrate_Start,
@@ -25,8 +26,9 @@ public:
     bool m_bExitFlag;
 
 public:
-    int m_iS0CurPos;
-    int m_iS1CurPos;
+    //the servo motor encoder current position.
+    int m_iXAxisCurPos;
+    int m_iYAxisCurPos;
 public:
     //pixel diff.
     int m_moveDiffX;
@@ -45,6 +47,26 @@ public:
 
     //mapping pixel coordinate to motor move coordinate.
     int m_CalibrateFSM;
+
+//    //pixel coordinate & Encoder coordinate value located on center point.
+//    QPoint m_ptPixCenter;
+//    QPoint m_ptEncCenter;
+
+    //pixel coordinate & Encoder coordinate value located on left calibrate point.
+    QPoint m_ptPixLft;
+    QPoint m_ptEncLft;
+
+    //pixel coordinate & Encoder coordinate value located on right calibrate point.
+    QPoint m_ptPixRht;
+    QPoint m_ptEncRht;
+
+    //pixel coordinate & Encoder coordinate value located on top calibrate point.
+    QPoint m_ptPixTop;
+    QPoint m_ptEncTop;
+
+    //pixel coordinate & Encoder coordinate value located on bottom calibrate point.
+    QPoint m_ptPixBtm;
+    QPoint m_ptEncBtm;
 };
 extern ZGblPara gGblPara;
 
