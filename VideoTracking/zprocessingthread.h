@@ -24,6 +24,7 @@ protected:
 private:
     void ZMapPixels2Encoder(cv::Mat &mat);
     void ZDrawCrossIndicator(cv::Mat &mat);
+    void ZDrawOnQImage(QImage &img);
 private:
     ZMatFIFO *m_fifo;
 };

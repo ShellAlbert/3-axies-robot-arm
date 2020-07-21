@@ -18,7 +18,7 @@ int main(int argc, char *argv[])
     }
 
     ZMatFIFO fifoCap1(25,false);
-    ZCaptureThread cap1("192.168.137.14",&fifoCap1);
+    ZCaptureThread cap1("192.168.137.10",&fifoCap1);
     ZProcessingThread proc1(&fifoCap1);
     ZEtherCATThread ecThread;
     ZMainUI win;

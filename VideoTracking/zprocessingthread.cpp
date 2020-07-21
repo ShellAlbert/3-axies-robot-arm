@@ -2,7 +2,7 @@
 #include "zgblpara.h"
 #include "zmatfifo.h"
 #include <QDebug>
-
+#include <QPainter>
 
 ZProcessingThread::ZProcessingThread(ZMatFIFO *fifo)
 {
@@ -84,6 +84,8 @@ void ZProcessingThread::run()
 
         //convert mat to QImage for local display.
         img=cvMat2QImage(mat);
+        //draw something on QImage.
+        this->ZDrawOnQImage(img);
         emit this->ZSigNewImg(img);
         this->usleep(100);
     }
@@ -389,8 +391,9 @@ void ZProcessingThread::ZMapPixels2Encoder(cv::Mat &mat)
 }
 void ZProcessingThread::ZDrawCrossIndicator(cv::Mat &mat)
 {
+    return;
     //we draw a radius=100 circle.//RGB  //BGR
-    cv::circle(mat,cv::Point(mat.cols/2,mat.rows/2),100,cv::Scalar(0xd3,0x06,0xff),4,1);
+    cv::circle(mat,cv::Point(mat.cols/2,mat.rows/2),100,cv::Scalar(0,255,0),4,1);
     //draw a line from left to right.
     cv::Point ptLeft1,ptLeft2,ptRight1,ptRight2;
     ptLeft1.x=mat.cols/2-100;
@@ -418,4 +421,58 @@ void ZProcessingThread::ZDrawCrossIndicator(cv::Mat &mat)
     ptBottom2.x=mat.cols/2;
     ptBottom2.y=mat.rows/2+100;
     cv::line(mat,ptBottom1,ptBottom2,cv::Scalar(0xd3,0x06,0xff),2,1);
+}
+void ZProcessingThread::ZDrawOnQImage(QImage &img)
+{
+    QPainter p;
+    //p.setRenderHints(QPainter::Antialiasing,true);
+    p.begin(&img);
+    //draw a rectangle indicator.
+    //    ___       ___
+    //   |             |
+    //
+    //
+    //   |             |
+    //    ___       ___
+    p.save();
+    //move the (0,0) to the center of image.
+    p.translate(img.width()/2,img.height()/2);
+    p.setPen(QPen(Qt::green,4));
+    p.drawLine(QPointF(70,-50),QPointF(100,-50));
+    p.drawLine(QPointF(100,-50),QPointF(100,-20));
+    ///
+    p.drawLine(QPointF(70,50),QPointF(100,50));
+    p.drawLine(QPointF(100,50),QPointF(100,20));
+    ///
+    p.drawLine(QPointF(-70,-50),QPointF(-100,-50));
+    p.drawLine(QPointF(-100,-50),QPointF(-100,-20));
+    ///
+    p.drawLine(QPointF(-70,50),QPointF(-100,50));
+    p.drawLine(QPointF(-100,50),QPointF(-100,20));
+    //draw a half-tranparent mask and red color center point.
+    p.setPen(Qt::NoPen);
+    p.setBrush(QBrush(QColor(0,255,0,20)));
+    p.drawEllipse(QPoint(0,0),100,50);
+    p.setBrush(QBrush(QColor(255,0,0,255)));
+    p.drawEllipse(QPoint(0,0),6,6);
+    p.restore();
+
+    //draw scale.
+    p.save();
+    p.translate(img.width()/2,img.height());
+    p.setPen(QPen(Qt::red,2));
+    int bigScale=6,smallScale=5;
+    p.drawLine(QPointF(0,0),QPointF(100,0));
+    p.rotate(-10);
+    p.drawLine(QPointF(0,0),QPointF(100,0));
+    p.rotate(-20);
+    p.drawLine(QPointF(0,0),QPointF(100,0));
+    p.rotate(-30);
+    p.drawLine(QPointF(0,0),QPointF(100,0));
+    p.rotate(-40);
+    p.drawLine(QPointF(0,0),QPointF(100,0));
+    p.rotate(-50);
+    p.drawLine(QPointF(0,0),QPointF(100,0));
+    p.restore();
+    p.end();
 }
