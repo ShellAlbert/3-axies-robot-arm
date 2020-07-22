@@ -460,19 +460,38 @@ void ZProcessingThread::ZDrawOnQImage(QImage &img)
     //draw scale.
     p.save();
     p.translate(img.width()/2,img.height());
-    p.setPen(QPen(Qt::red,2));
-    int bigScale=6,smallScale=5;
-    p.drawLine(QPointF(0,0),QPointF(100,0));
-    p.rotate(-10);
-    p.drawLine(QPointF(0,0),QPointF(100,0));
-    p.rotate(-20);
-    p.drawLine(QPointF(0,0),QPointF(100,0));
-    p.rotate(-30);
-    p.drawLine(QPointF(0,0),QPointF(100,0));
-    p.rotate(-40);
-    p.drawLine(QPointF(0,0),QPointF(100,0));
-    p.rotate(-50);
-    p.drawLine(QPointF(0,0),QPointF(100,0));
+    p.setPen(QPen(Qt::white,4));
+    //we draw 9 lines in (180-18-18) degree.
+    //so,(180-18-18) degreen /9=16 degree.
+    for(int i=0;i<13;i++)
+    {
+        p.drawLine(QPointF(180,0),QPointF(200,0));
+        p.rotate(-15);
+    }
+    p.restore();
+
+    //draw the small scale.
+    p.save();
+    p.translate(img.width()/2,img.height());
+    p.setPen(QPen(Qt::white,2));
+    p.rotate(-7.5);
+    p.drawLine(QPointF(190,0),QPointF(200,0));
+    for(int i=0;i<11;i++)
+    {
+        p.rotate(-15);
+        p.drawLine(QPointF(190,0),QPointF(200,0));
+    }
+    p.restore();
+
+    //draw a arrow.
+    p.save();
+    p.translate(img.width()/2,img.height());
+    p.setPen(QPen(Qt::white,2));
+    p.setBrush(Qt::white);
+    p.drawEllipse(QPoint(0,0),20,20);
+    QPointF pt[]={{-6,0},{0,-150},{6,0}};
+    p.rotate(30);
+    p.drawConvexPolygon(pt,3);
     p.restore();
     p.end();
 }

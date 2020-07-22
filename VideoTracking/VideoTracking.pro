@@ -48,14 +48,13 @@ HEADERS += \
     zpidcalc.h \
     zdialoghome.h
 
-#IgH EtherCAT Master.
+#IgH EtherCAT Master 1.5.2
 INCLUDEPATH += /opt/ethercat/include
 LIBS +=  -lethercat
 
-#openCV.
-INCLUDEPATH += /home/zhangshaoyan/ethercat/libopencv4/include
-INCLUDEPATH += /home/zhangshaoyan/ethercat/libopencv4/include/opencv4
-LIBS += -L/home/zhangshaoyan/ethercat/libopencv4/lib
+#openCV 4.1.1
+INCLUDEPATH += /usr/local/include/opencv4
+LIBS += -L/usr/local/lib
 LIBS += -lopencv_cudabgsegm \
 -lopencv_cudaobjdetect \
 -lopencv_cudastereo \
