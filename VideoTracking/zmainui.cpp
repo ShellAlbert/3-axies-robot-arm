@@ -89,6 +89,12 @@ void ZMainUI::paintEvent(QPaintEvent *e)
         //if image is invalid,draw a black background.
         painter.fillRect(QRectF(0,0,this->width(),this->height()),Qt::black);
     }else{
+        //draw center rectangle indicator.
+        this->ZDrawRectangleIndicator(this->m_img);
+
+        //draw bottom circle indicator.
+        this->ZDrawCircleIndicator(this->m_img);
+
         //draw the image.
         painter.drawImage(QRectF(0,0,this->width(),this->height()),this->m_img);
     }
@@ -171,9 +177,9 @@ void ZMainUI::paintEvent(QPaintEvent *e)
         }
         QString strDiffXY=QString::number(gGblPara.m_trackDiffX)+","+QString::number(gGblPara.m_trackDiffY);
         QRect rectTips(0,///< x
-                         this->height()-painter.fontMetrics().height()*2,///< y
-                         painter.fontMetrics().width(strTips),///<width
-                         painter.fontMetrics().height());///<height
+                       this->height()-painter.fontMetrics().height()*2,///< y
+                       painter.fontMetrics().width(strTips),///<width
+                       painter.fontMetrics().height());///<height
         QRect rectDiffXY(0,///< x
                          this->height()-painter.fontMetrics().height()*1,///< y
                          painter.fontMetrics().width(strDiffXY),///<width
@@ -182,6 +188,87 @@ void ZMainUI::paintEvent(QPaintEvent *e)
         painter.drawText(rectTips,strTips);
         painter.drawText(rectDiffXY,strDiffXY);
     }
+}
+void ZMainUI::ZDrawRectangleIndicator(QImage &img)
+{
+    QPainter p;
+    //p.setRenderHints(QPainter::Antialiasing,true);
+    p.begin(&img);
+    //draw a rectangle indicator.
+    //    ___       ___
+    //   |             |
+    //
+    //
+    //   |             |
+    //    ___       ___
+    p.save();
+    //move the (0,0) to the center of image.
+    p.translate(img.width()/2,img.height()/2);
+    p.setPen(QPen(Qt::green,4));
+    p.drawLine(QPointF(70,-50),QPointF(100,-50));
+    p.drawLine(QPointF(100,-50),QPointF(100,-20));
+    ///
+    p.drawLine(QPointF(70,50),QPointF(100,50));
+    p.drawLine(QPointF(100,50),QPointF(100,20));
+    ///
+    p.drawLine(QPointF(-70,-50),QPointF(-100,-50));
+    p.drawLine(QPointF(-100,-50),QPointF(-100,-20));
+    ///
+    p.drawLine(QPointF(-70,50),QPointF(-100,50));
+    p.drawLine(QPointF(-100,50),QPointF(-100,20));
+    //draw a half-tranparent mask and red color center point.
+    p.setPen(Qt::NoPen);
+    p.setBrush(QBrush(QColor(0,255,0,20)));
+    //draw a ellipse with x radius=100,y radius=50.
+    p.drawEllipse(QPoint(0,0),100,50);
+    p.setBrush(QBrush(QColor(255,0,0,255)));
+    p.drawEllipse(QPoint(0,0),6,6);
+    p.restore();
+
+}
+void ZMainUI::ZDrawCircleIndicator(QImage &img)
+{
+    QPainter p;
+    //p.setRenderHints(QPainter::Antialiasing,true);
+    p.begin(&img);
+
+    //draw the big scale.
+    p.save();
+    p.translate(img.width()/2,img.height());
+    p.setPen(QPen(Qt::white,4));
+    //we draw 9 lines in (180-18-18) degree.
+    //so,(180-18-18) degreen /9=16 degree.
+    for(int i=0;i<13;i++)
+    {
+        p.drawLine(QPointF(180,0),QPointF(200,0));
+        p.rotate(-15);
+    }
+    p.restore();
+
+    //draw the small scale.
+    p.save();
+    p.translate(img.width()/2,img.height());
+    p.setPen(QPen(Qt::white,2));
+    p.rotate(-7.5);
+    p.drawLine(QPointF(190,0),QPointF(200,0));
+    for(int i=0;i<11;i++)
+    {
+        p.rotate(-15);
+        p.drawLine(QPointF(190,0),QPointF(200,0));
+    }
+    p.restore();
+
+    //draw a arrow.
+    p.save();
+    p.translate(img.width()/2,img.height());
+    p.setPen(QPen(Qt::white,2));
+    p.setBrush(Qt::white);
+    p.drawEllipse(QPoint(0,0),20,20);
+    QPointF pt[]={{-6,0},{0,-150},{6,0}};
+    p.rotate(30);
+    p.drawConvexPolygon(pt,3);
+    p.restore();
+    p.end();
 }
 void ZMainUI::ZSlotPDO(qint32 iSlave,qint32 iActPos,qint32 iTarPos,qint32 iActVel)
 {

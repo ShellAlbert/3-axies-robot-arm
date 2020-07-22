@@ -48,6 +48,8 @@ protected:
     QSize sizeHint() const;
     void resizeEvent(QResizeEvent *event);
 private:
+    void ZDrawRectangleIndicator(QImage &img);
+    void ZDrawCircleIndicator(QImage &img);
     qint32 getFps();
 private:
 
