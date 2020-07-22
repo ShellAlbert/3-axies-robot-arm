@@ -11,7 +11,8 @@ ZMatFIFO::ZMatFIFO(qint32 iSize,bool bDropFrame)
 }
 void ZMatFIFO::ZAddFrame(const cv::Mat &frame)
 {
-    this->m_clearFIFO1->acquire();
+    //this->m_clearFIFO1->acquire();
+    this->m_clearFIFO1->tryAcquire();
 
     if(this->m_bDropFrame)//drop frame enabled.
     {

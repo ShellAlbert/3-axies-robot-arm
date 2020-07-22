@@ -15,6 +15,7 @@ ZCaptureThread::ZCaptureThread(QString ip,ZMatFIFO *fifo)
 void ZCaptureThread::run()
 {
     cv::VideoCapture cap;
+    QImage img;
     while(!gGblPara.m_bExitFlag)
     {
         if(!cap.isOpened())
@@ -40,28 +41,13 @@ void ZCaptureThread::run()
             this->sleep(5);
             continue;
         }
+        //convert mat to QImage for local display.
+        img=cvMat2QImage(mat);
+        emit this->ZSigNewImg(img);
+        //for image processing.
         this->m_fifo->ZAddFrame(mat);
         this->usleep(1000);
     }
     cap.release();
 }
-qint32 ZCaptureThread::getFps()
-{
-    static QTime time;
-    static bool bStarted=false;
-    static qint32 iFrameCount=0;
-    qint32 iFps=0;
-    if(!bStarted)
-    {
-        bStarted=true;
-        time.start();
-    }
-    if(time.elapsed()>1000)
-    {
-        iFps=iFrameCount*1000/time.elapsed();
-        iFrameCount=0;
-    }else{
-        ++iFrameCount;
-    }
-    return iFps;
-}
+

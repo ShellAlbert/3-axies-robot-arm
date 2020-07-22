@@ -8,7 +8,7 @@
 class ZMatFIFO
 {
 public:
-    ZMatFIFO(qint32 iSize,bool bDropFrame);
+    ZMatFIFO(qint32 iSize,bool bDropFrame=true);
     void ZAddFrame(const cv::Mat &frame);
     cv::Mat ZGetFrame();
     void ZClearFIFO();

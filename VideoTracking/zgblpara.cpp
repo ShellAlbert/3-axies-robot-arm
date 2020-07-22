@@ -8,7 +8,8 @@ ZGblPara::ZGblPara()
     this->m_bTrackingEnabled=false;
     this->m_trackDiffX=0;
     this->m_trackDiffY=0;
-    this->m_bObjectLocked=false;
+    this->m_bTargetLocked=false;
+    this->m_iCostMSec=0;
 
     //pixel diff.
     this->m_moveDiffX=0;

@@ -3,7 +3,7 @@
 #include "zmatfifo.h"
 #include <QDebug>
 #include <QPainter>
-
+#include <QTime>
 ZProcessingThread::ZProcessingThread(ZMatFIFO *fifo)
 {
     this->m_fifo=fifo;
@@ -11,12 +11,29 @@ ZProcessingThread::ZProcessingThread(ZMatFIFO *fifo)
 void ZProcessingThread::run()
 {
     bool bInit=false;
-    cv::Ptr<Tracker> tracker=TrackerKCF::create();
+
+    //use CSRT when you need higher object tracking accuracy and can tolerate slower FPS throughput.
+    cv::Ptr<Tracker> tracker=cv::TrackerCSRT::create();
+
+    //use KCF when you need faster FPS throughtput but can handle slightly lower object tracking accuracy.
+    //cv::Ptr<Tracker> tracker=TrackerKCF::create();
+
+    //use MOSSE when you need pure speed.
+    //cv::Ptr<Tracker> tracker=TrackerMOSSE::create();
+
+    //cv::TrackerBoosting::create();
+    //cv::Ptr<Tracker> tracker=cv::TrackerGOTURN::create();
+    //cv::TrackerMIL::create();
+    //cv::TrackerMedianFlow::create();
+
     QImage img;
     //cv::HOGDescriptor hog;
     //hog.setSVMDetector(cv::HOGDescriptor::getDefaultPeopleDetector());
 
+    cv::Mat matSelectedROI;
 
+    int iOldTs,iNewTs;
+    iOldTs=iNewTs=QTime::currentTime().msecsSinceStartOfDay();
     while(!gGblPara.m_bExitFlag)
     {
         cv::Mat mat=this->m_fifo->ZGetFrame();
@@ -27,12 +44,12 @@ void ZProcessingThread::run()
         //cv::cvtColor(mat,mat,cv::COLOR_RGB2GRAY);
 
         //resize to reduce time in tracking mode.
-        //cv::resize(mat,mat,cv::Size(mat.cols/2,mat.rows/2));
+        cv::resize(mat,mat,cv::Size(800,600));
 
-        //draw the ROI rectangle(200x200).
+        //define ROI rectangle(200x200) on center point(0,0).
         Rect2d roi;
-        roi.width=100;
-        roi.height=100;
+        roi.width=200;
+        roi.height=200;
         roi.x=mat.cols/2-roi.width/2;
         roi.y=mat.rows/2-roi.height/2;
         //cv::rectangle(mat,roi,cv::Scalar(0,255,0),1,1);
@@ -43,12 +60,20 @@ void ZProcessingThread::run()
             {
                 tracker->init(mat,roi);
                 bInit=true;
+
+                //save the selected ROI.
+                matSelectedROI=cv::Mat(mat,roi);
             }
             //update the tracking result.
             if(tracker->update(mat,roi))
             {
                 //set flag.
-                gGblPara.m_bObjectLocked=true;
+                gGblPara.m_bTargetLocked=true;
+
+                //calculate the msec.
+                iNewTs=QTime::currentTime().msecsSinceStartOfDay();
+                gGblPara.m_iCostMSec=iNewTs-iOldTs;
+                iOldTs=iNewTs;
 
                 //draw the tracked object.
                 cv::rectangle(mat,roi,cv::Scalar(255,255,255),2,1);
@@ -58,35 +83,32 @@ void ZProcessingThread::run()
                 int iOrgCenterY=mat.rows/2-roi.height/2;
                 gGblPara.m_trackDiffX=(roi.x+roi.width/2)-iOrgCenterX;
                 gGblPara.m_trackDiffY=(roi.y+roi.height/2)-iOrgCenterY;
+
             }else{
                 //tracking failed.
                 //set flag.
-                gGblPara.m_bObjectLocked=false;
+                gGblPara.m_bTargetLocked=false;
             }
+            //draw the selected ROI image on the left-top corner.
+            cv::Mat matDisplayed=cv::Mat(mat,cv::Rect(0,0,200,200));
+            cv::copyTo(matSelectedROI,matDisplayed,matSelectedROI);
         }else{
             bInit=false;
         }
 
-        //detect peoples.
-        //std::vector<cv::Rect> regions;
-        //hog.detectMultiScale(mat,regions,0,cv::Size(8,8),cv::Size(32,32),1.05,1);
-        //qDebug()<<"regions:"<<regions.size();
-        //for(size_t i=0;i<regions.size();i++)
-        //{
-        //    cv::rectangle(mat,regions[i],cv::Scalar(0,255,0),2);
-        //}
-
         //mapping pixels to encoder.
-        this->ZMapPixels2Encoder(mat);
+        //this->ZMapPixels2Encoder(mat);
 
         //draw cross indicator +.
-        this->ZDrawCrossIndicator(mat);
+        //this->ZDrawCrossIndicator(mat);
 
         //convert mat to QImage for local display.
         img=cvMat2QImage(mat);
+
         //draw something on QImage.
         this->ZDrawOnQImage(img);
-        emit this->ZSigNewImg(img);
+
+        //emit this->ZSigNewImg(img);
         this->usleep(100);
     }
 }
@@ -452,12 +474,13 @@ void ZProcessingThread::ZDrawOnQImage(QImage &img)
     //draw a half-tranparent mask and red color center point.
     p.setPen(Qt::NoPen);
     p.setBrush(QBrush(QColor(0,255,0,20)));
+    //draw a ellipse with x radius=100,y radius=50.
     p.drawEllipse(QPoint(0,0),100,50);
     p.setBrush(QBrush(QColor(255,0,0,255)));
     p.drawEllipse(QPoint(0,0),6,6);
     p.restore();
 
-    //draw scale.
+    //draw the big scale.
     p.save();
     p.translate(img.width()/2,img.height());
     p.setPen(QPen(Qt::white,4));

@@ -1,5 +1,6 @@
 #include "zmainui.h"
 #include <QPainter>
+#include <QTime>
 #include <QDebug>
 #include "zgblpara.h"
 #include "zdialoghome.h"
@@ -109,7 +110,7 @@ void ZMainUI::paintEvent(QPaintEvent *e)
 
     //draw frame counter & fps.
     painter.setPen(QPen(Qt::red,2));
-    QString strFrmCount=QString::number(this->m_iFrmCounter++);
+    QString strFrmCount=QString::number(/*this->m_iFrmCounter++*/this->getFps());
     //we keep 10 pixels space.
     QFont fontFrm=painter.font();
     fontFrm.setPixelSize(66);
@@ -162,9 +163,9 @@ void ZMainUI::paintEvent(QPaintEvent *e)
     if(gGblPara.m_bTrackingEnabled)
     {
         QString strTips;
-        if(gGblPara.m_bObjectLocked)
+        if(gGblPara.m_bTargetLocked)
         {
-            strTips=QString("TargetLocked");
+            strTips=QString("Locked:")+QString::number(gGblPara.m_iCostMSec);
         }else{
             strTips=QString("Tracking...");
         }
@@ -339,4 +340,20 @@ void ZMainUI::ZSlotScan()
 void ZMainUI::ZSlotCalibrate()
 {
 
+}
+qint32 ZMainUI::getFps()
+{
+    static qint32 iFps=0;
+    static qint32 iLastMSec=QTime::currentTime().msecsSinceStartOfDay();
+    static qint32 iFrameCount=0;
+
+    ++iFrameCount;
+    qint32 iNowMSec=QTime::currentTime().msecsSinceStartOfDay();
+    if(iNowMSec-iLastMSec>1000)
+    {
+        iFps=iFrameCount;
+        iFrameCount=0;
+        iLastMSec=iNowMSec;
+    }
+    return iFps;
 }

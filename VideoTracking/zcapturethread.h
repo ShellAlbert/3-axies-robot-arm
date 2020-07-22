@@ -12,11 +12,9 @@ public:
 
 signals:
     void ZSigFpsUpdated(qint32 iFps);
+    void ZSigNewImg(const QImage &img);
 protected:
     void run();
-
-private:
-    qint32 getFps();
 private:
     QString m_ip;
     ZMatFIFO *m_fifo;

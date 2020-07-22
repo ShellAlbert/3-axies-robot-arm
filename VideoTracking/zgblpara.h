@@ -38,7 +38,8 @@ public:
     bool m_bTrackingEnabled;
     int m_trackDiffX;
     int m_trackDiffY;
-    bool m_bObjectLocked;
+    bool m_bTargetLocked;
+    int m_iCostMSec;
 
 
     //motor move step mode.

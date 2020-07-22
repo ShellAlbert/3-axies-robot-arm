@@ -48,6 +48,8 @@ protected:
     QSize sizeHint() const;
     void resizeEvent(QResizeEvent *event);
 private:
+    qint32 getFps();
+private:
 
     //slave 0 Position Actual Value.
     qint32 m_iS0PosActVal;
