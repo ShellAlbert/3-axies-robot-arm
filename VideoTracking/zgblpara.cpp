@@ -4,6 +4,9 @@ ZGblPara::ZGblPara()
 {
     this->m_bExitFlag=false;
 
+    //application running mode.
+    this->m_appMode=Free_Mode;
+
     //tracking enabled.
     this->m_bTrackingEnabled=false;
     this->m_trackDiffX=0;

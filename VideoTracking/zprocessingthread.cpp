@@ -37,14 +37,11 @@ void ZProcessingThread::run()
     while(!gGblPara.m_bExitFlag)
     {
         cv::Mat mat=this->m_fifo->ZGetFrame();
-        //        img=cvMat2QImage(mat);
-        //        emit this->ZSigNewImg(img);
-
         //we do ImgProc on gray.
-        //cv::cvtColor(mat,mat,cv::COLOR_RGB2GRAY);
+        cv::cvtColor(mat,mat,cv::COLOR_RGB2GRAY);
 
         //resize to reduce time in tracking mode.
-        cv::resize(mat,mat,cv::Size(800,600));
+        //cv::resize(mat,mat,cv::Size(800,600));
 
         //define ROI rectangle(200x200) on center point(0,0).
         Rect2d roi;
@@ -103,14 +100,18 @@ void ZProcessingThread::run()
         //this->ZDrawCrossIndicator(mat);
 
         //convert mat to QImage for local display.
-        img=cvMat2QImage(mat);
+        //img=cvMat2QImage(mat);
 
         //draw something on QImage.
-        this->ZDrawOnQImage(img);
+        //this->ZDrawOnQImage(img);
 
         //emit this->ZSigNewImg(img);
         this->usleep(100);
     }
+}
+void ZProcessingThread::ZTrackObject(cv::Mat &mat)
+{
+
 }
 void ZProcessingThread::ZMapPixels2Encoder(cv::Mat &mat)
 {

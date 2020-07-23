@@ -17,6 +17,11 @@ enum{
     FSM_Calibrate_BottomConfirm,
     FSM_Calibrate_Done,
 };
+typedef enum{
+    Free_Mode,
+    SelectROI_Mode,
+    Track_Mode,
+}ZAppRunMode;
 class ZGblPara
 {
 public:
@@ -24,7 +29,9 @@ public:
 
 public:
     bool m_bExitFlag;
-
+public:
+    //application running mode.
+    ZAppRunMode m_appMode;
 public:
     //the servo motor encoder current position.
     int m_iXAxisCurPos;

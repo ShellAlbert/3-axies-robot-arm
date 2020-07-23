@@ -44,6 +44,7 @@ void ZCaptureThread::run()
         //convert mat to QImage for local display.
         img=cvMat2QImage(mat);
         emit this->ZSigNewImg(img);
+
         //for image processing.
         this->m_fifo->ZAddFrame(mat);
         this->usleep(1000);

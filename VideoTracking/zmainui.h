@@ -14,6 +14,7 @@
 #include <QVector>
 #include "zctrlbar.h"
 #include "zdirectionbar.h"
+#include <QLabel>
 typedef struct{
     bool bErrFlag;
     QString log;
@@ -31,6 +32,7 @@ public slots:
     void ZSlotUpdateImg(const QImage &img);
     void ZSlotPDO(qint32 iSlave,qint32 iActPos,qint32 iTarPos,qint32 iActVel);
     void ZSlotLog(bool bErrFlag,QString log);
+    void ZSlotModeChanged();
 public slots:
     void ZSlotMoveToLeft();
     void ZSlotMoveToRight();
@@ -44,13 +46,15 @@ protected:
     void paintEvent(QPaintEvent *e);
     void closeEvent(QCloseEvent *event);
     void mousePressEvent(QMouseEvent *event);
+    void mouseMoveEvent(QMouseEvent *event);
     void mouseReleaseEvent(QMouseEvent *event);
     QSize sizeHint() const;
     void resizeEvent(QResizeEvent *event);
 private:
-    void ZDrawRectangleIndicator(QImage &img);
-    void ZDrawCircleIndicator(QImage &img);
-    void ZDrawSplitGrid(QImage &img);
+    void ZDrawRectangleIndicator(QPainter &p,QImage &img);
+    void ZDrawCircleIndicator(QPainter &p,QImage &img);
+    void ZDrawSplitGrid(QPainter &p,QImage &img);
+    void ZDrawROIMask(QPainter &p,QImage &img);
     qint32 getFps();
 private:
 
@@ -87,7 +91,7 @@ private:
 private:
     qint32 m_iFrmCounter;
 private:
-
+    QLabel *m_llROIMask;
 };
 
 #endif // ZMAINUI_H

@@ -24,5 +24,7 @@
         <file>cal_4.png</file>
         <file>cal_done.png</file>
         <file>cal_start.png</file>
+        <file>selectroi.png</file>
+        <file>free.png</file>
     </qresource>
 </RCC>

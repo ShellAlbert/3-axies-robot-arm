@@ -33,6 +33,7 @@ ZMainUI::~ZMainUI()
     delete this->m_dirBar;
     delete this->m_hLayDirBar;
     delete this->m_vLayMain;
+    delete this->m_llROIMask;
 }
 bool ZMainUI::ZDoInit()
 {
@@ -59,11 +60,19 @@ bool ZMainUI::ZDoInit()
     QObject::connect(this->m_ctrlBar,SIGNAL(ZSigHome()),this,SLOT(ZSlotHome()));
     QObject::connect(this->m_ctrlBar,SIGNAL(ZSigScan()),this,SLOT(ZSlotScan()));
     QObject::connect(this->m_ctrlBar,SIGNAL(ZSigCalibrate()),this,SLOT(ZSlotCalibrate()));
+    QObject::connect(this->m_ctrlBar,SIGNAL(ZSigModeChanged()),this,SLOT(ZSlotModeChanged()));
 
     QObject::connect(this->m_dirBar,SIGNAL(ZSigLeft()),this,SLOT(ZSlotMoveToLeft()));
     QObject::connect(this->m_dirBar,SIGNAL(ZSigRight()),this,SLOT(ZSlotMoveToRight()));
     QObject::connect(this->m_dirBar,SIGNAL(ZSigUp()),this,SLOT(ZSlotMoveToUp()));
     QObject::connect(this->m_dirBar,SIGNAL(ZSigDown()),this,SLOT(ZSlotMoveToDown()));
+
+    //create ROI mask.
+    this->m_llROIMask=new QLabel(this);
+    this->m_llROIMask->setFixedSize(200,200);
+    this->m_llROIMask->setStyleSheet("QLabel{background:rgba(255,0,0,100)}");
+    this->m_llROIMask->move(100,100);
+    this->m_llROIMask->setVisible(false);
     return true;
 }
 QSize ZMainUI::sizeHint() const
@@ -84,23 +93,48 @@ void ZMainUI::paintEvent(QPaintEvent *e)
     Q_UNUSED(e);
 
     QPainter painter(this);
+    painter.setRenderHints(QPainter::Antialiasing,true);
     if(this->m_img.isNull())
     {
         //if image is invalid,draw a black background.
         painter.fillRect(QRectF(0,0,this->width(),this->height()),Qt::black);
-    }else{
-        //draw center rectangle indicator.
-        this->ZDrawRectangleIndicator(this->m_img);
-
-        //draw bottom circle indicator.
-        this->ZDrawCircleIndicator(this->m_img);
-
-        //draw 3x3 split lines.
-        this->ZDrawSplitGrid(this->m_img);
-
-        //draw the image.
-        painter.drawImage(QRectF(0,0,this->width(),this->height()),this->m_img);
+        painter.setPen(QPen(Qt::yellow,2));
+        QString strTips("video lost,check connection!");
+        QRect rectTips((this->width()-painter.fontMetrics().width(strTips))/2,///< x
+                       (this->height()-painter.fontMetrics().height())/2,///< y
+                       painter.fontMetrics().width(strTips)*2,///<width
+                       painter.fontMetrics().height());///<height
+        painter.drawText(rectTips,strTips);
+        return;
     }
+
+    //draw on image first.
+    QPainter p(&this->m_img);
+    p.setRenderHints(QPainter::Antialiasing,true);
+
+    //draw center rectangle indicator on image.
+    this->ZDrawRectangleIndicator(p,this->m_img);
+
+    //draw bottom circle indicator on image.
+    this->ZDrawCircleIndicator(p,this->m_img);
+
+    //draw split lines on image.
+    this->ZDrawSplitGrid(p,this->m_img);
+
+    switch(gGblPara.m_appMode)
+    {
+    case Free_Mode:
+        break;
+    case SelectROI_Mode:
+        //draw a rectangle mask on the image.
+        this->ZDrawROIMask(p,this->m_img);
+        break;
+    case Track_Mode:
+        break;
+    }
+
+    //finally,draw the image.
+    painter.drawImage(QRectF(0,0,this->width(),this->height()),this->m_img);
 
     //draw logs.
     if(0)
@@ -192,11 +226,8 @@ void ZMainUI::paintEvent(QPaintEvent *e)
         painter.drawText(rectDiffXY,strDiffXY);
     }
 }
-void ZMainUI::ZDrawRectangleIndicator(QImage &img)
+void ZMainUI::ZDrawRectangleIndicator(QPainter &p,QImage &img)
 {
-    QPainter p;
-    //p.setRenderHints(QPainter::Antialiasing,true);
-    p.begin(&img);
     //draw a rectangle indicator.
     //    ___       ___
     //   |             |
@@ -229,12 +260,8 @@ void ZMainUI::ZDrawRectangleIndicator(QImage &img)
     p.restore();
 
 }
-void ZMainUI::ZDrawCircleIndicator(QImage &img)
+void ZMainUI::ZDrawCircleIndicator(QPainter &p,QImage &img)
 {
-    QPainter p;
-    //p.setRenderHints(QPainter::Antialiasing,true);
-    p.begin(&img);
-
     //draw the big scale.
     p.save();
     p.translate(img.width()/2,img.height());
@@ -271,14 +298,9 @@ void ZMainUI::ZDrawCircleIndicator(QImage &img)
     p.rotate(30);
     p.drawConvexPolygon(pt,3);
     p.restore();
-    p.end();
 }
-void ZMainUI::ZDrawSplitGrid(QImage &img)
+void ZMainUI::ZDrawSplitGrid(QPainter &p,QImage &img)
 {
-    QPainter p;
-    //p.setRenderHints(QPainter::Antialiasing,true);
-    p.begin(&img);
-
     //draw split grid to 3x3 sub-area.
     p.save();
     p.translate(0,0);
@@ -308,7 +330,13 @@ void ZMainUI::ZDrawSplitGrid(QImage &img)
     p.setPen(QPen(Qt::blue,4));
     p.drawLines(lines+6,2);
     p.restore();
-    p.end();
+}
+void ZMainUI::ZDrawROIMask(QPainter &p,QImage &img)
+{
+    p.save();
+    p.translate(img.width()/2,img.height()/2);
+    p.fillRect(QRectF(-100,-100,200,200),QColor(255,0,0,100));
+    p.restore();
 }
 void ZMainUI::ZSlotPDO(qint32 iSlave,qint32 iActPos,qint32 iTarPos,qint32 iActVel)
 {
@@ -336,32 +364,46 @@ void ZMainUI::closeEvent(QCloseEvent *event)
 
 void ZMainUI::mousePressEvent(QMouseEvent *event)
 {
-#if 0
-    this->m_ptNew=event->pos();
-
-    //map image pixel coordinate to physical motor move increasement.
-    //y=kx+b for axis0.
-    float kX=100.0;
-    float kBx=0.0;
-    //y=kx+b for axis1.
-    float kY=100.0;
-    float kBy=0.0;
-
-    //image pixel diff.
-    qint32 nPixDiffX=this->m_ptNew.x()-this->m_ptCenter.x();
-    qint32 nPixDiffY=this->m_ptNew.y()-this->m_ptCenter.y();
-
-    //map pixel diff to motor move diff.
-    //set new motor move diff.
-    gGblPara.m_moveDiffX=kX*nPixDiffX+kBx;
-    gGblPara.m_moveDiffY=kY*nPixDiffY+kBy;
-    qDebug("newMove:%d,%d\n",gGblPara.m_moveDiffX,gGblPara.m_moveDiffY);
-#endif
     QWidget::mousePressEvent(event);
+}
+void ZMainUI::mouseMoveEvent(QMouseEvent *event)
+{
+    switch(gGblPara.m_appMode)
+    {
+    case Free_Mode:
+        break;
+    case SelectROI_Mode:
+    {
+        QPoint pt=event->pos();
+        pt.setX(pt.x()-this->m_llROIMask->width()/2);
+        pt.setY(pt.y()-this->m_llROIMask->height()/2);
+        this->m_llROIMask->move(pt);
+        qDebug()<<this->m_llROIMask->geometry();
+    }
+        break;
+    case Track_Mode:
+        break;
+    }
+    QWidget::mouseMoveEvent(event);
 }
 void ZMainUI::mouseReleaseEvent(QMouseEvent *event)
 {
     QWidget::mouseReleaseEvent(event);
+}
+void ZMainUI::ZSlotModeChanged()
+{
+    switch(gGblPara.m_appMode)
+    {
+    case Free_Mode:
+        this->m_llROIMask->setVisible(false);
+        break;
+    case SelectROI_Mode:
+        this->m_llROIMask->setVisible(true);
+        break;
+    case Track_Mode:
+        this->m_llROIMask->setVisible(false);
+        break;
+    }
 }
 void ZMainUI::ZSlotLog(bool bErrFlag,QString log)
 {
