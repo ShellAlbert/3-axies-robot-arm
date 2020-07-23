@@ -95,6 +95,9 @@ void ZMainUI::paintEvent(QPaintEvent *e)
         //draw bottom circle indicator.
         this->ZDrawCircleIndicator(this->m_img);
 
+        //draw 3x3 split lines.
+        this->ZDrawSplitGrid(this->m_img);
+
         //draw the image.
         painter.drawImage(QRectF(0,0,this->width(),this->height()),this->m_img);
     }
@@ -267,6 +270,43 @@ void ZMainUI::ZDrawCircleIndicator(QImage &img)
     QPointF pt[]={{-6,0},{0,-150},{6,0}};
     p.rotate(30);
     p.drawConvexPolygon(pt,3);
+    p.restore();
+    p.end();
+}
+void ZMainUI::ZDrawSplitGrid(QImage &img)
+{
+    QPainter p;
+    //p.setRenderHints(QPainter::Antialiasing,true);
+    p.begin(&img);
+
+    //draw split grid to 3x3 sub-area.
+    p.save();
+    p.translate(0,0);
+    int xSubStep=img.width()/3;
+    int ySubStep=img.height()/3;
+    int iStretchSize=6;
+    const QLineF lines[8]={
+        //the left-top area.
+        {QPoint(0,ySubStep*2-iStretchSize),QPoint(xSubStep*2-iStretchSize,ySubStep*2-iStretchSize)},///<
+        {QPoint(xSubStep*2-iStretchSize,ySubStep*2-iStretchSize),QPoint(xSubStep*2-iStretchSize,0)},///<
+        //the right-top area.
+        {QPoint(xSubStep*3+iStretchSize,ySubStep*2+iStretchSize),QPoint(xSubStep*1+iStretchSize,ySubStep*2+iStretchSize)},///<
+        {QPoint(xSubStep*1+iStretchSize,ySubStep*2+iStretchSize),QPoint(xSubStep*1+iStretchSize,0)},///,
+        //the left-bottom area.
+        {QPoint(0,ySubStep*1+iStretchSize),QPoint(xSubStep*2+iStretchSize,ySubStep*1+iStretchSize)},///<
+        {QPoint(xSubStep*2+iStretchSize,ySubStep*1+iStretchSize),QPoint(xSubStep*2+iStretchSize,ySubStep*3+iStretchSize)},///,
+        //the right-bottom area.
+        {QPoint(xSubStep*3-iStretchSize,ySubStep*1-iStretchSize),QPoint(xSubStep*1-iStretchSize,ySubStep*1-iStretchSize)},///<
+        {QPoint(xSubStep*1-iStretchSize,ySubStep*1-iStretchSize),QPoint(xSubStep*1-iStretchSize,ySubStep*3-iStretchSize)},///,
+    };
+    p.setPen(QPen(Qt::white,4));
+    p.drawLines(lines,2);
+    p.setPen(QPen(Qt::red,4));
+    p.drawLines(lines+2,2);
+    p.setPen(QPen(Qt::green,4));
+    p.drawLines(lines+4,2);
+    p.setPen(QPen(Qt::blue,4));
+    p.drawLines(lines+6,2);
     p.restore();
     p.end();
 }

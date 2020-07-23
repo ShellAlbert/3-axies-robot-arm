@@ -50,6 +50,7 @@ protected:
 private:
     void ZDrawRectangleIndicator(QImage &img);
     void ZDrawCircleIndicator(QImage &img);
+    void ZDrawSplitGrid(QImage &img);
     qint32 getFps();
 private:
 

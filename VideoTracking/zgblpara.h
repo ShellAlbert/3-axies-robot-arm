@@ -40,6 +40,9 @@ public:
     int m_trackDiffY;
     bool m_bTargetLocked;
     int m_iCostMSec;
+    //the rectangle we're tracking in.
+    int m_iTrackInRectW;
+    int m_iTrackInRectH;
 
 
     //motor move step mode.
@@ -68,6 +71,8 @@ public:
     //pixel coordinate & Encoder coordinate value located on bottom calibrate point.
     QPoint m_ptPixBtm;
     QPoint m_ptEncBtm;
+
+
 };
 extern ZGblPara gGblPara;
 
