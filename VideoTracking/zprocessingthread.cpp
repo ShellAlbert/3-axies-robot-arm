@@ -32,14 +32,16 @@ void ZProcessingThread::run()
 
     int iOldTs,iNewTs;
     iOldTs=iNewTs=QTime::currentTime().msecsSinceStartOfDay();
+    cv::Rect2d rectROI;
     while(!gGblPara.m_bExitFlag)
     {
         cv::Mat mat=this->m_fifo->ZGetFrame();
         //we do ImgProc on gray.
         //cv::cvtColor(mat,mat,cv::COLOR_RGB2GRAY);
 
-        //resize to reduce time in tracking mode.
-        //cv::resize(mat,mat,cv::Size(800,600));
+        //stretch to 1/2 to speed up(includes ROI box coordinate(x,y,width,height).
+        //resize to 1/2 size to reduce time.
+        cv::resize(mat,mat,cv::Size(mat.cols/2,mat.rows/2));
 
         //define ROI rectangle(200x200) on center point(0,0).
         //cv::rectangle(mat,roi,cv::Scalar(0,255,0),1,1);
@@ -47,11 +49,16 @@ void ZProcessingThread::run()
         {
             if(!bInit)
             {
+                //stretch to 1/2 to speed up(includes ROI box coordinate(x,y,width,height).
+                rectROI.x=gGblPara.m_rectROI.x/2;
+                rectROI.y=gGblPara.m_rectROI.y/2;
+                rectROI.width=gGblPara.m_rectROI.width/2;
+                rectROI.height=gGblPara.m_rectROI.height/2;
                 //initial.
-                tracker->init(mat,gGblPara.m_rectROI);
+                tracker->init(mat,rectROI);
 
-                //save the selected ROI.
-                cv::Mat roi=mat(gGblPara.m_rectROI);
+                //show our selected ROI on UI.
+                cv::Mat roi=mat(rectROI);
                 img=cvMat2QImage(roi);
                 emit this->ZSigInitBox(img);
 
@@ -59,7 +66,7 @@ void ZProcessingThread::run()
             }
 
             //update the tracking result.
-            if(tracker->update(mat,gGblPara.m_rectROI))
+            if(tracker->update(mat,rectROI))
             {
                 //calculate the msec.
                 iNewTs=QTime::currentTime().msecsSinceStartOfDay();
@@ -67,18 +74,20 @@ void ZProcessingThread::run()
                 iOldTs=iNewTs;
 
                 //draw the tracked object.
+                //restore original size(*2).
                 QRect rectLocked;
-                rectLocked.setX(gGblPara.m_rectROI.x);
-                rectLocked.setY(gGblPara.m_rectROI.y);
-                rectLocked.setWidth(gGblPara.m_rectROI.width);
-                rectLocked.setHeight(gGblPara.m_rectROI.height);
+                rectLocked.setX(rectROI.x*2);
+                rectLocked.setY(rectROI.y*2);
+                rectLocked.setWidth(rectROI.width*2);
+                rectLocked.setHeight(rectROI.height*2);
                 emit this->ZSigLocked(true,rectLocked);
                 //fps.
                 gGblPara.m_iFps=this->getFps();
 
                 //calculate the track diff x&y.
-                gGblPara.m_iPixDiffX=(gGblPara.m_rectROI.x+gGblPara.m_rectROI.width/2)-mat.cols/2;
-                gGblPara.m_iPixDiffY=(gGblPara.m_rectROI.y+gGblPara.m_rectROI.height/2)-mat.rows/2;
+                //restore original size(*2).
+                gGblPara.m_iPixDiffX=((rectROI.x+rectROI.width/2)-mat.cols/2)*2;
+                gGblPara.m_iPixDiffY=((rectROI.y+rectROI.height/2)-mat.rows/2)*2;
             }else{
                 //tracking failed.
                 emit this->ZSigLocked(false,QRect());

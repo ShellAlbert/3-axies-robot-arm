@@ -32,8 +32,8 @@ int main(int argc, char *argv[])
     {
         return -1;
     }
-    win.showMaximized();
-    //win.showFullScreen();
+    //win.showMaximized();
+    win.showFullScreen();
     cap1.start();
     proc1.start();
     ecThread.start();
