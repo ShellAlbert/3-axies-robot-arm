@@ -23,6 +23,8 @@ ZMainUI::ZMainUI(QWidget *parent)
 
     //reset frame counter.
     this->m_iFrmCounter=0;
+
+    this->m_bLocked=false;
 }
 
 ZMainUI::~ZMainUI()
@@ -33,7 +35,6 @@ ZMainUI::~ZMainUI()
     delete this->m_dirBar;
     delete this->m_hLayDirBar;
     delete this->m_vLayMain;
-    delete this->m_llROIMask;
 }
 bool ZMainUI::ZDoInit()
 {
@@ -67,12 +68,6 @@ bool ZMainUI::ZDoInit()
     QObject::connect(this->m_dirBar,SIGNAL(ZSigUp()),this,SLOT(ZSlotMoveToUp()));
     QObject::connect(this->m_dirBar,SIGNAL(ZSigDown()),this,SLOT(ZSlotMoveToDown()));
 
-    //create ROI mask.
-    this->m_llROIMask=new QLabel(this);
-    this->m_llROIMask->setFixedSize(200,200);
-    this->m_llROIMask->setStyleSheet("QLabel{background:rgba(255,0,0,100)}");
-    this->m_llROIMask->move(100,100);
-    this->m_llROIMask->setVisible(false);
     return true;
 }
 QSize ZMainUI::sizeHint() const
@@ -81,7 +76,7 @@ QSize ZMainUI::sizeHint() const
 }
 void ZMainUI::resizeEvent(QResizeEvent *event)
 {
-    this->m_ptCenter=QPoint(this->width()/2,this->height()/2);
+    //this->m_ptCenter=QPoint(this->width()/2,this->height()/2);
 }
 void ZMainUI::ZSlotUpdateImg(const QImage &img)
 {
@@ -126,10 +121,34 @@ void ZMainUI::paintEvent(QPaintEvent *e)
     case Free_Mode:
         break;
     case SelectROI_Mode:
+    {
         //draw a rectangle mask on the image.
         this->ZDrawROIMask(p,this->m_img);
+    }
         break;
     case Track_Mode:
+    {
+        //(0,0,200,200):draw the ROI.
+        //(0,200,200,200):Locked/Lost.
+        //(0,400,200,200):cost millsec.
+
+        //draw the selected ROI on the left-top corner for referencing.
+        p.drawImage(QRect(0,0,200,200),this->m_initImg);
+
+        QFont font=p.font();
+        font.setPixelSize(40);
+        p.setFont(font);
+        p.setPen(QPen(Qt::yellow,4));
+        if(this->m_bLocked)
+        {
+            //draw the locked rectangle.
+            p.drawRect(this->m_rectLocked);
+            p.drawText(QRectF(0,200,200,200),QString("Locked"));
+            p.drawText(QRectF(0,400,200,200),QString::number(gGblPara.m_iCostMSec));
+        }else{
+            p.drawText(QRectF(0,200,200,200),QString("Lost"));
+        }
+    }
         break;
     }
 
@@ -202,6 +221,7 @@ void ZMainUI::paintEvent(QPaintEvent *e)
     painter.drawText(rectS0Vel,strS0Vel);
     painter.drawText(rectS1Vel,strS1Vel);
 
+#if 0
     //draw the track difference X&Y.
     if(gGblPara.m_bTrackingEnabled)
     {
@@ -225,6 +245,7 @@ void ZMainUI::paintEvent(QPaintEvent *e)
         painter.drawText(rectTips,strTips);
         painter.drawText(rectDiffXY,strDiffXY);
     }
+#endif
 }
 void ZMainUI::ZDrawRectangleIndicator(QPainter &p,QImage &img)
 {
@@ -333,9 +354,20 @@ void ZMainUI::ZDrawSplitGrid(QPainter &p,QImage &img)
 }
 void ZMainUI::ZDrawROIMask(QPainter &p,QImage &img)
 {
+    //draw current position on left-bottom corner.
+    p.setPen(QPen(Qt::red,2));
+    QString strFrmCount=QString::number(this->m_ptNew.x())+","+QString::number(this->m_ptNew.y());
+    QFont font=p.font();
+    font.setPixelSize(66);
+    p.setFont(font);
+    QPoint pt;
+    pt.setX(0);
+    pt.setY(this->height()-p.fontMetrics().height());
+    p.drawText(pt,strFrmCount);
+
+    //draw the mask.
     p.save();
-    p.translate(img.width()/2,img.height()/2);
-    p.fillRect(QRectF(-100,-100,200,200),QColor(255,0,0,100));
+    p.fillRect(QRectF(this->m_ptNew.x(),this->m_ptNew.y(),200,200),QColor(255,0,0,100));
     p.restore();
 }
 void ZMainUI::ZSlotPDO(qint32 iSlave,qint32 iActPos,qint32 iTarPos,qint32 iActVel)
@@ -374,11 +406,12 @@ void ZMainUI::mouseMoveEvent(QMouseEvent *event)
         break;
     case SelectROI_Mode:
     {
-        QPoint pt=event->pos();
-        pt.setX(pt.x()-this->m_llROIMask->width()/2);
-        pt.setY(pt.y()-this->m_llROIMask->height()/2);
-        this->m_llROIMask->move(pt);
-        qDebug()<<this->m_llROIMask->geometry();
+        this->m_ptNew=event->pos();
+        //update the ROI coordinate.
+        gGblPara.m_rectROI.x=this->m_ptNew.x();
+        gGblPara.m_rectROI.y=this->m_ptNew.y();
+        gGblPara.m_rectROI.width=200;
+        gGblPara.m_rectROI.height=200;
     }
         break;
     case Track_Mode:
@@ -395,15 +428,21 @@ void ZMainUI::ZSlotModeChanged()
     switch(gGblPara.m_appMode)
     {
     case Free_Mode:
-        this->m_llROIMask->setVisible(false);
         break;
     case SelectROI_Mode:
-        this->m_llROIMask->setVisible(true);
         break;
     case Track_Mode:
-        this->m_llROIMask->setVisible(false);
         break;
     }
+}
+void ZMainUI::ZSlotLocked(bool bLocked,QRect rect)
+{
+    this->m_bLocked=bLocked;
+    this->m_rectLocked=rect;
+}
+void ZMainUI::ZSlotInitBox(const QImage &img)
+{
+    this->m_initImg=img;
 }
 void ZMainUI::ZSlotLog(bool bErrFlag,QString log)
 {

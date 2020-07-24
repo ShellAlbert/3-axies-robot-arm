@@ -5,6 +5,7 @@
 #include <QVector>
 #include <QPoint>
 #include <QMutex>
+#include <opencv4/opencv2/core.hpp>
 enum{
     FSM_Calibrate_Start,
     FSM_Calibrate_Left,
@@ -41,12 +42,15 @@ public:
     int m_moveDiffX;
     int m_moveDiffY;
 
+    //Select ROI mode.    
+    cv::Rect2d m_rectROI;
+    //Track mode.
+    int m_iCostMSec;
+
     //tracking enabled.
-    bool m_bTrackingEnabled;
     int m_trackDiffX;
     int m_trackDiffY;
-    bool m_bTargetLocked;
-    int m_iCostMSec;
+
     //the rectangle we're tracking in.
     int m_iTrackInRectW;
     int m_iTrackInRectH;

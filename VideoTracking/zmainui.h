@@ -33,6 +33,8 @@ public slots:
     void ZSlotPDO(qint32 iSlave,qint32 iActPos,qint32 iTarPos,qint32 iActVel);
     void ZSlotLog(bool bErrFlag,QString log);
     void ZSlotModeChanged();
+    void ZSlotLocked(bool,QRect rect);
+    void ZSlotInitBox(const QImage &img);
 public slots:
     void ZSlotMoveToLeft();
     void ZSlotMoveToRight();
@@ -82,16 +84,16 @@ private:
     QImage m_img;
 
 private:
-    QPoint m_ptCenter;
     QPoint m_ptNew;
 
+    bool m_bLocked;
+    QRect m_rectLocked;
+    QImage m_initImg;
 private:
     QVector<ZVectorLog> m_vecLog;
 
 private:
     qint32 m_iFrmCounter;
-private:
-    QLabel *m_llROIMask;
 };
 
 #endif // ZMAINUI_H

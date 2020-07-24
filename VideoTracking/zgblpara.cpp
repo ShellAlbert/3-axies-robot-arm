@@ -8,10 +8,8 @@ ZGblPara::ZGblPara()
     this->m_appMode=Free_Mode;
 
     //tracking enabled.
-    this->m_bTrackingEnabled=false;
     this->m_trackDiffX=0;
     this->m_trackDiffY=0;
-    this->m_bTargetLocked=false;
     this->m_iCostMSec=0;
 
     //pixel diff.

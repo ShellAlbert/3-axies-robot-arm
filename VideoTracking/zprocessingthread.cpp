@@ -13,10 +13,10 @@ void ZProcessingThread::run()
     bool bInit=false;
 
     //use CSRT when you need higher object tracking accuracy and can tolerate slower FPS throughput.
-    cv::Ptr<Tracker> tracker=cv::TrackerCSRT::create();
+    //cv::Ptr<Tracker> tracker=cv::TrackerCSRT::create();
 
     //use KCF when you need faster FPS throughtput but can handle slightly lower object tracking accuracy.
-    //cv::Ptr<Tracker> tracker=TrackerKCF::create();
+    cv::Ptr<Tracker> tracker=TrackerKCF::create();
 
     //use MOSSE when you need pure speed.
     //cv::Ptr<Tracker> tracker=TrackerMOSSE::create();
@@ -30,65 +30,68 @@ void ZProcessingThread::run()
     //cv::HOGDescriptor hog;
     //hog.setSVMDetector(cv::HOGDescriptor::getDefaultPeopleDetector());
 
-    cv::Mat matSelectedROI;
-
     int iOldTs,iNewTs;
     iOldTs=iNewTs=QTime::currentTime().msecsSinceStartOfDay();
     while(!gGblPara.m_bExitFlag)
     {
         cv::Mat mat=this->m_fifo->ZGetFrame();
         //we do ImgProc on gray.
-        cv::cvtColor(mat,mat,cv::COLOR_RGB2GRAY);
+        //cv::cvtColor(mat,mat,cv::COLOR_RGB2GRAY);
 
         //resize to reduce time in tracking mode.
         //cv::resize(mat,mat,cv::Size(800,600));
 
         //define ROI rectangle(200x200) on center point(0,0).
-        Rect2d roi;
-        roi.width=200;
-        roi.height=200;
-        roi.x=mat.cols/2-roi.width/2;
-        roi.y=mat.rows/2-roi.height/2;
         //cv::rectangle(mat,roi,cv::Scalar(0,255,0),1,1);
-
-        if(gGblPara.m_bTrackingEnabled)
+        if(gGblPara.m_appMode==Track_Mode)
         {
             if(!bInit)
             {
-                tracker->init(mat,roi);
-                bInit=true;
+                //initial.
+                tracker->init(mat,gGblPara.m_rectROI);
 
                 //save the selected ROI.
-                matSelectedROI=cv::Mat(mat,roi);
-            }
-            //update the tracking result.
-            if(tracker->update(mat,roi))
-            {
-                //set flag.
-                gGblPara.m_bTargetLocked=true;
+                cv::Mat roi=mat(gGblPara.m_rectROI);
+                img=cvMat2QImage(roi);
+                emit this->ZSigInitBox(img);
 
+                bInit=true;
+            }
+
+            //update the tracking result.
+            if(tracker->update(mat,gGblPara.m_rectROI))
+            {
                 //calculate the msec.
                 iNewTs=QTime::currentTime().msecsSinceStartOfDay();
                 gGblPara.m_iCostMSec=iNewTs-iOldTs;
                 iOldTs=iNewTs;
 
                 //draw the tracked object.
-                cv::rectangle(mat,roi,cv::Scalar(255,255,255),2,1);
+                //cv::rectangle(mat,gGblPara.m_rectROI,cv::Scalar(255,255,255),2,1);
+                QRect rectLocked;
+                rectLocked.setX(gGblPara.m_rectROI.x);
+                rectLocked.setY(gGblPara.m_rectROI.y);
+                rectLocked.setWidth(gGblPara.m_rectROI.width);
+                rectLocked.setHeight(gGblPara.m_rectROI.height);
+                emit this->ZSigLocked(true,rectLocked);
 
                 //calculate the track diff x&y.
-                int iOrgCenterX=mat.cols/2-roi.width/2;
-                int iOrgCenterY=mat.rows/2-roi.height/2;
-                gGblPara.m_trackDiffX=(roi.x+roi.width/2)-iOrgCenterX;
-                gGblPara.m_trackDiffY=(roi.y+roi.height/2)-iOrgCenterY;
+                int iOrgCenterX=mat.cols/2-gGblPara.m_rectROI.width/2;
+                int iOrgCenterY=mat.rows/2-gGblPara.m_rectROI.height/2;
+                gGblPara.m_trackDiffX=(gGblPara.m_rectROI.x+gGblPara.m_rectROI.width/2)-iOrgCenterX;
+                gGblPara.m_trackDiffY=(gGblPara.m_rectROI.y+gGblPara.m_rectROI.height/2)-iOrgCenterY;
+                qDebug()<<"target locked.";
 
             }else{
                 //tracking failed.
-                //set flag.
-                gGblPara.m_bTargetLocked=false;
+                emit this->ZSigLocked(false,QRect());
+
+                qDebug()<<"target lost.";
             }
+
             //draw the selected ROI image on the left-top corner.
-            cv::Mat matDisplayed=cv::Mat(mat,cv::Rect(0,0,200,200));
-            cv::copyTo(matSelectedROI,matDisplayed,matSelectedROI);
+//            cv::Mat matDisplayed=cv::Mat(mat,cv::Rect(0,0,200,200));
+//            cv::copyTo(matSelectedROI,matDisplayed,matSelectedROI);
         }else{
             bInit=false;
         }

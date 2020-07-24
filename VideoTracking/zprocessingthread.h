@@ -17,8 +17,8 @@ class ZProcessingThread : public QThread
 public:
     ZProcessingThread(ZMatFIFO *fifo);
 signals:
-    void ZSigNewImg(const QImage &img);
-    void ZSigNewInitBox(const QImage &img);
+    void ZSigInitBox(const QImage &img);
+    void ZSigLocked(bool bLocked,const QRect &rect);
 protected:
     void run();
 private:
