@@ -46,6 +46,10 @@ public:
     cv::Rect2d m_rectROI;
     //Track mode.
     int m_iCostMSec;
+    int m_iFps;
+    //the pixel diff between image center point and tracked center point.
+    int m_iPixDiffX;
+    int m_iPixDiffY;
 
     //tracking enabled.
     int m_trackDiffX;

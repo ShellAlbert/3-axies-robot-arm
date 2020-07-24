@@ -67,49 +67,27 @@ void ZProcessingThread::run()
                 iOldTs=iNewTs;
 
                 //draw the tracked object.
-                //cv::rectangle(mat,gGblPara.m_rectROI,cv::Scalar(255,255,255),2,1);
                 QRect rectLocked;
                 rectLocked.setX(gGblPara.m_rectROI.x);
                 rectLocked.setY(gGblPara.m_rectROI.y);
                 rectLocked.setWidth(gGblPara.m_rectROI.width);
                 rectLocked.setHeight(gGblPara.m_rectROI.height);
                 emit this->ZSigLocked(true,rectLocked);
+                //fps.
+                gGblPara.m_iFps=this->getFps();
 
                 //calculate the track diff x&y.
-                int iOrgCenterX=mat.cols/2-gGblPara.m_rectROI.width/2;
-                int iOrgCenterY=mat.rows/2-gGblPara.m_rectROI.height/2;
-                gGblPara.m_trackDiffX=(gGblPara.m_rectROI.x+gGblPara.m_rectROI.width/2)-iOrgCenterX;
-                gGblPara.m_trackDiffY=(gGblPara.m_rectROI.y+gGblPara.m_rectROI.height/2)-iOrgCenterY;
-                qDebug()<<"target locked.";
-
+                gGblPara.m_iPixDiffX=(gGblPara.m_rectROI.x+gGblPara.m_rectROI.width/2)-mat.cols/2;
+                gGblPara.m_iPixDiffY=(gGblPara.m_rectROI.y+gGblPara.m_rectROI.height/2)-mat.rows/2;
             }else{
                 //tracking failed.
                 emit this->ZSigLocked(false,QRect());
-
-                qDebug()<<"target lost.";
             }
-
-            //draw the selected ROI image on the left-top corner.
-//            cv::Mat matDisplayed=cv::Mat(mat,cv::Rect(0,0,200,200));
-//            cv::copyTo(matSelectedROI,matDisplayed,matSelectedROI);
         }else{
             bInit=false;
         }
 
-        //mapping pixels to encoder.
-        //this->ZMapPixels2Encoder(mat);
-
-        //draw cross indicator +.
-        //this->ZDrawCrossIndicator(mat);
-
-        //convert mat to QImage for local display.
-        //img=cvMat2QImage(mat);
-
-        //draw something on QImage.
-        //this->ZDrawOnQImage(img);
-
-        //emit this->ZSigNewImg(img);
-        this->usleep(100);
+        this->usleep(10);
     }
 }
 void ZProcessingThread::ZTrackObject(cv::Mat &mat)
@@ -415,110 +393,19 @@ void ZProcessingThread::ZMapPixels2Encoder(cv::Mat &mat)
         break;
     }
 }
-void ZProcessingThread::ZDrawCrossIndicator(cv::Mat &mat)
+qint32 ZProcessingThread::getFps()
 {
-    return;
-    //we draw a radius=100 circle.//RGB  //BGR
-    cv::circle(mat,cv::Point(mat.cols/2,mat.rows/2),100,cv::Scalar(0,255,0),4,1);
-    //draw a line from left to right.
-    cv::Point ptLeft1,ptLeft2,ptRight1,ptRight2;
-    ptLeft1.x=mat.cols/2-100;
-    ptLeft1.y=mat.rows/2;
-    ptLeft2.x=mat.cols/2-20;
-    ptLeft2.y=mat.rows/2;
-    cv::line(mat,ptLeft1,ptLeft2,cv::Scalar(0xd3,0x06,0xff),2,1);
+    static qint32 iFps=0;
+    static qint32 iLastMSec=QTime::currentTime().msecsSinceStartOfDay();
+    static qint32 iFrameCount=0;
 
-    ptRight1.x=mat.cols/2+20;
-    ptRight1.y=mat.rows/2;
-    ptRight2.x=mat.cols/2+100;
-    ptRight2.y=mat.rows/2;
-    cv::line(mat,ptRight1,ptRight2,cv::Scalar(0xd3,0x06,0xff),2,1);
-
-    //draw a line from top to bottom.
-    cv::Point ptTop1,ptTop2,ptBottom1,ptBottom2;
-    ptTop1.x=mat.cols/2;
-    ptTop1.y=mat.rows/2-100;
-    ptTop2.x=mat.cols/2;
-    ptTop2.y=mat.rows/2-20;
-    cv::line(mat,ptTop1,ptTop2,cv::Scalar(0xd3,0x06,0xff),2,1);
-
-    ptBottom1.x=mat.cols/2;
-    ptBottom1.y=mat.rows/2+20;
-    ptBottom2.x=mat.cols/2;
-    ptBottom2.y=mat.rows/2+100;
-    cv::line(mat,ptBottom1,ptBottom2,cv::Scalar(0xd3,0x06,0xff),2,1);
-}
-void ZProcessingThread::ZDrawOnQImage(QImage &img)
-{
-    QPainter p;
-    //p.setRenderHints(QPainter::Antialiasing,true);
-    p.begin(&img);
-    //draw a rectangle indicator.
-    //    ___       ___
-    //   |             |
-    //
-    //
-    //   |             |
-    //    ___       ___
-    p.save();
-    //move the (0,0) to the center of image.
-    p.translate(img.width()/2,img.height()/2);
-    p.setPen(QPen(Qt::green,4));
-    p.drawLine(QPointF(70,-50),QPointF(100,-50));
-    p.drawLine(QPointF(100,-50),QPointF(100,-20));
-    ///
-    p.drawLine(QPointF(70,50),QPointF(100,50));
-    p.drawLine(QPointF(100,50),QPointF(100,20));
-    ///
-    p.drawLine(QPointF(-70,-50),QPointF(-100,-50));
-    p.drawLine(QPointF(-100,-50),QPointF(-100,-20));
-    ///
-    p.drawLine(QPointF(-70,50),QPointF(-100,50));
-    p.drawLine(QPointF(-100,50),QPointF(-100,20));
-    //draw a half-tranparent mask and red color center point.
-    p.setPen(Qt::NoPen);
-    p.setBrush(QBrush(QColor(0,255,0,20)));
-    //draw a ellipse with x radius=100,y radius=50.
-    p.drawEllipse(QPoint(0,0),100,50);
-    p.setBrush(QBrush(QColor(255,0,0,255)));
-    p.drawEllipse(QPoint(0,0),6,6);
-    p.restore();
-
-    //draw the big scale.
-    p.save();
-    p.translate(img.width()/2,img.height());
-    p.setPen(QPen(Qt::white,4));
-    //we draw 9 lines in (180-18-18) degree.
-    //so,(180-18-18) degreen /9=16 degree.
-    for(int i=0;i<13;i++)
+    ++iFrameCount;
+    qint32 iNowMSec=QTime::currentTime().msecsSinceStartOfDay();
+    if(iNowMSec-iLastMSec>1000)
     {
-        p.drawLine(QPointF(180,0),QPointF(200,0));
-        p.rotate(-15);
+        iFps=iFrameCount;
+        iFrameCount=0;
+        iLastMSec=iNowMSec;
     }
-    p.restore();
-
-    //draw the small scale.
-    p.save();
-    p.translate(img.width()/2,img.height());
-    p.setPen(QPen(Qt::white,2));
-    p.rotate(-7.5);
-    p.drawLine(QPointF(190,0),QPointF(200,0));
-    for(int i=0;i<11;i++)
-    {
-        p.rotate(-15);
-        p.drawLine(QPointF(190,0),QPointF(200,0));
-    }
-    p.restore();
-
-    //draw a arrow.
-    p.save();
-    p.translate(img.width()/2,img.height());
-    p.setPen(QPen(Qt::white,2));
-    p.setBrush(Qt::white);
-    p.drawEllipse(QPoint(0,0),20,20);
-    QPointF pt[]={{-6,0},{0,-150},{6,0}};
-    p.rotate(30);
-    p.drawConvexPolygon(pt,3);
-    p.restore();
-    p.end();
+    return iFps;
 }

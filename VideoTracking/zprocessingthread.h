@@ -24,8 +24,7 @@ protected:
 private:
     void ZTrackObject(cv::Mat &mat);
     void ZMapPixels2Encoder(cv::Mat &mat);
-    void ZDrawCrossIndicator(cv::Mat &mat);
-    void ZDrawOnQImage(QImage &img);
+    qint32 getFps();
 private:
     ZMatFIFO *m_fifo;
 };

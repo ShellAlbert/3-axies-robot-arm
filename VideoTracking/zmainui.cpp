@@ -119,9 +119,28 @@ void ZMainUI::paintEvent(QPaintEvent *e)
     switch(gGblPara.m_appMode)
     {
     case Free_Mode:
+    {
+        QFont font=p.font();
+        font.setPixelSize(40);
+        p.setFont(font);
+        p.setPen(QPen(Qt::yellow,4));
+
+        //draw FreeMode.
+        QPoint ptFree(0,0+p.fontMetrics().height());
+        p.drawText(ptFree,QString("Free mode"));
+    }
         break;
     case SelectROI_Mode:
     {
+        QFont font=p.font();
+        font.setPixelSize(40);
+        p.setFont(font);
+        p.setPen(QPen(Qt::yellow,4));
+
+        //draw SelectROI.
+        QPoint ptROI(0,0+p.fontMetrics().height());
+        p.drawText(ptROI,QString("Select region of interest mode"));
+
         //draw a rectangle mask on the image.
         this->ZDrawROIMask(p,this->m_img);
     }
@@ -143,10 +162,17 @@ void ZMainUI::paintEvent(QPaintEvent *e)
         {
             //draw the locked rectangle.
             p.drawRect(this->m_rectLocked);
-            p.drawText(QRectF(0,200,200,200),QString("Locked"));
-            p.drawText(QRectF(0,400,200,200),QString::number(gGblPara.m_iCostMSec));
+
+            QPoint ptLocked(0,200);
+            p.drawText(ptLocked,QString("Locked"));
+            QPoint ptFps(0,ptLocked.y()+p.fontMetrics().height());
+            p.drawText(ptFps,QString::number(gGblPara.m_iCostMSec)+"/"+QString::number(gGblPara.m_iFps)+"fps");
+            //draw the diff x&y.
+            QPoint ptDiff(0,ptFps.y()+p.fontMetrics().height());
+            p.drawText(ptDiff,QString::number(gGblPara.m_iPixDiffX)+","+QString::number(gGblPara.m_iPixDiffY));
         }else{
-            p.drawText(QRectF(0,200,200,200),QString("Lost"));
+            QPoint ptLost(0,200);
+            p.drawText(ptLost,QString("Lost"));
         }
     }
         break;
