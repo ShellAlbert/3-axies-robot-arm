@@ -25,6 +25,7 @@ ZMainUI::ZMainUI(QWidget *parent)
     this->m_iFrmCounter=0;
 
     this->m_bLocked=false;
+    this->m_bSelectROI=false;
 }
 
 ZMainUI::~ZMainUI()
@@ -355,19 +356,28 @@ void ZMainUI::ZDrawSplitGrid(QPainter &p,QImage &img)
 void ZMainUI::ZDrawROIMask(QPainter &p,QImage &img)
 {
     //draw current position on left-bottom corner.
+#if 1
     p.setPen(QPen(Qt::red,2));
-    QString strFrmCount=QString::number(this->m_ptNew.x())+","+QString::number(this->m_ptNew.y());
+    QString strROI;
+    strROI+="("+QString::number(this->m_ptStart.x())+","+QString::number(this->m_ptStart.y())+")";
+    strROI+="\n";
+    strROI+="("+QString::number(this->m_ptEnd.x())+","+QString::number(this->m_ptEnd.y())+")";
+    strROI+="\n";
+    strROI+=QString::number(abs(this->m_ptStart.x()-this->m_ptEnd.x()))+"*"+QString::number(abs(this->m_ptStart.y()-this->m_ptEnd.y()));
     QFont font=p.font();
     font.setPixelSize(66);
     p.setFont(font);
-    QPoint pt;
-    pt.setX(0);
-    pt.setY(this->height()-p.fontMetrics().height());
-    p.drawText(pt,strFrmCount);
-
+    QRect rectStrROI;
+    rectStrROI.setX(0);
+    rectStrROI.setY(this->height()-p.fontMetrics().height()*3);
+    rectStrROI.setWidth(this->width());
+    rectStrROI.setHeight(this->height()-rectStrROI.y());
+    p.drawText(rectStrROI,strROI);
+#endif
     //draw the mask.
     p.save();
-    p.fillRect(QRectF(this->m_ptNew.x(),this->m_ptNew.y(),200,200),QColor(255,0,0,100));
+    //p.fillRect(QRectF(this->m_ptNew.x(),this->m_ptNew.y(),200,200),QColor(255,0,0,100));
+    p.fillRect(QRect(this->m_ptStart,this->m_ptEnd),QColor(255,0,0,100));
     p.restore();
 }
 void ZMainUI::ZSlotPDO(qint32 iSlave,qint32 iActPos,qint32 iTarPos,qint32 iActVel)
@@ -396,6 +406,20 @@ void ZMainUI::closeEvent(QCloseEvent *event)
 
 void ZMainUI::mousePressEvent(QMouseEvent *event)
 {
+    switch(gGblPara.m_appMode)
+    {
+    case Free_Mode:
+        break;
+    case SelectROI_Mode:
+        this->m_bSelectROI=true;
+        this->m_ptStart=event->pos();
+        this->m_ptEnd=this->m_ptStart;
+        break;
+    case Track_Mode:
+        break;
+    default:
+        break;
+    }
     QWidget::mousePressEvent(event);
 }
 void ZMainUI::mouseMoveEvent(QMouseEvent *event)
@@ -406,12 +430,43 @@ void ZMainUI::mouseMoveEvent(QMouseEvent *event)
         break;
     case SelectROI_Mode:
     {
-        this->m_ptNew=event->pos();
+        this->m_ptEnd=event->pos();
+
         //update the ROI coordinate.
-        gGblPara.m_rectROI.x=this->m_ptNew.x();
-        gGblPara.m_rectROI.y=this->m_ptNew.y();
-        gGblPara.m_rectROI.width=200;
-        gGblPara.m_rectROI.height=200;
+        if((this->m_ptEnd.x()>this->m_ptStart.x())&&(this->m_ptEnd.y()>this->m_ptStart.y()))
+        {
+            //drag from left-top to right-bottom.
+            gGblPara.m_rectROI.x=this->m_ptStart.x();
+            gGblPara.m_rectROI.y=this->m_ptStart.y();
+            gGblPara.m_rectROI.width=abs(this->m_ptStart.x()-this->m_ptEnd.x());
+            gGblPara.m_rectROI.height=abs(this->m_ptStart.y()-this->m_ptEnd.y());
+        }else if((this->m_ptEnd.x()<this->m_ptStart.x())&&(this->m_ptEnd.y()<this->m_ptStart.y()))
+        {
+            //drag from right-bottom to left-top.
+            gGblPara.m_rectROI.x=this->m_ptEnd.x();
+            gGblPara.m_rectROI.y=this->m_ptEnd.y();
+            gGblPara.m_rectROI.width=abs(this->m_ptStart.x()-this->m_ptEnd.x());
+            gGblPara.m_rectROI.height=abs(this->m_ptStart.y()-this->m_ptEnd.y());
+        }else if((this->m_ptEnd.x()>this->m_ptStart.x())&&(this->m_ptEnd.y()<this->m_ptStart.y()))
+        {
+            //drag from left-bottom to right-top.
+            gGblPara.m_rectROI.x=this->m_ptStart.x();
+            gGblPara.m_rectROI.y=this->m_ptEnd.y();
+            gGblPara.m_rectROI.width=abs(this->m_ptStart.x()-this->m_ptEnd.x());
+            gGblPara.m_rectROI.height=abs(this->m_ptStart.y()-this->m_ptEnd.y());
+        }else if((this->m_ptEnd.x()<this->m_ptStart.x())&&(this->m_ptEnd.y()>this->m_ptStart.y()))
+        {
+            //drag from right-top to left-bottom.
+            gGblPara.m_rectROI.x=this->m_ptEnd.x();
+            gGblPara.m_rectROI.y=this->m_ptStart.y();
+            gGblPara.m_rectROI.width=abs(this->m_ptStart.x()-this->m_ptEnd.x());
+            gGblPara.m_rectROI.height=abs(this->m_ptStart.y()-this->m_ptEnd.y());
+        }else{
+            gGblPara.m_rectROI.x=0;
+            gGblPara.m_rectROI.y=0;
+            gGblPara.m_rectROI.width=200;
+            gGblPara.m_rectROI.height=200;
+        }
     }
         break;
     case Track_Mode:
@@ -421,6 +476,18 @@ void ZMainUI::mouseMoveEvent(QMouseEvent *event)
 }
 void ZMainUI::mouseReleaseEvent(QMouseEvent *event)
 {
+    switch(gGblPara.m_appMode)
+    {
+    case Free_Mode:
+        break;
+    case SelectROI_Mode:
+        this->m_bSelectROI=false;
+        break;
+    case Track_Mode:
+        break;
+    default:
+        break;
+    }
     QWidget::mouseReleaseEvent(event);
 }
 void ZMainUI::ZSlotModeChanged()
@@ -432,6 +499,7 @@ void ZMainUI::ZSlotModeChanged()
     case SelectROI_Mode:
         break;
     case Track_Mode:
+
         break;
     }
 }

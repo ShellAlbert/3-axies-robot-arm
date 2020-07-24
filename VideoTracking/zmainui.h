@@ -84,7 +84,10 @@ private:
     QImage m_img;
 
 private:
-    QPoint m_ptNew;
+    //select ROI.
+    bool m_bSelectROI;
+    QPoint m_ptStart;
+    QPoint m_ptEnd;
 
     bool m_bLocked;
     QRect m_rectLocked;
