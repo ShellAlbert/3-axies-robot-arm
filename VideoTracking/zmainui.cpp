@@ -69,6 +69,7 @@ bool ZMainUI::ZDoInit()
     QObject::connect(this->m_dirBar,SIGNAL(ZSigUp()),this,SLOT(ZSlotMoveToUp()));
     QObject::connect(this->m_dirBar,SIGNAL(ZSigDown()),this,SLOT(ZSlotMoveToDown()));
 
+    QObject::connect(&this->m_timerLost,SIGNAL(timeout()),this,SLOT(ZSlotLostTimeout()));
     return true;
 }
 QSize ZMainUI::sizeHint() const
@@ -154,6 +155,7 @@ void ZMainUI::paintEvent(QPaintEvent *e)
 
         //draw the selected ROI on the left-top corner for referencing.
         p.drawImage(QRect(0,0,200,200),this->m_initImg);
+        //p.drawImage(QRect(0,0,600,600),this->m_initImg);
 
         QFont font=p.font();
         font.setPixelSize(40);
@@ -173,7 +175,7 @@ void ZMainUI::paintEvent(QPaintEvent *e)
             p.drawText(ptDiff,QString::number(gGblPara.m_iPixDiffX)+","+QString::number(gGblPara.m_iPixDiffY));
         }else{
             QPoint ptLost(0,200);
-            p.drawText(ptLost,QString("Lost"));
+            p.drawText(ptLost,QString("Lost:")+QString::number(this->m_iLostTimeout));
         }
     }
         break;
@@ -376,7 +378,6 @@ void ZMainUI::ZDrawROIMask(QPainter &p,QImage &img)
 #endif
     //draw the mask.
     p.save();
-    //p.fillRect(QRectF(this->m_ptNew.x(),this->m_ptNew.y(),200,200),QColor(255,0,0,100));
     p.fillRect(QRect(this->m_ptStart,this->m_ptEnd),QColor(255,0,0,100));
     p.restore();
 }
@@ -507,6 +508,19 @@ void ZMainUI::ZSlotLocked(bool bLocked,QRect rect)
 {
     this->m_bLocked=bLocked;
     this->m_rectLocked=rect;
+    if(this->m_bLocked)
+    {
+        if(this->m_timerLost.isActive())
+        {
+            this->m_timerLost.stop();
+        }
+    }else{
+        if(!this->m_timerLost.isActive())
+        {
+            this->m_iLostTimeout=0;
+            this->m_timerLost.start(1000);
+        }
+    }
 }
 void ZMainUI::ZSlotInitBox(const QImage &img)
 {
@@ -616,6 +630,10 @@ void ZMainUI::ZSlotScan()
 void ZMainUI::ZSlotCalibrate()
 {
 
+}
+void ZMainUI::ZSlotLostTimeout()
+{
+    this->m_iLostTimeout++;
 }
 qint32 ZMainUI::getFps()
 {

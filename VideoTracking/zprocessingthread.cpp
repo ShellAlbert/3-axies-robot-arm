@@ -33,6 +33,7 @@ void ZProcessingThread::run()
     int iOldTs,iNewTs;
     iOldTs=iNewTs=QTime::currentTime().msecsSinceStartOfDay();
     cv::Rect2d rectROI;
+    cv::Mat  matROI;
     while(!gGblPara.m_bExitFlag)
     {
         cv::Mat mat=this->m_fifo->ZGetFrame();
@@ -57,9 +58,9 @@ void ZProcessingThread::run()
                 //initial.
                 tracker->init(mat,rectROI);
 
-                //show our selected ROI on UI.
-                cv::Mat roi=mat(rectROI);
-                img=cvMat2QImage(roi);
+                //save selected ROI & show selected ROI on UI.
+                matROI=mat(rectROI);
+                img=cvMat2QImage(matROI);
                 emit this->ZSigInitBox(img);
 
                 bInit=true;
@@ -91,6 +92,19 @@ void ZProcessingThread::run()
             }else{
                 //tracking failed.
                 emit this->ZSigLocked(false,QRect());
+#if 0
+                //we overwrite left-top area with saved ROI.
+                //and re-init tracker.
+                cv::Rect2d dstRect;
+                dstRect.x=600;
+                dstRect.y=400;
+                dstRect.width=matROI.cols;
+                dstRect.height=matROI.rows;
+                cv::Mat  dstMat=mat(dstRect);
+                matROI.copyTo(dstMat,matROI);
+                img=cvMat2QImage(mat);
+                emit this->ZSigInitBox(img);
+#endif
             }
         }else{
             bInit=false;

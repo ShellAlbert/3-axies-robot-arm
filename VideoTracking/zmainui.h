@@ -15,6 +15,7 @@
 #include "zctrlbar.h"
 #include "zdirectionbar.h"
 #include <QLabel>
+#include <QTimer>
 typedef struct{
     bool bErrFlag;
     QString log;
@@ -44,6 +45,7 @@ private slots:
     void ZSlotHome();
     void ZSlotScan();
     void ZSlotCalibrate();
+    void ZSlotLostTimeout();
 protected:
     void paintEvent(QPaintEvent *e);
     void closeEvent(QCloseEvent *event);
@@ -97,6 +99,9 @@ private:
 
 private:
     qint32 m_iFrmCounter;
+private:
+    QTimer m_timerLost;
+    qint32 m_iLostTimeout;
 };
 
 #endif // ZMAINUI_H
