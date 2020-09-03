@@ -296,7 +296,14 @@ void cyclic_task()
 
             iTickCnt++;
             break;
-        case 4://Set Target Position.
+        case 4://Set Target Position to 0.
+            EC_WRITE_S32(domainOutput_pd+targetPosition[0],0);
+
+            //here we skip step 5.
+            iTickCnt++;
+            iTickCnt++;
+            break;
+        case 5://Set Target Position.
         {
             int curPos = EC_READ_S32(domainInput_pd + actPosition[0]);
             curPos-=100000;
@@ -306,12 +313,12 @@ void cyclic_task()
             iTickCnt++;
         }
             break;
-        case 5://Start Positioning.
+        case 6://Start Positioning.
             EC_WRITE_U16(domainOutput_pd+ctrlWord[0],0x1F);
 
             iTickCnt++;
             break;
-        case 6://set point acknowledge.
+        case 7://set point acknowledge.
         {
             uint16_t status;
             status = EC_READ_U16(domainInput_pd + statusWord[0]);
@@ -324,33 +331,33 @@ void cyclic_task()
             }
         }
             break;
-        case 7://RESET.
+        case 8://RESET.
             //0x0F=0000,1111.
             EC_WRITE_U16(domainOutput_pd+ctrlWord[0],0x0F);
 
             iTickCnt++;
             break;
-        case 8://Target reached ?
+        case 9://Target reached ?
         {
             uint16_t status;
             status = EC_READ_U16(domainInput_pd + statusWord[0]);
+            int curPos=EC_READ_S32(domainInput_pd + actPosition[0]);
             if((status&(0x1<<10)))
             {
-                printf("Target reached.\n");
+                printf("Target reached,position=%d\n",curPos);
                 iTickCnt++;
             }else{
-                printf("Target not reached.\n");
+                printf("Target not reached,position=%d\n",curPos);
             }
         }
             break;
-        case 9:
+        case 10:
             if(g_TrigFlag)
             {
-                iTickCnt=4;
+                iTickCnt=5;
                 g_TrigFlag=0;
                 printf("retrying...\n");
             }
-            printf("work done!\n");
             break;
         default:
             break;
