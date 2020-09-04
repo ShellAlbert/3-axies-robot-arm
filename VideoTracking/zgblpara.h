@@ -23,6 +23,11 @@ typedef enum{
     SelectROI_Mode,
     Track_Mode,
 }ZAppRunMode;
+
+//command & data to TechServo.
+#define SERVO_FIFO_IN "/tmp/servo.fifo.in"
+//result from TechServo.
+#define SERVO_FIFO_OUT "/tmp/servo.fifo.out"
 class ZGblPara
 {
 public:
@@ -33,6 +38,7 @@ public:
 public:
     //application running mode.
     ZAppRunMode m_appMode;
+    bool m_bTrackInit;
 public:
     //the servo motor encoder current position.
     int m_iXAxisCurPos;
@@ -88,6 +94,10 @@ public:
     QPoint m_ptEncBtm;
 
 
+    //TechServo fifo in fd.
+    int m_fdServoFIFOIN;
+    //TechServo fifo out fd.
+    int m_fdServoFIFOOUT;
 };
 extern ZGblPara gGblPara;
 

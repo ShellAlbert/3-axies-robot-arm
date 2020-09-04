@@ -78,6 +78,9 @@ void ZCtrlBar::ZSlotMode()
     case Track_Mode:
         gGblPara.m_appMode=Free_Mode;
         this->m_tbMode->setIcon(QIcon(":/images/free.png"));
+        //reset flag to force Tracker ReInit.
+        gGblPara.m_bTrackInit=false;
+
         break;
     default:
         break;

@@ -6,6 +6,7 @@ ZGblPara::ZGblPara()
 
     //application running mode.
     this->m_appMode=Free_Mode;
+    this->m_bTrackInit=false;
 
     //tracking enabled.
     this->m_trackDiffX=0;

@@ -26,7 +26,6 @@ DEFINES += QT_DEPRECATED_WARNINGS
 SOURCES += \
         main.cpp \
         zmainui.cpp \
-    zethercatthread.cpp \
     zgblpara.cpp \
     zcapturethread.cpp \
     zmatfifo.cpp \
@@ -38,7 +37,6 @@ SOURCES += \
 
 HEADERS += \
         zmainui.h \
-    zethercatthread.h \
     zgblpara.h \
     zcapturethread.h \
     zmatfifo.h \
@@ -48,9 +46,6 @@ HEADERS += \
     zpidcalc.h \
     zdialoghome.h
 
-#IgH EtherCAT Master 1.5.2
-INCLUDEPATH += /opt/ethercat/include
-LIBS +=  -lethercat
 
 #openCV 4.1.1
 INCLUDEPATH += /usr/local/include/opencv4

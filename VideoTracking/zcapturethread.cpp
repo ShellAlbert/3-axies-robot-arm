@@ -16,6 +16,7 @@ void ZCaptureThread::run()
 {
     cv::VideoCapture cap;
     QImage img;
+    qint32 iSkipFrm=0;
     while(!gGblPara.m_bExitFlag)
     {
         if(!cap.isOpened())
@@ -45,9 +46,16 @@ void ZCaptureThread::run()
         img=cvMat2QImage(mat);
         emit this->ZSigNewImg(img);
 
-        //for image processing.
-        this->m_fifo->ZAddFrame(mat);
-        this->usleep(1000);
+        //put cvMat to FIFO under track mode.
+        if(gGblPara.m_appMode==Track_Mode)
+        {
+            if(iSkipFrm++>=2)
+            {
+                this->m_fifo->ZAddFrame(mat);
+                iSkipFrm=0;
+            }
+        }
+        this->usleep(100);
     }
     cap.release();
 }

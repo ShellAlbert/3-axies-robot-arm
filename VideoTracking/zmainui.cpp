@@ -184,20 +184,6 @@ void ZMainUI::paintEvent(QPaintEvent *e)
     //finally,draw the image.
     painter.drawImage(QRectF(0,0,this->width(),this->height()),this->m_img);
 
-    //draw logs.
-    if(0)
-    {
-        painter.setPen(QPen(Qt::red,2));
-        QFont font=painter.font();
-        font.setPixelSize(20);
-        painter.setFont(font);
-        QPointF ptLog(10,0);
-        for(qint32 i=0;i<this->m_vecLog.size();i++)
-        {
-            ptLog.setY(ptLog.y()+painter.fontMetrics().height());
-            painter.drawText(ptLog,this->m_vecLog.at(i).log);
-        }
-    }
 
     //draw frame counter & fps.
     painter.setPen(QPen(Qt::red,2));

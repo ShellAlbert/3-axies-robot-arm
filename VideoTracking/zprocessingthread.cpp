@@ -46,26 +46,31 @@ void ZProcessingThread::run()
 
         //define ROI rectangle(200x200) on center point(0,0).
         //cv::rectangle(mat,roi,cv::Scalar(0,255,0),1,1);
-        if(gGblPara.m_appMode==Track_Mode)
+        if(!gGblPara.m_bTrackInit)
         {
-            if(!bInit)
+            //stretch to 1/2 to speed up(includes ROI box coordinate(x,y,width,height).
+            rectROI.x=gGblPara.m_rectROI.x/2;
+            rectROI.y=gGblPara.m_rectROI.y/2;
+            rectROI.width=gGblPara.m_rectROI.width/2;
+            rectROI.height=gGblPara.m_rectROI.height/2;
+            //initial.
+            tracker->clear();
+            tracker=TrackerKCF::create();
+            if(tracker->init(mat,rectROI))
             {
-                //stretch to 1/2 to speed up(includes ROI box coordinate(x,y,width,height).
-                rectROI.x=gGblPara.m_rectROI.x/2;
-                rectROI.y=gGblPara.m_rectROI.y/2;
-                rectROI.width=gGblPara.m_rectROI.width/2;
-                rectROI.height=gGblPara.m_rectROI.height/2;
-                //initial.
-                tracker->init(mat,rectROI);
-
-                //save selected ROI & show selected ROI on UI.
-                matROI=mat(rectROI);
-                img=cvMat2QImage(matROI);
-                emit this->ZSigInitBox(img);
-
-                bInit=true;
+                qDebug()<<"track Init okay";
+            }else{
+                qDebug()<<"track Init error";
             }
 
+            //save selected ROI & show selected ROI on UI.
+            matROI=mat(rectROI);
+            img=cvMat2QImage(matROI);
+            emit this->ZSigInitBox(img);
+
+            gGblPara.m_bTrackInit=true;
+            qDebug()<<"reInit ROI";
+        }else{
             //update the tracking result.
             if(tracker->update(mat,rectROI))
             {
@@ -82,6 +87,7 @@ void ZProcessingThread::run()
                 rectLocked.setWidth(rectROI.width*2);
                 rectLocked.setHeight(rectROI.height*2);
                 emit this->ZSigLocked(true,rectLocked);
+                //qDebug()<<"locked:"<<rectLocked;
                 //fps.
                 gGblPara.m_iFps=this->getFps();
 
@@ -92,24 +98,8 @@ void ZProcessingThread::run()
             }else{
                 //tracking failed.
                 emit this->ZSigLocked(false,QRect());
-#if 0
-                //we overwrite left-top area with saved ROI.
-                //and re-init tracker.
-                cv::Rect2d dstRect;
-                dstRect.x=600;
-                dstRect.y=400;
-                dstRect.width=matROI.cols;
-                dstRect.height=matROI.rows;
-                cv::Mat  dstMat=mat(dstRect);
-                matROI.copyTo(dstMat,matROI);
-                img=cvMat2QImage(mat);
-                emit this->ZSigInitBox(img);
-#endif
             }
-        }else{
-            bInit=false;
         }
-
         this->usleep(10);
     }
 }
