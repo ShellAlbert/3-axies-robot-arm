@@ -2,6 +2,71 @@
 //TechServo motor control in Profile Position mode.
 //sudo /etc/init.d/ethercat restart
 //gcc ppm.c  -I/opt/ethercat/include -lethercat
+
+//run script to enable servo before running this.
+/*
+#!/bin/bash
+#Profile Position mode.
+
+#clear fault.
+ethercat download -p 0 -t uint16 0x6040 0x00 0x80
+ethercat download -p 1 -t uint16 0x6040 0x00 0x80
+
+#Sync Manager2,Synchronization Type=0:Free Run.
+ethercat download -p 0 -t uint16 0x1c32 0x01 0
+ethercat download -p 1 -t uint16 0x1c32 0x01 0
+ethercat states -p 0 OP
+ethercat states -p 1 OP
+
+#Mode of Operation=1.Profile Position mode.
+ethercat download -p 0 -t int8 0x6060 0x00 1
+ethercat download -p 1 -t int8 0x6060 0x00 1
+
+#Minimum Software Position Limit.
+#ethercat download -p 0 -t int32 0x607D 0x01 0xFFFFFFFF
+#Maximum Software Position Limit.
+#ethercat download -p 0 -t int32 0x607D 0x02 0x0FFFFFFF
+
+#Profile Velocity.
+ethercat download -p 0 -t uint32 0x6081 0x00 500000
+ethercat download -p 1 -t uint32 0x6081 0x00 500000
+#Profile Acceleration.
+ethercat download -p 0 -t uint32 0x6083 0x00 1000
+ethercat download -p 1 -t uint32 0x6083 0x00 1000
+#Profile Deceleration.
+ethercat download -p 0 -t uint32 0x6084 0x00 1000
+ethercat download -p 1 -t uint32 0x6084 0x00 1000
+#Quick Stop Deceleration.
+ethercat download -p 0 -t uint32 0x6085 0x00 1000
+ethercat download -p 1 -t uint32 0x6085 0x00 1000
+#Motion Profile Type=T.
+ethercat download -p 0 -t int16 0x6086 0x00 0
+ethercat download -p 1 -t int16 0x6086 0x00 0
+
+
+#Servo ON.
+ethercat download -p 0 -t uint16 0x6040 0x00 0x06
+ethercat download -p 1 -t uint16 0x6040 0x00 0x06
+ethercat download -p 0 -t uint16 0x6040 0x00 0x0f
+ethercat download -p 1 -t uint16 0x6040 0x00 0x0f
+
+#get current position.
+ethercat upload -p 0 -t int32 0x6064 0x00
+ethercat upload -p 1 -t int32 0x6064 0x00
+#set target position to 0.
+ethercat download -p 0 -t int32 0x607A 0x00 0
+ethercat download -p 1 -t int32 0x607A 0x00 0
+
+#Start positioning (absolute position,start immediately).
+ethercat download -p 0 -t uint16 0x6040 0x00 0x1F
+ethercat download -p 1 -t uint16 0x6040 0x00 0x1F
+
+
+#the end of file.
+
+*/
+
+
 #include "ecrt.h"
 #include <stdio.h>
 #include <unistd.h>
@@ -13,6 +78,7 @@
 #include <time.h>
 #include <sys/types.h>
 #include <signal.h>
+#include <fcntl.h>
 
 /*EtherCAT slave address on the bus*/
 #define CopleySlavePos    0, 0
@@ -40,9 +106,26 @@ enum
     SYS_WORKING_UPDATE_POSITION,
 };
 int g_SysFSM=SYS_WORKING_POWER_ON;
+//Profile Position Mode.
+//Absolute Position.
+//Relative Position.+/-.
+enum
+{
+    PPM_POSITION_ABSOLUTE,
+    PPM_POSITION_RELATIVE,
+};
+int g_PPMPositionMode=PPM_POSITION_ABSOLUTE;
 
 int g_TrigFlag=0;
 void g_SignalHandler(int signo);
+
+//command & data to TechServo.
+#define SERVO_FIFO_IN "/tmp/servo.fifo.in"
+//result from TechServo.
+#define SERVO_FIFO_OUT "/tmp/servo.fifo.out"
+int g_fdServoFIFOIn;
+int g_fdServoFIFOOut;
+
 /*EtherCAT master*/
 static ec_master_t *master=NULL;
 static ec_master_state_t master_state={};
@@ -244,10 +327,10 @@ void cyclic_task()
             {
                 tmp=false;
             }
-            //            if(sc_copley_state[1].al_state!=ETHERCAT_STATUS_OP)
-            //            {
-            //                tmp=false;
-            //            }
+            if(sc_copley_state[1].al_state!=ETHERCAT_STATUS_OP)
+            {
+                tmp=false;
+            }
             if(tmp)
             {
                 g_SysFSM=SYS_WORKING_OPMODE;
@@ -263,66 +346,122 @@ void cyclic_task()
         case 0://Reset.
             //bit7=1.
             //Reset Fault.A low-to-high transition of this bit makes the amplifier attempt to clear any latched fault condition.
-            EC_WRITE_U16(domainOutput_pd+ctrlWord[0],0x80);
+            for(int i=0;i<2;i++)
+            {
+                EC_WRITE_U16(domainOutput_pd+ctrlWord[i],0x80);
+            }
+
             iTickCnt++;
             break;
         case 1://set Operation Mode.
             //(0x6060,0)=1 PP:Profile Position mode.
-            ecrt_slave_config_sdo8(sc_copley[0],0x6060,0,1);
+            for(int i=0;i<2;i++)
+            {
+                ecrt_slave_config_sdo8(sc_copley[i],0x6060,0,1);
+            }
+
             iTickCnt++;
             break;
         case 2://Set Parameter.
-            //Sync Manager2,Synchronization Type=0:Free Run.
-            ecrt_slave_config_sdo16(sc_copley[0],0x1c32,0x01,0);
+            for(int i=0;i<2;i++)
+            {
+                //Sync Manager2,Synchronization Type=0:Free Run.
+                ecrt_slave_config_sdo16(sc_copley[i],0x1c32,0x01,0);
 
-            //Profile Velocity.
-            ecrt_slave_config_sdo32(sc_copley[0],0x6081,0x00,500000);
-            //Profile Acceleration.
-            ecrt_slave_config_sdo32(sc_copley[0],0x6083,0x00,1000);
-            //Profile Deceleration.
-            ecrt_slave_config_sdo32(sc_copley[0],0x6084,0x00,1000);
-            //Quick Stop Deceleration.
-            ecrt_slave_config_sdo32(sc_copley[0],0x6085,0x00,1000);
-            //Motion Profile Type=T.
-            ecrt_slave_config_sdo16(sc_copley[0],0x6086,0x00,0);
+                //Profile Velocity.
+                ecrt_slave_config_sdo32(sc_copley[i],0x6081,0x00,500000);
+                //Profile Acceleration.
+                ecrt_slave_config_sdo32(sc_copley[i],0x6083,0x00,1000);
+                //Profile Deceleration.
+                ecrt_slave_config_sdo32(sc_copley[i],0x6084,0x00,1000);
+                //Quick Stop Deceleration.
+                ecrt_slave_config_sdo32(sc_copley[i],0x6085,0x00,1000);
+                //Motion Profile Type=T.
+                ecrt_slave_config_sdo16(sc_copley[i],0x6086,0x00,0);
+            }
 
             iTickCnt++;
             break;
         case 3://Enable Device.
-            //0x06=0000,0110.
-            EC_WRITE_U16(domainOutput_pd+ctrlWord[0],0x06);
-            //0x0F=0000,1111.
-            EC_WRITE_U16(domainOutput_pd+ctrlWord[0],0x0F);
+            for(int i=0;i<2;i++)
+            {
+                //0x06=0000,0110.
+                EC_WRITE_U16(domainOutput_pd+ctrlWord[i],0x06);
+                //0x0F=0000,1111.
+                EC_WRITE_U16(domainOutput_pd+ctrlWord[i],0x0F);
+            }
 
             iTickCnt++;
             break;
-        case 4://Set Target Position to 0.
-            EC_WRITE_S32(domainOutput_pd+targetPosition[0],0);
-
+        case 4://Set Target Position to 0 at start up.
+            for(int i=0;i<2;i++)
+            {
+                EC_WRITE_S32(domainOutput_pd+targetPosition[i],0);
+            }
             //here we skip step 5.
             iTickCnt++;
             iTickCnt++;
             break;
         case 5://Set Target Position.
         {
-            int curPos = EC_READ_S32(domainInput_pd + actPosition[0]);
-            curPos-=100000;
-            EC_WRITE_S32(domainOutput_pd+targetPosition[0],curPos);
-            printf("slave 0: current position:%d\n",curpos);
-
-            iTickCnt++;
+            int len;
+            char buffer[256];
+            int pos,pos2;
+            printf("wait for new pos\n");
+            //first read 4 bytes block length.
+            if(read(g_fdServoFIFOIn,(void*)&len,sizeof(len))==sizeof(len))
+            {
+                printf("read len=%d\n",len);
+                //second read N bytes block data.
+                if(read(g_fdServoFIFOIn,(void*)buffer,len)==len)
+                {
+                    printf("read data=%s\n",buffer);
+                    if(strstr(buffer,"abs_pos="))
+                    {
+                        g_PPMPositionMode=PPM_POSITION_ABSOLUTE;
+                        //format input.
+                        sscanf(buffer,"abs_pos=%d,%d\n",&pos,&pos2);
+                        printf("get abs_pos=%d,%d\n",pos,pos2);
+                    }else if(strstr(buffer,"rel_pos="))
+                    {
+                        g_PPMPositionMode=PPM_POSITION_RELATIVE;
+                        //format input.
+                        sscanf(buffer,"rel_pos=%d,%d\n",&pos,&pos2);
+                        printf("get rel_pos=%d,%d\n",pos,pos2);
+                    }
+                    EC_WRITE_S32(domainOutput_pd+targetPosition[0],pos);
+                    EC_WRITE_S32(domainOutput_pd+targetPosition[1],pos2);
+                    iTickCnt++;
+                }
+            }
         }
             break;
         case 6://Start Positioning.
-            EC_WRITE_U16(domainOutput_pd+ctrlWord[0],0x1F);
-
+            switch(g_PPMPositionMode)
+            {
+            case PPM_POSITION_ABSOLUTE:
+                for(int i=0;i<2;i++)
+                {
+                    //Control word (absolute position,start immediately).
+                    EC_WRITE_U16(domainOutput_pd+ctrlWord[i],0x3F);
+                }
+                break;
+            case PPM_POSITION_RELATIVE:
+                for(int i=0;i<2;i++)
+                {
+                    //Control word (relative position,start immediately).
+                    EC_WRITE_U16(domainOutput_pd+ctrlWord[i],0x5F);
+                }
+                break;
+            }
             iTickCnt++;
             break;
         case 7://set point acknowledge.
         {
-            uint16_t status;
-            status = EC_READ_U16(domainInput_pd + statusWord[0]);
-            if((status&(0x1<<12)))
+            uint16_t status1,status2;
+            status1 = EC_READ_U16(domainInput_pd + statusWord[0]);
+            status2 = EC_READ_U16(domainInput_pd + statusWord[1]);
+            if((status1&(0x1<<12)) && (status2&(0x1<<12)))
             {
                 printf("set point acknowledge\n");
                 iTickCnt++;
@@ -332,32 +471,52 @@ void cyclic_task()
         }
             break;
         case 8://RESET.
-            //0x0F=0000,1111.
-            EC_WRITE_U16(domainOutput_pd+ctrlWord[0],0x0F);
+            for(int i=0;i<2;i++)
+            {
+                //0x0F=0000,1111.
+                EC_WRITE_U16(domainOutput_pd+ctrlWord[i],0x0F);
+            }
 
             iTickCnt++;
             break;
         case 9://Target reached ?
         {
-            uint16_t status;
-            status = EC_READ_U16(domainInput_pd + statusWord[0]);
-            int curPos=EC_READ_S32(domainInput_pd + actPosition[0]);
-            if((status&(0x1<<10)))
+            uint16_t status1,status2;
+            int velocity1,velocity2;
+            int curPos1,curPos2;
+            char buffer[256];
+            int len;
+
+            status1=EC_READ_U16(domainInput_pd + statusWord[0]);
+            velocity1=EC_READ_S32(domainInput_pd + actVelocity[0]);
+            curPos1=EC_READ_S32(domainInput_pd + actPosition[0]);
+
+            status2=EC_READ_U16(domainInput_pd + statusWord[1]);
+            velocity2=EC_READ_S32(domainInput_pd + actVelocity[1]);
+            curPos2=EC_READ_S32(domainInput_pd + actPosition[1]);
+
+            if((status1&(0x1<<10)) && (status2&(0x1<<10)))
             {
-                printf("Target reached,position=%d\n",curPos);
+                printf("Target reached,position=%d,%d\n",curPos1,curPos2);
                 iTickCnt++;
             }else{
-                printf("Target not reached,position=%d\n",curPos);
+                printf("Target not reached,position=%d,%d\n",curPos1,curPos2);
             }
+
+            //dump servo-0 data to out FIFO.
+            sprintf(buffer,"%d/%d/%d/%d\n",0,status1,velocity1,curPos1);
+            len=strlen(buffer);
+            write(g_fdServoFIFOOut,(void*)&len,sizeof(len));
+            write(g_fdServoFIFOOut,(void*)buffer,len);
+            //dump servo-1 data to out FIFO.
+            sprintf(buffer,"%d/%d/%d/%d\n",1,status2,velocity2,curPos2);
+            len=strlen(buffer);
+            write(g_fdServoFIFOOut,(void*)&len,sizeof(len));
+            write(g_fdServoFIFOOut,(void*)buffer,len);
         }
             break;
         case 10:
-            if(g_TrigFlag)
-            {
-                iTickCnt=5;
-                g_TrigFlag=0;
-                printf("retrying...\n");
-            }
+            iTickCnt=5;
             break;
         default:
             break;
@@ -405,6 +564,25 @@ int main(int argc, char **argv)
             perror("mlockall failed");
         }
     }
+
+    //open write mode side second.
+    g_fdServoFIFOOut=open(SERVO_FIFO_OUT,O_WRONLY);
+    if(g_fdServoFIFOOut<0)
+    {
+        fprintf(stderr,"failed to open fifo %s\n",SERVO_FIFO_OUT);
+        return -1;
+    }
+    printf("open server.fifo.out okay\n");
+
+    //open read mode side first.
+    g_fdServoFIFOIn=open(SERVO_FIFO_IN,O_RDONLY);
+    if(g_fdServoFIFOIn<0)
+    {
+        fprintf(stderr,"failed to open fifo %s\n",SERVO_FIFO_IN);
+        return -1;
+    }
+    printf("open server.fifo.in okay\n");
+
 
     //Requests an EtherCAT master for realtime operation.
     master = ecrt_request_master( 0 );
@@ -502,7 +680,7 @@ int main(int argc, char **argv)
     }
 
     g_SysFSM=SYS_WORKING_SAFE_MODE;
-    signal(SIGINT,g_SignalHandler);
+    //signal(SIGINT,g_SignalHandler);
     printf("Started.\n");
     while (1)
     {
@@ -519,6 +697,8 @@ int main(int argc, char **argv)
 
     ecrt_release_master(master);
     master=NULL;
+    close(g_fdServoFIFOIn);
+    close(g_fdServoFIFOOut);
     printf("Copley slave test end.\n");
     return 0;
 }
