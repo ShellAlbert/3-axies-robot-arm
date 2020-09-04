@@ -95,9 +95,19 @@ public:
 
 
     //TechServo fifo in fd.
-    int m_fdServoFIFOIN;
+    int m_fdServoFIFOIn;
     //TechServo fifo out fd.
-    int m_fdServoFIFOOUT;
+    int m_fdServoFIFOOut;
+
+    //servo-0.
+    int servo0_statusWord;
+    int servo0_velocity;
+    int servo0_position;
+
+    //servo-1.
+    int servo1_statusWord;
+    int servo1_velocity;
+    int servo1_position;
 };
 extern ZGblPara gGblPara;
 

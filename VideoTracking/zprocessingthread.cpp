@@ -4,6 +4,12 @@
 #include <QDebug>
 #include <QPainter>
 #include <QTime>
+#include <unistd.h>
+#include <fcntl.h>
+#include <stdlib.h>
+#include <time.h>
+#include <stdio.h>
+#include <string.h>
 ZProcessingThread::ZProcessingThread(ZMatFIFO *fifo)
 {
     this->m_fifo=fifo;
@@ -34,6 +40,7 @@ void ZProcessingThread::run()
     iOldTs=iNewTs=QTime::currentTime().msecsSinceStartOfDay();
     cv::Rect2d rectROI;
     cv::Mat  matROI;
+    int iDiffX_Old,iDiffY_Old;
     while(!gGblPara.m_bExitFlag)
     {
         cv::Mat mat=this->m_fifo->ZGetFrame();
@@ -93,8 +100,14 @@ void ZProcessingThread::run()
 
                 //calculate the track diff x&y.
                 //restore original size(*2).
-                gGblPara.m_iPixDiffX=((rectROI.x+rectROI.width/2)-mat.cols/2)*2;
-                gGblPara.m_iPixDiffY=((rectROI.y+rectROI.height/2)-mat.rows/2)*2;
+                int diffX=((rectROI.x+rectROI.width/2)-mat.cols/2)*2;
+                int diffY=((rectROI.y+rectROI.height/2)-mat.rows/2)*2;
+                if(diffX!=iDiffX_Old || diffY!=iDiffY_Old)
+                {
+                    this->ZHandlePixelDiff(diffX,diffY);
+                    iDiffX_Old=diffX;
+                    iDiffY_Old=diffY;
+                }
             }else{
                 //tracking failed.
                 emit this->ZSigLocked(false,QRect());
@@ -107,304 +120,28 @@ void ZProcessingThread::ZTrackObject(cv::Mat &mat)
 {
 
 }
-void ZProcessingThread::ZMapPixels2Encoder(cv::Mat &mat)
+void ZProcessingThread::ZHandlePixelDiff(int diffX,int diffY)
 {
-    //mapping pixel diff to encoder diff,create linear relations.
-    //define box size.
-    int iBoxWidth=100,iBoxHeight=100;
-    cv::Rect rectCenter(mat.cols/2-iBoxWidth/2,mat.rows/2-iBoxHeight/2,iBoxWidth,iBoxHeight);
-
-    //define four ROI area: left,right,top,bottom.
-    cv::Rect rectROILft(0,mat.rows/2-iBoxHeight/2,iBoxWidth,iBoxHeight);
-    cv::Rect rectROIRht(mat.cols-iBoxWidth,mat.rows/2-iBoxHeight/2,iBoxWidth,iBoxHeight);
-    cv::Rect rectROITop(mat.cols/2,0,iBoxWidth,iBoxHeight);
-    cv::Rect rectROIBtm(mat.cols/2,mat.rows-iBoxHeight,iBoxWidth,iBoxHeight);
-
-    //define the source cvMat for ROI & matched.
-    static cv::Mat srcLftROI,srcLftMatched;
-    static cv::Mat srcRhtROI,srcRhtMatched;
-    static cv::Mat srcTopROI,srcTopMatched;
-    static cv::Mat srcBtmROI,srcBtmMatched;
-
-    //define destination cvMat for ROI & matched.
-    cv::Mat dstLftROI(mat,cv::Rect(0,0,iBoxWidth,iBoxHeight));
-    cv::Mat dstLftMatched(mat,cv::Rect(iBoxWidth,0,iBoxWidth,iBoxHeight));
-    cv::Mat dstRhtROI(mat,cv::Rect(0,iBoxHeight*1,iBoxWidth,iBoxHeight));
-    cv::Mat dstRhtMatched(mat,cv::Rect(iBoxWidth,iBoxHeight*1,iBoxWidth,iBoxHeight));
-    cv::Mat dstTopROI(mat,cv::Rect(0,iBoxHeight*2,iBoxWidth,iBoxHeight));
-    cv::Mat dstTopMatched(mat,cv::Rect(iBoxWidth,iBoxHeight*2,iBoxWidth,iBoxHeight));
-    cv::Mat dstBtmROI(mat,cv::Rect(0,iBoxHeight*3,iBoxWidth,iBoxHeight));
-    cv::Mat dstBtmMatched(mat,cv::Rect(iBoxWidth,iBoxHeight*3,iBoxWidth,iBoxHeight));
-
-    //pixel coordinate & encoder coordinate values.
-    static QPoint ptPixCenter,ptEncCenter;
-    static QPoint ptPixLft,ptEncLft;
-    static QPoint ptPixRht,ptEncRht;
-    static QPoint ptPixTop,ptEncTop;
-    static QPoint ptPixBtm,ptEncBtm;
-
-    //process the finite state machine.
-    switch(gGblPara.m_CalibrateFSM)
+    static int iInitFlag=0;
+    if(!iInitFlag)
     {
-    case FSM_Calibrate_Start:
-        //remember pixel(x,y) and encoder(x axis and y axis) of center point.
-        ptPixCenter=QPoint(mat.cols/2,mat.rows/2);
-        ptEncCenter=QPoint(gGblPara.m_iXAxisCurPos,gGblPara.m_iYAxisCurPos);
-        break;
-    case FSM_Calibrate_Left:
-    {
-        //draw a rectangle to indicate the left ROI.
-        cv::rectangle(mat,rectROILft,cv::Scalar(255,0,0),2);
-
-        //save the source left ROI.
-        srcLftROI=cv::Mat(mat,rectROILft);
-
-        //draw the left ROI on left-top corner.
-        cv::copyTo(srcLftROI,dstLftROI,srcLftROI);
-
-#if 0
-        //(xx,xx)/(xx,xx)->(xx,xx)/(xx,xx)  (0,iBoxHeight*4)
-        //(xx,xx)/(xx,xx)->(xx,xx)/(xx,xx)  (0,iBoxHeight*3)
-        //(xx,xx)/(xx,xx)->(xx,xx)/(xx,xx)  (0,iBoxHeight*2)
-        //(xx,xx)/(xx,xx)->(xx,xx)/(xx,xx)  (0,iBoxHeight*1)
-        cv::Point ptOrg[4]={{0,mat.rows-iBoxHeight*4},{0,mat.rows-iBoxHeight*3},{0,mat.rows-iBoxHeight*2},{0,mat.rows-iBoxHeight*1}};
-        //get text height.
-        cv::Size textSize=cv::getTextSize("(12,34)",cv::FONT_HERSHEY_COMPLEX,1,1,NULL);
-        //draw the left calibrate area data (pixel & encoder value).
-        char bufferLeft[128];
-        sprintf(bufferLeft,"(%d,%d)/(%d,%d)->(?,?)/(?,?)",///<
-                rectROILft.x+rectROILft.width/2,///<pixel x.
-                rectROILft.y+rectROILft.height/2,///<pixel y.
-                gGblPara.m_iXAxisCurPos,///<encoder x value.
-                gGblPara.m_iYAxisCurPos///<encoder y value.
-                );
-        string strPixLft(bufferLeft);
-        ptOrg[0].y+=(iBoxHeight-textSize.height)/2;//center it.
-        cv::putText(mat,strPixLft,ptOrg[0],cv::FONT_HERSHEY_COMPLEX,1,cv::Scalar(0,0,255),1);
-#endif
+        iInitFlag=1;
+        srand(time(0));
     }
-        break;
-    case FSM_Calibrate_LeftConfirm:
-    {
-        //select the current matched mat based on center.
-        srcLftMatched=cv::Mat(mat,rectCenter);
-
-        //draw the left ROI on left-top corner.
-        cv::copyTo(srcLftROI,dstLftROI,srcLftROI);
-        //draw the left matched on the left-top corner.
-        cv::copyTo(srcLftMatched,dstLftMatched,srcLftMatched);
-
-        //save the encoder value of left ROI.
-        ptEncLft=QPoint(gGblPara.m_iXAxisCurPos,gGblPara.m_iYAxisCurPos);
-        //save the center point of left ROI.
-        ptPixLft=QPoint(rectROILft.x+rectROILft.width/2,rectROILft.y+rectROILft.height/2);
-
-#if 0
-        //(xx,xx)/(xx,xx)->(xx,xx)/(xx,xx)  (0,iBoxHeight*4)
-        //(xx,xx)/(xx,xx)->(xx,xx)/(xx,xx)  (0,iBoxHeight*3)
-        //(xx,xx)/(xx,xx)->(xx,xx)/(xx,xx)  (0,iBoxHeight*2)
-        //(xx,xx)/(xx,xx)->(xx,xx)/(xx,xx)  (0,iBoxHeight*1)
-        cv::Point ptOrg[4]={{0,mat.rows-iBoxHeight*4},{0,mat.rows-iBoxHeight*3},{0,mat.rows-iBoxHeight*2},{0,mat.rows-iBoxHeight*1}};
-        //get text height.
-        cv::Size textSize=cv::getTextSize("(12,34)",cv::FONT_HERSHEY_COMPLEX,1,1,NULL);
-        //draw the left calibrate area data (pixel & encoder value).
-        char bufferLeft[128];
-        sprintf(bufferLeft,"(%d,%d)/(%d,%d)->(?,?)/(?,?)",///<
-                rectROILft.x+rectROILft.width/2,///<pixel x.
-                rectROILft.y+rectROILft.height/2,///<pixel y.
-                gGblPara.m_iXAxisCurPos,///<encoder x value.
-                gGblPara.m_iYAxisCurPos///<encoder y value.
-                );
-        string strPixLft(bufferLeft);
-        ptOrg[0].y+=(iBoxHeight-textSize.height)/2;//center it.
-        cv::putText(mat,strPixLft,ptOrg[0],cv::FONT_HERSHEY_COMPLEX,1,cv::Scalar(0,0,255),1);
-#endif
-    }
-        break;
-    case FSM_Calibrate_Right:
-    {
-        //first draw the previous mateched result.
-        //draw the left ROI on left-top corner.
-        cv::copyTo(srcLftROI,dstLftROI,srcLftROI);
-        //draw the left matched on left-top corner.
-        cv::copyTo(srcLftMatched,dstLftMatched,srcLftMatched);
-
-        ////////////////////////////////////////////////////////////////
-        //draw a rectangle to indicate the right ROI.
-        cv::rectangle(mat,rectROIRht,cv::Scalar(255,0,0),2);
-        //save the source right ROI.
-        srcRhtROI=cv::Mat(mat,rectROIRht);
-
-        //draw the right ROI on left-top corner.
-        cv::copyTo(srcRhtROI,dstRhtROI,srcRhtROI);
-    }
-        break;
-    case FSM_Calibrate_RightConfirm:
-    {
-        //first draw the previous mateched result.
-        //draw the left ROI on left-top corner.
-        cv::copyTo(srcLftROI,dstLftROI,srcLftROI);
-        //draw the left matched on left-top corner.
-        cv::copyTo(srcLftMatched,dstLftMatched,srcLftMatched);
-        //draw the right ROI on left-top corner.
-        cv::copyTo(srcRhtROI,dstRhtROI,srcRhtROI);
-        ////////////////////////////////////////////////////////////////
-
-        //select the current matched mat based on center.
-        srcRhtMatched=cv::Mat(mat,rectCenter);
-
-        //draw the right matched on the left-top corner.
-        cv::copyTo(srcRhtMatched,dstRhtMatched,srcRhtMatched);
-
-        //save the encoder value of right ROI.
-        ptEncRht=QPoint(gGblPara.m_iXAxisCurPos,gGblPara.m_iYAxisCurPos);
-        //save the center point of right ROI.
-        ptPixRht=QPoint(rectROIRht.x+rectROIRht.width/2,rectROIRht.y+rectROIRht.height/2);
-    }
-        break;
-    case FSM_Calibrate_Top:
-    {
-        //first draw the previous mateched result.
-        //draw the left ROI on left-top corner.
-        cv::copyTo(srcLftROI,dstLftROI,srcLftROI);
-        //draw the left matched on left-top corner.
-        cv::copyTo(srcLftMatched,dstLftMatched,srcLftMatched);
-        //draw the right ROI on left-top corner.
-        cv::copyTo(srcRhtROI,dstRhtROI,srcRhtROI);
-        //draw the right matched on the left-top corner.
-        cv::copyTo(srcRhtMatched,dstRhtMatched,srcRhtMatched);
-        ///////////////////////////////////////////////////////////
-
-        //draw a rectangle to indicate the top ROI.
-        cv::rectangle(mat,rectROITop,cv::Scalar(255,0,0),2);
-
-        //save the source top ROI.
-        srcTopROI=cv::Mat(mat,rectROITop);
-
-        //draw the top ROI on left-top corner.
-        cv::copyTo(srcTopROI,dstTopROI,srcTopROI);
-    }
-        break;
-    case FSM_Calibrate_TopConfirm:
-    {
-        //first draw the previous mateched result.
-        //draw the left ROI on left-top corner.
-        cv::copyTo(srcLftROI,dstLftROI,srcLftROI);
-        //draw the left matched on left-top corner.
-        cv::copyTo(srcLftMatched,dstLftMatched,srcLftMatched);
-        //draw the right ROI on left-top corner.
-        cv::copyTo(srcRhtROI,srcRhtROI,srcRhtROI);
-        //draw the right matched on the left-top corner.
-        cv::copyTo(srcRhtMatched,dstRhtMatched,srcRhtMatched);
-        //draw the top ROI on left-top corner.
-        cv::copyTo(srcTopROI,dstTopROI,srcTopROI);
-        ///////////////////////////////////////////////////////////
-
-        //select the current matched mat based on center.
-        srcTopMatched=cv::Mat(mat,rectCenter);
-
-        //draw the top matched on the left-top corner.
-        cv::copyTo(srcTopMatched,dstTopMatched,srcTopMatched);
-
-        //remember the encoder top.
-        ptEncTop=QPoint(gGblPara.m_iXAxisCurPos,gGblPara.m_iYAxisCurPos);
-        //remember the center point of top.
-        ptPixTop=QPoint(rectROITop.x+rectROITop.width/2,rectROITop.y+rectROITop.height/2);
-    }
-        break;
-    case FSM_Calibrate_Bottom:
-    {
-        //first draw the previous mateched result.
-        //draw the left ROI on left-top corner.
-        cv::copyTo(srcLftROI,dstLftROI,srcLftROI);
-        //draw the left matched on left-top corner.
-        cv::copyTo(srcLftMatched,dstLftMatched,srcLftMatched);
-        //draw the right ROI on left-top corner.
-        cv::copyTo(srcRhtROI,srcRhtROI,srcRhtROI);
-        //draw the right matched on the left-top corner.
-        cv::copyTo(srcRhtMatched,dstRhtMatched,srcRhtMatched);
-        //draw the top ROI on left-top corner.
-        cv::copyTo(srcTopROI,dstTopROI,srcTopROI);
-        //draw the top matched on the left-top corner.
-        cv::copyTo(srcTopMatched,dstTopMatched,srcTopMatched);
-        ///////////////////////////////////////////////////////////
-
-        //draw a rectangle to indicate the bottom ROI.
-        cv::rectangle(mat,rectROIBtm,cv::Scalar(255,0,0),2);
-        //save the source top ROI.
-        srcBtmROI=cv::Mat(mat,rectROIBtm);
-
-        //draw the bottom ROI on left-top corner.
-        cv::copyTo(srcBtmROI,dstBtmROI,srcBtmROI);
-    }
-        break;
-    case FSM_Calibrate_BottomConfirm:
-    {
-        //first draw the previous mateched result.
-        //draw the left ROI on left-top corner.
-        cv::copyTo(srcLftROI,dstLftROI,srcLftROI);
-        //draw the left matched on left-top corner.
-        cv::copyTo(srcLftMatched,dstLftMatched,srcLftMatched);
-        //draw the right ROI on left-top corner.
-        cv::copyTo(srcRhtROI,srcRhtROI,srcRhtROI);
-        //draw the right matched on the left-top corner.
-        cv::copyTo(srcRhtMatched,dstRhtMatched,srcRhtMatched);
-        //draw the top ROI on left-top corner.
-        cv::copyTo(srcTopROI,dstTopROI,srcTopROI);
-        //draw the top matched on the left-top corner.
-        cv::copyTo(srcTopMatched,dstTopMatched,srcTopMatched);
-        //draw the bottom ROI on left-top corner.
-        cv::copyTo(srcBtmROI,dstBtmROI,srcBtmROI);
-        ///////////////////////////////////////////////////////////
-
-        //select the current matched mat based on center.
-        srcBtmMatched=cv::Mat(mat,rectCenter);
-
-        //draw the bottom matched on the left-top corner.
-        cv::copyTo(srcBtmMatched,dstBtmMatched,srcBtmMatched);
-
-        //save the encoder value of bottom ROI.
-        ptEncBtm=QPoint(gGblPara.m_iXAxisCurPos,gGblPara.m_iYAxisCurPos);
-        //save the center point of bottom ROI.
-        ptPixBtm=QPoint(rectROIBtm.x+rectROIBtm.width/2,rectROIBtm.y+rectROIBtm.height/2);
-    }
-        break;
-    case FSM_Calibrate_Done:
-        qDebug("Lft: Pix(%d,%d)->(%d,%d),Diff=[%d,%d] Enc(%d,%d)->(%d,%d),Diff=[%d,%d]\n",///<
-               rectCenter.x+rectCenter.width/2,rectCenter.y+rectCenter.height/2,///< center point.
-               ptPixLft.x(),ptPixLft.y(),///< left ROI new point.
-               ptPixLft.x()-(rectCenter.x+rectCenter.width/2),ptPixLft.y()-(rectCenter.y+rectCenter.height/2),///< diff.
-               ptEncCenter.x(),ptEncCenter.y(),///<center encoder value.
-               ptEncLft.x(),ptEncLft.y(),///< left ROI encoder value.
-               ptEncLft.x()-ptEncCenter.x(),ptEncLft.y()-ptEncCenter.y());///<diff.
-
-        qDebug("Rht: Pix(%d,%d)->(%d,%d),Diff=[%d,%d] Enc(%d,%d)->(%d,%d),Diff=[%d,%d]\n",///<
-               rectCenter.x+rectCenter.width/2,rectCenter.y+rectCenter.height/2,///< center point.
-               ptPixRht.x(),ptPixRht.y(),///< right ROI new point.
-               ptPixRht.x()-(rectCenter.x+rectCenter.width/2),ptPixRht.y()-(rectCenter.y+rectCenter.height/2),///< diff.
-               ptEncCenter.x(),ptEncCenter.y(),///<center encoder value.
-               ptEncRht.x(),ptEncRht.y(),///< right ROI encoder value.
-               ptEncRht.x()-ptEncCenter.x(),ptEncRht.y()-ptEncCenter.y());///<diff.
-
-        qDebug("Top: Pix(%d,%d)->(%d,%d),Diff=[%d,%d] Enc(%d,%d)->(%d,%d),Diff=[%d,%d]\n",///<
-               rectCenter.x+rectCenter.width/2,rectCenter.y+rectCenter.height/2,///< center point.
-               ptPixTop.x(),ptPixTop.y(),///< top ROI new point.
-               ptPixTop.x()-(rectCenter.x+rectCenter.width/2),ptPixTop.y()-(rectCenter.y+rectCenter.height/2),///< diff.
-               ptEncCenter.x(),ptEncCenter.y(),///<center encoder value.
-               ptEncTop.x(),ptEncTop.y(),///< top ROI encoder value.
-               ptEncTop.x()-ptEncCenter.x(),ptEncTop.y()-ptEncCenter.y());///<diff.
-
-        qDebug("Btm: Pix(%d,%d)->(%d,%d),Diff=[%d,%d] Enc(%d,%d)->(%d,%d),Diff=[%d,%d]\n",///<
-               rectCenter.x+rectCenter.width/2,rectCenter.y+rectCenter.height/2,///< center point.
-               ptPixBtm.x(),ptPixBtm.y(),///< bottom ROI new point.
-               ptPixBtm.x()-(rectCenter.x+rectCenter.width/2),ptPixBtm.y()-(rectCenter.y+rectCenter.height/2),///< diff.
-               ptEncCenter.x(),ptEncCenter.y(),///<center encoder value.
-               ptEncBtm.x(),ptEncBtm.y(),///< bottom ROI encoder value.
-               ptEncBtm.x()-ptEncCenter.x(),ptEncBtm.y()-ptEncCenter.y());///<diff.
-        break;
-    default:
-        break;
-    }
+    //generate random absolute position for testing.
+    int a=-20000,b=20000;
+    char buffer[256];
+    int pos=rand()%(b-a+1)+a;
+    int pos2=rand()%(b-a+1)+a;
+    int len;
+    //Profile Position Mode - Absolute Position.
+    sprintf(buffer,"abs_pos=%d,%d\n",pos,pos2);
+    //Profile Position Mode - Relative Position.
+    //sprintf(buffer,"rel_pos=%d,%d\n",pos,pos2);
+    len=strlen(buffer);
+    write(gGblPara.m_fdServoFIFOIn,(void*)&len,sizeof(len));
+    write(gGblPara.m_fdServoFIFOIn,(void*)buffer,len);
+    qDebug("%d:%s\n",len,buffer);
 }
 qint32 ZProcessingThread::getFps()
 {

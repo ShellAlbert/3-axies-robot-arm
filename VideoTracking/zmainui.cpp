@@ -199,10 +199,10 @@ void ZMainUI::paintEvent(QPaintEvent *e)
 
 
     //draw the Axies0,Axies1 on the bottom.
-    QString strS0Pos=QString::number(this->m_iS0PosActVal);
-    QString strS0Vel=QString::number(this->m_iS0ActVel);
-    QString strS1Pos=QString::number(this->m_iS1PosActVal);
-    QString strS1Vel=QString::number(this->m_iS1ActVel);
+    QString strS0Pos=QString::number(gGblPara.servo0_position);
+    QString strS0Vel=QString::number(gGblPara.servo0_velocity);
+    QString strS1Pos=QString::number(gGblPara.servo1_position);
+    QString strS1Vel=QString::number(gGblPara.servo1_velocity);
     QFont fontAxies=painter.font();
     fontAxies.setPixelSize(36);
     painter.setFont(fontAxies);

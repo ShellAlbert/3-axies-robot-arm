@@ -3,6 +3,7 @@
 #include "zcapturethread.h"
 #include "zmatfifo.h"
 #include "zprocessingthread.h"
+#include "zrdservooutthread.h"
 #include <QFile>
 #include <QDebug>
 #include <zgblpara.h>
@@ -25,16 +26,28 @@ int main(int argc, char *argv[])
         fileSkin.close();
     }
     //TechServo FIFO.
-    //TechServo fifo in fd.
-    if((gGblPara.m_fdServoFIFOIN=open(SERVO_FIFO_IN,O_WRONLY))<0)
+    //open read mode side first.
+    qDebug()<<"opening server.fifo.out ...";
+    if((gGblPara.m_fdServoFIFOOut=open(SERVO_FIFO_OUT,O_RDONLY))<0)
     {
-        qDebug()<<"failed to open fifo:"<<SERVO_FIFO_IN;
+        qDebug()<<"failed to open read fifo:"<<SERVO_FIFO_OUT;
         return -1;
     }
+    qDebug()<<"open server.fifo.out okay";
+
+    //open write mode side second.
+    qDebug()<<"opening server.fifo.in ...";
+    if((gGblPara.m_fdServoFIFOIn=open(SERVO_FIFO_IN,O_WRONLY))<0)
+    {
+        qDebug()<<"failed to open write fifo:"<<SERVO_FIFO_IN;
+        return -1;
+    }
+    qDebug()<<"open server.fifo.in okay";
 
     ZMatFIFO fifoCap1(25,false);
     ZCaptureThread cap1("192.168.137.12",&fifoCap1);
     ZProcessingThread proc1(&fifoCap1);
+    ZRdServoOutThread servoOut;
     ZMainUI win;
 
     QObject::connect(&cap1,SIGNAL(ZSigNewImg(QImage)),&win,SLOT(ZSlotUpdateImg(QImage)));
@@ -49,11 +62,16 @@ int main(int argc, char *argv[])
     //win.showFullScreen();
     cap1.start();
     proc1.start();
+    servoOut.start();
 
     qint32 ret=app.exec();
     cap1.wait();
     proc1.wait();
-    close(gGblPara.m_fdServoFIFOIN);
+    servoOut.wait();
+
+    //close FIFOs.
+    close(gGblPara.m_fdServoFIFOIn);
+    close(gGblPara.m_fdServoFIFOOut);
 
     return ret;
 }
