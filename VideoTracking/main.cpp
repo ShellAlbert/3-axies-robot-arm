@@ -53,7 +53,7 @@ int main(int argc, char *argv[])
     QObject::connect(&cap1,SIGNAL(ZSigNewImg(QImage)),&win,SLOT(ZSlotUpdateImg(QImage)));
     QObject::connect(&proc1,SIGNAL(ZSigInitBox(QImage)),&win,SLOT(ZSlotInitBox(QImage)));
     QObject::connect(&proc1,SIGNAL(ZSigLocked(bool,QRect)),&win,SLOT(ZSlotLocked(bool,QRect)));
-
+    QObject::connect(&proc1,SIGNAL(ZSigDiffXY(int,int)),&win,SLOT(ZSlotDiffXY(int,int)));
     if(!win.ZDoInit())
     {
         return -1;

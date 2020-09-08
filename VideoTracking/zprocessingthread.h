@@ -19,6 +19,7 @@ public:
 signals:
     void ZSigInitBox(const QImage &img);
     void ZSigLocked(bool bLocked,const QRect &rect);
+    void ZSigDiffXY(int diffX,int diffY);
 protected:
     void run();
 private:

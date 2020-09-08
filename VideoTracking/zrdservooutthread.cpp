@@ -26,11 +26,11 @@ void ZRdServoOutThread::run()
         //first read 4 bytes block length.
         if(read(gGblPara.m_fdServoFIFOOut,(void*)&len,sizeof(len))==sizeof(len))
         {
-            qDebug("read len=%d\n",len);
+            //qDebug("read len=%d\n",len);
             //second read N bytes block data.
             if(read(gGblPara.m_fdServoFIFOOut,(void*)buffer,len)==len)
             {
-                qDebug("read data=%s\n",buffer);
+                //qDebug("read data=%s\n",buffer);
                 //format input.
                 int servo_id;
                 int status_word;

@@ -36,11 +36,12 @@ public slots:
     void ZSlotModeChanged();
     void ZSlotLocked(bool,QRect rect);
     void ZSlotInitBox(const QImage &img);
+    void ZSlotDiffXY(int diffX,int diffY);
 public slots:
-    void ZSlotMoveToLeft();
-    void ZSlotMoveToRight();
-    void ZSlotMoveToUp();
-    void ZSlotMoveToDown();
+    void ZSlotMove2Left();
+    void ZSlotMove2Right();
+    void ZSlotMove2Up();
+    void ZSlotMove2Down();
 private slots:
     void ZSlotHome();
     void ZSlotScan();
@@ -94,6 +95,9 @@ private:
     bool m_bLocked;
     QRect m_rectLocked;
     QImage m_initImg;
+
+    int m_diffX;
+    int m_diffY;
 private:
     QVector<ZVectorLog> m_vecLog;
 
@@ -102,6 +106,7 @@ private:
 private:
     QTimer m_timerLost;
     qint32 m_iLostTimeout;
+
 };
 
 #endif // ZMAINUI_H

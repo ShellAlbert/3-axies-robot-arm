@@ -49,7 +49,7 @@ void ZCaptureThread::run()
         //put cvMat to FIFO under track mode.
         if(gGblPara.m_appMode==Track_Mode)
         {
-            if(iSkipFrm++>=2)
+            if(iSkipFrm++>=5)
             {
                 this->m_fifo->ZAddFrame(mat);
                 iSkipFrm=0;

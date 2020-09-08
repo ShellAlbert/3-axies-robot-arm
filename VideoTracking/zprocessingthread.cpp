@@ -40,7 +40,8 @@ void ZProcessingThread::run()
     iOldTs=iNewTs=QTime::currentTime().msecsSinceStartOfDay();
     cv::Rect2d rectROI;
     cv::Mat  matROI;
-    int iDiffX_Old,iDiffY_Old;
+    int iDiffX_Old=0;
+    int iDiffY_Old=0;
     while(!gGblPara.m_bExitFlag)
     {
         cv::Mat mat=this->m_fifo->ZGetFrame();
@@ -100,11 +101,110 @@ void ZProcessingThread::run()
 
                 //calculate the track diff x&y.
                 //restore original size(*2).
-                int diffX=((rectROI.x+rectROI.width/2)-mat.cols/2)*2;
-                int diffY=((rectROI.y+rectROI.height/2)-mat.rows/2)*2;
-                if(diffX!=iDiffX_Old || diffY!=iDiffY_Old)
+                int diffX=( (mat.cols/2) - (rectROI.x+rectROI.width/2) ) * 2;
+                int diffY=( (mat.rows/2) - (rectROI.y+rectROI.height/2) ) * 2;
+                qDebug()<<"diff:"<<diffX<<","<<diffY;
+                if(1/*diffX!=iDiffX_Old || diffY!=iDiffY_Old*/)
                 {
-                    this->ZHandlePixelDiff(diffX,diffY);
+                    emit this->ZSigDiffXY(diffX,diffY);
+
+#if 0
+                    //processing result.
+                    char buffer_x[256];
+                    if(diffX>0)
+                    {
+                        if(diffX>200)
+                        {
+                            strcpy(buffer_x,"rel_pos=0,-200\n");
+                        }else if(diffX>100 && diffX<=200)
+                        {
+                            strcpy(buffer_x,"rel_pos=0,-100\n");
+                        }else if(diffX>50 && diffX<=100)
+                        {
+                            strcpy(buffer_x,"rel_pos=0,-50\n");
+                        }else if(diffX>20 && diffX<=50)
+                        {
+                            strcpy(buffer_x,"rel_pos=0,-10\n");
+                        }else if(diffX>10 && diffX<=20)
+                        {
+                            strcpy(buffer_x,"rel_pos=0,-5\n");
+                        }else{
+                            strcpy(buffer_x,"rel_pos=0,-1\n");
+                        }
+                    }else if(diffX<0)
+                    {
+                        if(diffX<-200)
+                        {
+                            strcpy(buffer_x,"rel_pos=0,+200\n");
+                        }else if(diffX<-100 && diffX>=-200)
+                        {
+                            strcpy(buffer_x,"rel_pos=0,+100\n");
+                        }else if(diffX<-50 && diffX>=-100)
+                        {
+                            strcpy(buffer_x,"rel_pos=0,+50\n");
+                        }else if(diffX<-20 && diffX>=-50)
+                        {
+                            strcpy(buffer_x,"rel_pos=0,+10\n");
+                        }else if(diffX<-10 && diffX>=-20)
+                        {
+                            strcpy(buffer_x,"rel_pos=0,+5\n");
+                        }else{
+                            strcpy(buffer_x,"rel_pos=0,+1\n");
+                        }
+                    }
+                    qDebug()<<buffer_x;
+                    int len=strlen(buffer_x);
+                    write(gGblPara.m_fdServoFIFOIn,(void*)&len,sizeof(len));
+                    write(gGblPara.m_fdServoFIFOIn,(void*)buffer_x,len);
+#endif
+                    char buffer_y[256];
+                    if(diffY>0)
+                    {
+                        if(diffY>200)
+                        {
+                            strcpy(buffer_y,"rel_pos=+200,0\n");
+                        }else if(diffY>100 && diffY<=200)
+                        {
+                            strcpy(buffer_y,"rel_pos=+100,0\n");
+                        }else if(diffY>50 && diffX<=100)
+                        {
+                            strcpy(buffer_y,"rel_pos=+50,0\n");
+                        }else if(diffY>20 && diffY<=50)
+                        {
+                            strcpy(buffer_y,"rel_pos=+20,0\n");
+                        }else if(diffY>10 && diffY<=20)
+                        {
+                            strcpy(buffer_y,"rel_pos=+5,0\n");
+                        }else{
+                            strcpy(buffer_y,"rel_pos=+1,0\n");
+                        }
+                    }else if(diffY<0)
+                    {
+                        if(diffY<-200)
+                        {
+                            strcpy(buffer_y,"rel_pos=-200,0\n");
+                        }else if(diffY<-100 && diffY>=-200)
+                        {
+                            strcpy(buffer_y,"rel_pos=-100,0\n");
+                        }else if(diffY<-50 && diffY>=-100)
+                        {
+                            strcpy(buffer_y,"rel_pos=-50,0\n");
+                        }else if(diffY<-20 && diffY>=-50)
+                        {
+                            strcpy(buffer_y,"rel_pos=-10,0\n");
+                        }else if(diffY<-10 && diffY>=-20)
+                        {
+                            strcpy(buffer_y,"rel_pos=-5,0\n");
+                        }else{
+                            strcpy(buffer_y,"rel_pos=-1,0\n");
+                        }
+                    }
+                    qDebug()<<buffer_y;
+                    int len=strlen(buffer_y);
+                    write(gGblPara.m_fdServoFIFOIn,(void*)&len,sizeof(len));
+                    write(gGblPara.m_fdServoFIFOIn,(void*)buffer_y,len);
+
+                    //save previous value.
                     iDiffX_Old=diffX;
                     iDiffY_Old=diffY;
                 }
@@ -122,6 +222,8 @@ void ZProcessingThread::ZTrackObject(cv::Mat &mat)
 }
 void ZProcessingThread::ZHandlePixelDiff(int diffX,int diffY)
 {
+    qDebug()<<"diffX="<<diffX<<",diffY="<<diffY;
+#if 0
     static int iInitFlag=0;
     if(!iInitFlag)
     {
@@ -142,6 +244,7 @@ void ZProcessingThread::ZHandlePixelDiff(int diffX,int diffY)
     write(gGblPara.m_fdServoFIFOIn,(void*)&len,sizeof(len));
     write(gGblPara.m_fdServoFIFOIn,(void*)buffer,len);
     qDebug("%d:%s\n",len,buffer);
+#endif
 }
 qint32 ZProcessingThread::getFps()
 {

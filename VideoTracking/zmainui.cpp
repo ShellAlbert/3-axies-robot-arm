@@ -4,6 +4,12 @@
 #include <QDebug>
 #include "zgblpara.h"
 #include "zdialoghome.h"
+#include <unistd.h>
+#include <fcntl.h>
+#include <stdlib.h>
+#include <time.h>
+#include <stdio.h>
+#include <string.h>
 ZMainUI::ZMainUI(QWidget *parent)
     : QWidget(parent)
 {
@@ -64,10 +70,10 @@ bool ZMainUI::ZDoInit()
     QObject::connect(this->m_ctrlBar,SIGNAL(ZSigCalibrate()),this,SLOT(ZSlotCalibrate()));
     QObject::connect(this->m_ctrlBar,SIGNAL(ZSigModeChanged()),this,SLOT(ZSlotModeChanged()));
 
-    QObject::connect(this->m_dirBar,SIGNAL(ZSigLeft()),this,SLOT(ZSlotMoveToLeft()));
-    QObject::connect(this->m_dirBar,SIGNAL(ZSigRight()),this,SLOT(ZSlotMoveToRight()));
-    QObject::connect(this->m_dirBar,SIGNAL(ZSigUp()),this,SLOT(ZSlotMoveToUp()));
-    QObject::connect(this->m_dirBar,SIGNAL(ZSigDown()),this,SLOT(ZSlotMoveToDown()));
+    QObject::connect(this->m_dirBar,SIGNAL(ZSigLeft()),this,SLOT(ZSlotMove2Left()));
+    QObject::connect(this->m_dirBar,SIGNAL(ZSigRight()),this,SLOT(ZSlotMove2Right()));
+    QObject::connect(this->m_dirBar,SIGNAL(ZSigUp()),this,SLOT(ZSlotMove2Up()));
+    QObject::connect(this->m_dirBar,SIGNAL(ZSigDown()),this,SLOT(ZSlotMove2Down()));
 
     QObject::connect(&this->m_timerLost,SIGNAL(timeout()),this,SLOT(ZSlotLostTimeout()));
     return true;
@@ -172,7 +178,7 @@ void ZMainUI::paintEvent(QPaintEvent *e)
             p.drawText(ptFps,QString::number(gGblPara.m_iCostMSec)+"/"+QString::number(gGblPara.m_iFps)+"fps");
             //draw the diff x&y.
             QPoint ptDiff(0,ptFps.y()+p.fontMetrics().height());
-            p.drawText(ptDiff,QString::number(gGblPara.m_iPixDiffX)+","+QString::number(gGblPara.m_iPixDiffY));
+            p.drawText(ptDiff,QString::number(this->m_diffX)+","+QString::number(this->m_diffY));
         }else{
             QPoint ptLost(0,200);
             p.drawText(ptLost,QString("Lost:")+QString::number(this->m_iLostTimeout));
@@ -512,6 +518,11 @@ void ZMainUI::ZSlotInitBox(const QImage &img)
 {
     this->m_initImg=img;
 }
+void ZMainUI::ZSlotDiffXY(int diffX,int diffY)
+{
+    this->m_diffX=diffX;
+    this->m_diffY=diffY;
+}
 void ZMainUI::ZSlotLog(bool bErrFlag,QString log)
 {
     if(this->m_vecLog.size()>10)
@@ -524,79 +535,112 @@ void ZMainUI::ZSlotLog(bool bErrFlag,QString log)
     this->m_vecLog.append(vecLog);
 }
 
-void ZMainUI::ZSlotMoveToLeft()
+void ZMainUI::ZSlotMove2Left()
 {
+    int len;
+    char buffer[256];
+
     switch(gGblPara.m_iStepMode)
     {
     case 0:
-        gGblPara.m_moveDiffX=+8000;
+        sprintf(buffer,"rel_pos=0,%d\n",-2000);
         break;
     case 1:
-        gGblPara.m_moveDiffX=+1000;
+        sprintf(buffer,"rel_pos=0,%d\n",-1000);
         break;
     case 2:
-        gGblPara.m_moveDiffX=+100;
+        sprintf(buffer,"rel_pos=0,%d\n",-100);
         break;
     default:
         break;
     }
+
+    len=strlen(buffer);
+    write(gGblPara.m_fdServoFIFOIn,(void*)&len,sizeof(len));
+    write(gGblPara.m_fdServoFIFOIn,(void*)buffer,len);
 }
-void ZMainUI::ZSlotMoveToRight()
+void ZMainUI::ZSlotMove2Right()
 {
+    int len;
+    char buffer[256];
+
     switch(gGblPara.m_iStepMode)
     {
     case 0:
-        gGblPara.m_moveDiffX=-8000;
+        sprintf(buffer,"rel_pos=0,%d\n",+2000);
         break;
     case 1:
-        gGblPara.m_moveDiffX=-1000;
+        sprintf(buffer,"rel_pos=0,%d\n",+1000);
         break;
     case 2:
-        gGblPara.m_moveDiffX=-100;
+        sprintf(buffer,"rel_pos=0,%d\n",+100);
         break;
     default:
         break;
     }
+
+    len=strlen(buffer);
+    write(gGblPara.m_fdServoFIFOIn,(void*)&len,sizeof(len));
+    write(gGblPara.m_fdServoFIFOIn,(void*)buffer,len);
 }
-void ZMainUI::ZSlotMoveToUp()
+void ZMainUI::ZSlotMove2Up()
 {
+    int len;
+    char buffer[256];
+
     switch(gGblPara.m_iStepMode)
     {
     case 0:
-        gGblPara.m_moveDiffY=+8000;
+        sprintf(buffer,"rel_pos=%d,0\n",+2000);
         break;
     case 1:
-        gGblPara.m_moveDiffY=+1000;
+        sprintf(buffer,"rel_pos=%d,0\n",+1000);
         break;
     case 2:
-        gGblPara.m_moveDiffY=+100;
+        sprintf(buffer,"rel_pos=%d,0\n",+100);
         break;
     default:
         break;
     }
+
+    len=strlen(buffer);
+    write(gGblPara.m_fdServoFIFOIn,(void*)&len,sizeof(len));
+    write(gGblPara.m_fdServoFIFOIn,(void*)buffer,len);
 }
-void ZMainUI::ZSlotMoveToDown()
+void ZMainUI::ZSlotMove2Down()
 {
+    int len;
+    char buffer[256];
+
     switch(gGblPara.m_iStepMode)
     {
     case 0:
-        gGblPara.m_moveDiffY=-8000;
+        sprintf(buffer,"rel_pos=%d,0\n",-2000);
         break;
     case 1:
-        gGblPara.m_moveDiffY=-1000;
+        sprintf(buffer,"rel_pos=%d,0\n",-1000);
         break;
     case 2:
-        gGblPara.m_moveDiffY=-100;
+        sprintf(buffer,"rel_pos=%d,0\n",-100);
         break;
     default:
         break;
     }
+
+    len=strlen(buffer);
+    write(gGblPara.m_fdServoFIFOIn,(void*)&len,sizeof(len));
+    write(gGblPara.m_fdServoFIFOIn,(void*)buffer,len);
 }
 void ZMainUI::ZSlotHome()
 {
-    ZDialogHome diaHome(this);
-    diaHome.setGeometry(0,0,600,300);
-    diaHome.show();
+//    ZDialogHome diaHome(this);
+//    diaHome.setGeometry(0,0,600,300);
+//    diaHome.show();
+
+    char *buffer="abs_pos=0,0\n";
+    int len=strlen(buffer);
+    write(gGblPara.m_fdServoFIFOIn,(void*)&len,sizeof(len));
+    write(gGblPara.m_fdServoFIFOIn,(void*)buffer,len);
 }
 void ZMainUI::ZSlotScan()
 {
