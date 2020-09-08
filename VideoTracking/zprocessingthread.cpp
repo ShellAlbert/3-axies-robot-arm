@@ -108,7 +108,7 @@ void ZProcessingThread::run()
                 {
                     emit this->ZSigDiffXY(diffX,diffY);
 
-#if 0
+#if 1
                     //processing result.
                     char buffer_x[256];
                     if(diffX>0)
@@ -152,11 +152,12 @@ void ZProcessingThread::run()
                             strcpy(buffer_x,"rel_pos=0,+1\n");
                         }
                     }
-                    qDebug()<<buffer_x;
+                    //qDebug()<<buffer_x;
                     int len=strlen(buffer_x);
                     write(gGblPara.m_fdServoFIFOIn,(void*)&len,sizeof(len));
                     write(gGblPara.m_fdServoFIFOIn,(void*)buffer_x,len);
 #endif
+#if 1
                     char buffer_y[256];
                     if(diffY>0)
                     {
@@ -199,11 +200,104 @@ void ZProcessingThread::run()
                             strcpy(buffer_y,"rel_pos=-1,0\n");
                         }
                     }
-                    qDebug()<<buffer_y;
-                    int len=strlen(buffer_y);
-                    write(gGblPara.m_fdServoFIFOIn,(void*)&len,sizeof(len));
-                    write(gGblPara.m_fdServoFIFOIn,(void*)buffer_y,len);
+                    //qDebug()<<buffer_y;
+                    int len2=strlen(buffer_y);
+                    write(gGblPara.m_fdServoFIFOIn,(void*)&len2,sizeof(len2));
+                    write(gGblPara.m_fdServoFIFOIn,(void*)buffer_y,len2);
+#endif
 
+#if 0
+                    char buffer_xy[256];
+                    int xStep,yStep;
+                    if(diffX>0)
+                    {
+                        if(diffX>200)
+                        {
+                            xStep=-200;
+                        }else if(diffX>100 && diffX<=200)
+                        {
+                            xStep=-100;
+                        }else if(diffX>50 && diffX<=100)
+                        {
+                            xStep=-50;
+                        }else if(diffX>20 && diffX<=50)
+                        {
+                            xStep=-10;
+                        }else if(diffX>10 && diffX<=20)
+                        {
+                            xStep=-5;
+                        }else{
+                            xStep=-1;
+                        }
+                    }else if(diffX<0)
+                    {
+                        if(diffX<-200)
+                        {
+                            xStep=+200;
+                        }else if(diffX<-100 && diffX>=-200)
+                        {
+                            xStep=+100;
+                        }else if(diffX<-50 && diffX>=-100)
+                        {
+                            xStep=+50;
+                        }else if(diffX<-20 && diffX>=-50)
+                        {
+                            xStep=+10;
+                        }else if(diffX<-10 && diffX>=-20)
+                        {
+                            xStep=+5;
+                        }else{
+                            xStep=+1;
+                        }
+                    }
+
+                    if(diffY>0)
+                    {
+                        if(diffY>200)
+                        {
+                            yStep=+200;
+                        }else if(diffY>100 && diffY<=200)
+                        {
+                            yStep=+100;
+                        }else if(diffY>50 && diffX<=100)
+                        {
+                            yStep=+50;
+                        }else if(diffY>20 && diffY<=50)
+                        {
+                            yStep=+10;
+                        }else if(diffY>10 && diffY<=20)
+                        {
+                            yStep=+5;
+                        }else{
+                            yStep=+1;
+                        }
+                    }else if(diffY<0)
+                    {
+                        if(diffY<-200)
+                        {
+                            yStep=-200;
+                        }else if(diffY<-100 && diffY>=-200)
+                        {
+                            yStep=-100;
+                        }else if(diffY<-50 && diffY>=-100)
+                        {
+                            yStep=-50;
+                        }else if(diffY<-20 && diffY>=-50)
+                        {
+                            yStep=-10;
+                        }else if(diffY<-10 && diffY>=-20)
+                        {
+                            yStep=-5;
+                        }else{
+                            yStep=-1;
+                        }
+                    }
+                    sprintf(buffer_xy,"rel_pos=%d,%d\n",xStep,yStep);
+                    qDebug()<<buffer_xy;
+                    int len=strlen(buffer_xy);
+                    write(gGblPara.m_fdServoFIFOIn,(void*)&len,sizeof(len));
+                    write(gGblPara.m_fdServoFIFOIn,(void*)buffer_xy,len);
+#endif
                     //save previous value.
                     iDiffX_Old=diffX;
                     iDiffY_Old=diffY;
