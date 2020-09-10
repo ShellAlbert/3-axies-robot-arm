@@ -16,6 +16,7 @@ protected:
     void run();
 private:
     int ZMapPixel2Servo(int servoID,int diff);
+    void ZUpdatePDO(void);
 };
 
 #endif // ZSERVOTHREAD_H

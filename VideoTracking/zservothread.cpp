@@ -383,20 +383,20 @@ void ZServoThread::run()
                 {
                     EC_WRITE_U16(domainOutput_pd+ctrlWord[i],0x80);
                 }
-
-                iTickCnt++;
                 emit this->ZSigLog(false,"0:Reset.");
+                iTickCnt++;
                 break;
+
             case 1://set Operation Mode.
                 //(0x6060,0)=1 PP:Profile Position mode.
                 for(int i=0;i<2;i++)
                 {
                     ecrt_slave_config_sdo8(sc_copley[i],0x6060,0,1);
                 }
-
-                iTickCnt++;
                 emit this->ZSigLog(false,"1:Set Operation mode.");
+                iTickCnt++;
                 break;
+
             case 2://Set Parameter.
                 for(int i=0;i<2;i++)
                 {
@@ -415,9 +415,10 @@ void ZServoThread::run()
                     ecrt_slave_config_sdo16(sc_copley[i],0x6086,0x00,0);
                 }
 
-                iTickCnt++;
                 emit this->ZSigLog(false,"2:Set Parameters.");
+                iTickCnt++;
                 break;
+
             case 3://Enable Device.
                 for(int i=0;i<2;i++)
                 {
@@ -426,17 +427,17 @@ void ZServoThread::run()
                     //0x0F=0000,1111.
                     EC_WRITE_U16(domainOutput_pd+ctrlWord[i],0x0F);
                 }
-
-                iTickCnt++;
                 emit this->ZSigLog(false,"3:Enable Device.");
+                iTickCnt++;
                 break;
+
             case 4://Set Target Position to 0 at start up.
                 EC_WRITE_S32(domainOutput_pd+targetPosition[0],gTechServo.s0_login_zero);
                 EC_WRITE_S32(domainOutput_pd+targetPosition[1],gTechServo.s1_login_zero);
+                emit this->ZSigLog(false,"4:Set Initial target position to 0.");
                 //here we skip step 5.
                 iTickCnt++;
                 iTickCnt++;
-                emit this->ZSigLog(false,"4:Set Initial target position to 0.");
                 break;
             case 5://Set Target Position.
             {
@@ -498,18 +499,6 @@ void ZServoThread::run()
                     }else{
                         iTickCnt++;
                     }
-                }else{
-
-                    //flush servo status data to global variable.
-                    int statusWord0 = EC_READ_U16(domainInput_pd + statusWord[0]);
-                    int velocity0 = EC_READ_S32(domainInput_pd + actVelocity[0])/1000.0;
-                    int position0 = EC_READ_S32(domainInput_pd + actPosition[0]);
-                    emit this->ZSigPDO(0,statusWord0,velocity0,position0);
-
-                    int statusWord1 = EC_READ_U16(domainInput_pd + statusWord[1]);
-                    int velocity1 = EC_READ_S32(domainInput_pd + actVelocity[1])/1000.0;
-                    int position1 = EC_READ_S32(domainInput_pd + actPosition[1]);
-                    emit this->ZSigPDO(1,statusWord1,velocity1,position1);
                 }
             }
                 break;
@@ -531,8 +520,8 @@ void ZServoThread::run()
                     }
                     break;
                 }
-                iTickCnt++;
                 emit this->ZSigLog(false,"6:Start positioning.");
+                iTickCnt++;
                 break;
             case 7://set point acknowledge.
             {
@@ -550,8 +539,8 @@ void ZServoThread::run()
                     if(iTimeout==0)
                     {
                         iTimeout=1000;
-                        iTickCnt=10;
                         emit this->ZSigLog(false,"7:set point reset.");
+                        iTickCnt=10;
                     }
                 }
             }
@@ -562,9 +551,8 @@ void ZServoThread::run()
                     //0x0F=0000,1111.
                     EC_WRITE_U16(domainOutput_pd+ctrlWord[i],0x0F);
                 }
-
-                iTickCnt++;
                 emit this->ZSigLog(false,"8:Reset");
+                iTickCnt++;
                 break;
             case 9://Target reached ?
             {
@@ -593,8 +581,8 @@ void ZServoThread::run()
             }
                 break;
             case 10:
-                iTickCnt=5;
                 emit this->ZSigLog(false,"10:Finish.");
+                iTickCnt=5;
                 break;
             default:
                 break;
@@ -604,6 +592,9 @@ void ZServoThread::run()
         default:
             break;
         }
+        //update PDOs.
+        this->ZUpdatePDO();
+
         /*send process data*/
         ecrt_domain_queue(domainOutput);
         ecrt_domain_queue(domainInput);
@@ -730,4 +721,19 @@ int ZServoThread::ZMapPixel2Servo(int servoID,int diff)
         break;
     }
     return 0;
+}
+void ZServoThread::ZUpdatePDO(void)
+{
+    //flush servo status data to global variable.
+    int statusWord0 = EC_READ_U16(domainInput_pd + statusWord[0]);
+    int velocity0 = EC_READ_S32(domainInput_pd + actVelocity[0])/1000.0;
+    int position0 = EC_READ_S32(domainInput_pd + actPosition[0]);
+    gGblPara.m_servoCurPos[0]=position0;
+    emit this->ZSigPDO(0,statusWord0,velocity0,position0);
+
+    int statusWord1 = EC_READ_U16(domainInput_pd + statusWord[1]);
+    int velocity1 = EC_READ_S32(domainInput_pd + actVelocity[1])/1000.0;
+    int position1 = EC_READ_S32(domainInput_pd + actPosition[1]);
+    gGblPara.m_servoCurPos[1]=position1;
+    emit this->ZSigPDO(1,statusWord1,velocity1,position1);
 }

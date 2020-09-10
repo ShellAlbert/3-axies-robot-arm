@@ -25,10 +25,6 @@ typedef enum{
     Track_Mode,
 }ZAppRunMode;
 
-//command & data to TechServo.
-#define SERVO_FIFO_IN "/tmp/servo.fifo.in"
-//result from TechServo.
-#define SERVO_FIFO_OUT "/tmp/servo.fifo.out"
 class ZGblPara
 {
 public:
@@ -100,6 +96,9 @@ public:
     int pixelDiffX;
     int pixelDiffY;
     int PPMPositionMethod;
+
+    //servo current position.
+    int m_servoCurPos[2];
 };
 extern ZGblPara gGblPara;
 
