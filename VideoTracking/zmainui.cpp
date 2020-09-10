@@ -129,7 +129,7 @@ void ZMainUI::paintEvent(QPaintEvent *e)
 
     //draw split lines on image.
     //this->ZDrawSplitGrid(p,this->m_img);
-    p.setPen(QPen(Qt::white,4));
+    p.setPen(QPen(Qt::green,2));
     p.drawLine(QPointF(0,this->m_img.height()/2),QPointF(this->m_img.width(),this->m_img.height()/2));
     p.drawLine(QPointF(this->m_img.width()/2,0),QPointF(this->m_img.width()/2,this->m_img.height()));
 
@@ -156,7 +156,7 @@ void ZMainUI::paintEvent(QPaintEvent *e)
 
         //draw SelectROI.
         QPoint ptROI(0,0+p.fontMetrics().height());
-        p.drawText(ptROI,QString("Select region of interest mode"));
+        p.drawText(ptROI,QString("Select ROI"));
 
         //draw a rectangle mask on the image.
         this->ZDrawROIMask(p,this->m_img);
@@ -184,7 +184,7 @@ void ZMainUI::paintEvent(QPaintEvent *e)
             QPoint ptLocked(0,200+p.fontMetrics().height());
             p.drawText(ptLocked,QString("Locked"));
             QPoint ptFps(0,ptLocked.y()+p.fontMetrics().height());
-            p.drawText(ptFps,QString::number(gGblPara.m_iCostMSec)+"/"+QString::number(gGblPara.m_iFps)+"fps");
+            p.drawText(ptFps,QString::number(gGblPara.m_iCostMSec)+"ms/"+QString::number(gGblPara.m_iFps)+"fps");
             //draw the diff x&y.
             QPoint ptDiff(0,ptFps.y()+p.fontMetrics().height());
             p.drawText(ptDiff,QString::number(this->m_diffX)+","+QString::number(this->m_diffY));
@@ -668,16 +668,16 @@ void ZMainUI::ZSlotMove2Left()
         switch(gGblPara.m_iStepMode)
         {
         case 0:
-            gGblPara.pixelDiffX=0;
-            gGblPara.pixelDiffY=-5000;
+            gGblPara.pixelDiffX=-10000;
+            gGblPara.pixelDiffY=0;
             break;
         case 1:
-            gGblPara.pixelDiffX=0;
-            gGblPara.pixelDiffY=-1000;
+            gGblPara.pixelDiffX=-3000;
+            gGblPara.pixelDiffY=0;
             break;
         case 2:
-            gGblPara.pixelDiffX=0;
-            gGblPara.pixelDiffY=-100;
+            gGblPara.pixelDiffX=-1000;
+            gGblPara.pixelDiffY=0;
             break;
         default:
             break;
@@ -693,16 +693,16 @@ void ZMainUI::ZSlotMove2Right()
         switch(gGblPara.m_iStepMode)
         {
         case 0:
-            gGblPara.pixelDiffX=0;
-            gGblPara.pixelDiffY=+5000;
+            gGblPara.pixelDiffX=+10000;
+            gGblPara.pixelDiffY=0;
             break;
         case 1:
-            gGblPara.pixelDiffX=0;
-            gGblPara.pixelDiffY=+1000;
+            gGblPara.pixelDiffX=+3000;
+            gGblPara.pixelDiffY=0;
             break;
         case 2:
-            gGblPara.pixelDiffX=0;
-            gGblPara.pixelDiffY=+100;
+            gGblPara.pixelDiffX=+1000;
+            gGblPara.pixelDiffY=0;
             break;
         default:
             break;
@@ -718,16 +718,16 @@ void ZMainUI::ZSlotMove2Up()
         switch(gGblPara.m_iStepMode)
         {
         case 0:
-            gGblPara.pixelDiffX=+5000;
-            gGblPara.pixelDiffY=0;
+            gGblPara.pixelDiffX=0;
+            gGblPara.pixelDiffY=+10000;
             break;
         case 1:
-            gGblPara.pixelDiffX=+1000;
-            gGblPara.pixelDiffY=0;
+            gGblPara.pixelDiffX=0;
+            gGblPara.pixelDiffY=+3000;
             break;
         case 2:
-            gGblPara.pixelDiffX=+100;
-            gGblPara.pixelDiffY=0;
+            gGblPara.pixelDiffX=0;
+            gGblPara.pixelDiffY=+1000;
             break;
         default:
             break;
@@ -743,16 +743,16 @@ void ZMainUI::ZSlotMove2Down()
         switch(gGblPara.m_iStepMode)
         {
         case 0:
-            gGblPara.pixelDiffX=-5000;
-            gGblPara.pixelDiffY=0;
+            gGblPara.pixelDiffX=0;
+            gGblPara.pixelDiffY=-10000;
             break;
         case 1:
-            gGblPara.pixelDiffX=-1000;
-            gGblPara.pixelDiffY=0;
+            gGblPara.pixelDiffX=0;
+            gGblPara.pixelDiffY=-3000;
             break;
         case 2:
-            gGblPara.pixelDiffX=-100;
-            gGblPara.pixelDiffY=0;
+            gGblPara.pixelDiffX=0;
+            gGblPara.pixelDiffY=-1000;
             break;
         default:
             break;

@@ -24,7 +24,6 @@ protected:
     void run();
 private:
     void ZTrackObject(cv::Mat &mat);
-    void ZHandlePixelDiff(int diffX,int diffY);
     qint32 getFps();
 private:
     ZMatFIFO *m_fifo;

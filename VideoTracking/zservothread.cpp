@@ -329,7 +329,7 @@ void ZServoThread::run()
         //usleep(1000000/TASK_FREQUENCY);
         //if the time is less, the motor has no time to run.
         //so we set the time longer to wait for the motor executed the previous command.
-        usleep(5000);
+        usleep(1000);
         //usleep(8000);
         //usleep(10000);
         //usleep(20000);
@@ -536,7 +536,7 @@ void ZServoThread::run()
                 break;
             case 7://set point acknowledge.
             {
-                static int iTimeout=100;
+                static int iTimeout=1000;
                 uint16_t status1,status2;
                 status1 = EC_READ_U16(domainInput_pd + statusWord[0]);
                 status2 = EC_READ_U16(domainInput_pd + statusWord[1]);
@@ -549,7 +549,7 @@ void ZServoThread::run()
                     iTimeout--;
                     if(iTimeout==0)
                     {
-                        iTimeout=100;
+                        iTimeout=1000;
                         iTickCnt=10;
                         emit this->ZSigLog(false,"7:set point reset.");
                     }
@@ -618,100 +618,116 @@ void ZServoThread::run()
 }
 int ZServoThread::ZMapPixel2Servo(int servoID,int diff)
 {
-    //PID:servo_relative_move_step=k*x+b.
-    int servo_relative_move_step=0;
-    float k=1.0;
-    float b=0.0;
-    switch(servoID)
+    switch(gGblPara.m_appMode)
     {
-    case 0://slave-0: y axies.
-        if(diff>300)
-        {
-            servo_relative_move_step=+300;
-        }else if(diff>200 && diff<=300)
-        {
-            servo_relative_move_step=+200;
-        }else if(diff>100 && diff<=200)
-        {
-            servo_relative_move_step=+100;
-        }else if(diff>50 && diff<=100)
-        {
-            servo_relative_move_step=+50;
-        }else if(diff>20 && diff<=50)
-        {
-            servo_relative_move_step=+10;
-        }else if(diff>10 && diff<=20)
-        {
-            servo_relative_move_step=+5;
-        }else if(diff>0){
-            servo_relative_move_step=+1;
-        }else if(diff<-300)
-        {
-            servo_relative_move_step=-300;
-        }else if(diff<-200 && diff>=-300)
-        {
-            servo_relative_move_step=-200;
-        }else if(diff<-100 && diff>=-200)
-        {
-            servo_relative_move_step=-100;
-        }else if(diff<-50 && diff>=-100)
-        {
-            servo_relative_move_step=-50;
-        }else if(diff<-20 && diff>=-50)
-        {
-            servo_relative_move_step=-20;
-        }else if(diff<-10 && diff>=-20)
-        {
-            servo_relative_move_step=-10;
-        }else if(diff<0 && diff>=-10)
-        {
-            servo_relative_move_step=-1;
-        }
+    case Free_Mode:
+    {
+        //for manual move operation.
+        return diff;
+    }
         break;
-    case 1://slave-1:x axies.
-        if(diff>300)
+    case SelectROI_Mode:
+        break;
+    case Track_Mode:
+    {
+        //PID:servo_relative_move_step=k*x+b.
+        int servo_relative_move_step=0;
+        float k=1.0;
+        float b=0.0;
+        switch(servoID)
         {
-            servo_relative_move_step=-1000;
-        }else if(diff>200 && diff<=300)
-        {
-            servo_relative_move_step=-500;
-        }else if(diff>100 && diff<=200)
-        {
-            servo_relative_move_step=-300;
-        }else if(diff>50 && diff<=100)
-        {
-            servo_relative_move_step=-200;
-        }else if(diff>20 && diff<=50)
-        {
-            servo_relative_move_step=-100;
-        }else if(diff>10 && diff<=20)
-        {
-            servo_relative_move_step=-10;
-        }else if(diff>0){
-            servo_relative_move_step=-1;
-        }else if(diff<-300)
-        {
-            servo_relative_move_step=+1000;
-        }else if(diff<-200 && diff>=-300)
-        {
-            servo_relative_move_step=+500;
-        }else if(diff<-100 && diff>=-200)
-        {
-            servo_relative_move_step=+300;
-        }else if(diff<-50 && diff>=-100)
-        {
-            servo_relative_move_step=+200;
-        }else if(diff<-20 && diff>=-50)
-        {
-            servo_relative_move_step=+100;
-        }else if(diff<-10 && diff>=-20)
-        {
-            servo_relative_move_step=+10;
-        }else if(diff<0 && diff>=-10)
-        {
-            servo_relative_move_step=+1;
+        case 0://slave-0: y axies.
+            if(diff>300)
+            {
+                servo_relative_move_step=+400;
+            }else if(diff>200 && diff<=300)
+            {
+                servo_relative_move_step=+300;
+            }else if(diff>100 && diff<=200)
+            {
+                servo_relative_move_step=+200;
+            }else if(diff>50 && diff<=100)
+            {
+                servo_relative_move_step=+50;
+            }else if(diff>20 && diff<=50)
+            {
+                servo_relative_move_step=+10;
+            }else if(diff>10 && diff<=20)
+            {
+                servo_relative_move_step=+5;
+            }else if(diff>0){
+                servo_relative_move_step=+1;
+            }else if(diff<-300)
+            {
+                servo_relative_move_step=-400;
+            }else if(diff<-200 && diff>=-300)
+            {
+                servo_relative_move_step=-300;
+            }else if(diff<-100 && diff>=-200)
+            {
+                servo_relative_move_step=-200;
+            }else if(diff<-50 && diff>=-100)
+            {
+                servo_relative_move_step=-50;
+            }else if(diff<-20 && diff>=-50)
+            {
+                servo_relative_move_step=-20;
+            }else if(diff<-10 && diff>=-20)
+            {
+                servo_relative_move_step=-10;
+            }else if(diff<0 && diff>=-10)
+            {
+                servo_relative_move_step=-1;
+            }
+            break;
+        case 1://slave-1:x axies.
+            if(diff>300)
+            {
+                servo_relative_move_step=-400;
+            }else if(diff>200 && diff<=300)
+            {
+                servo_relative_move_step=-300;
+            }else if(diff>100 && diff<=200)
+            {
+                servo_relative_move_step=-200;
+            }else if(diff>50 && diff<=100)
+            {
+                servo_relative_move_step=-50;
+            }else if(diff>20 && diff<=50)
+            {
+                servo_relative_move_step=-10;
+            }else if(diff>10 && diff<=20)
+            {
+                servo_relative_move_step=-5;
+            }else if(diff>0){
+                servo_relative_move_step=-1;
+            }else if(diff<-300)
+            {
+                servo_relative_move_step=+400;
+            }else if(diff<-200 && diff>=-300)
+            {
+                servo_relative_move_step=+300;
+            }else if(diff<-100 && diff>=-200)
+            {
+                servo_relative_move_step=+200;
+            }else if(diff<-50 && diff>=-100)
+            {
+                servo_relative_move_step=+50;
+            }else if(diff<-20 && diff>=-50)
+            {
+                servo_relative_move_step=+50;
+            }else if(diff<-10 && diff>=-20)
+            {
+                servo_relative_move_step=+10;
+            }else if(diff<0 && diff>=-10)
+            {
+                servo_relative_move_step=+1;
+            }
+            break;
         }
+        return servo_relative_move_step;
+    }
         break;
     }
-    return servo_relative_move_step;
+    return 0;
 }

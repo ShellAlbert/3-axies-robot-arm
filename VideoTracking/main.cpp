@@ -45,8 +45,8 @@ int main(int argc, char *argv[])
         qDebug()<<"main UI initial failed.";
         return -1;
     }
-    win.showMaximized();
-    //win.showFullScreen();
+    //win.showMaximized();
+    win.showFullScreen();
     cap1.start();
     proc1.start();
     servoThread.start();
