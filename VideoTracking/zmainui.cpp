@@ -662,6 +662,7 @@ void ZMainUI::ZSlotLog(bool bErrFlag,QString log)
 
 void ZMainUI::ZSlotMove2Left()
 {
+#if 1//relative move
     if(gGblPara.freeSema->tryAcquire())
     {
         gGblPara.PPMPositionMethod=PPM_POSITION_RELATIVE;
@@ -684,9 +685,35 @@ void ZMainUI::ZSlotMove2Left()
         }
         gGblPara.usedSema->release();
     }
+#endif
+#if 0//absolute move
+    if(gGblPara.freeSema->tryAcquire())
+    {
+        gGblPara.PPMPositionMethod=PPM_POSITION_ABSOLUTE;
+        switch(gGblPara.m_iStepMode)
+        {
+        case 0:
+            gGblPara.pixelDiffX=gGblPara.m_servoCurPos[1]-10000;
+            gGblPara.pixelDiffY=gGblPara.m_servoCurPos[0];
+            break;
+        case 1:
+            gGblPara.pixelDiffX=gGblPara.m_servoCurPos[1]-3000;
+            gGblPara.pixelDiffY=gGblPara.m_servoCurPos[0];
+            break;
+        case 2:
+            gGblPara.pixelDiffX=gGblPara.m_servoCurPos[1]-1000;
+            gGblPara.pixelDiffY=gGblPara.m_servoCurPos[0];
+            break;
+        default:
+            break;
+        }
+        gGblPara.usedSema->release();
+    }
+#endif
 }
 void ZMainUI::ZSlotMove2Right()
 {
+#if 1//relative move
     if(gGblPara.freeSema->tryAcquire())
     {
         gGblPara.PPMPositionMethod=PPM_POSITION_RELATIVE;
@@ -709,9 +736,35 @@ void ZMainUI::ZSlotMove2Right()
         }
         gGblPara.usedSema->release();
     }
+#endif
+#if 0//absolute move
+    if(gGblPara.freeSema->tryAcquire())
+    {
+        gGblPara.PPMPositionMethod=PPM_POSITION_ABSOLUTE;
+        switch(gGblPara.m_iStepMode)
+        {
+        case 0:
+            gGblPara.pixelDiffX=gGblPara.m_servoCurPos[1]+10000;
+            gGblPara.pixelDiffY=gGblPara.m_servoCurPos[0];
+            break;
+        case 1:
+            gGblPara.pixelDiffX=gGblPara.m_servoCurPos[1]+3000;
+            gGblPara.pixelDiffY=gGblPara.m_servoCurPos[0];
+            break;
+        case 2:
+            gGblPara.pixelDiffX=gGblPara.m_servoCurPos[1]+1000;
+            gGblPara.pixelDiffY=gGblPara.m_servoCurPos[0];
+            break;
+        default:
+            break;
+        }
+        gGblPara.usedSema->release();
+    }
+#endif
 }
 void ZMainUI::ZSlotMove2Up()
 {
+#if 1//relative move
     if(gGblPara.freeSema->tryAcquire())
     {
         gGblPara.PPMPositionMethod=PPM_POSITION_RELATIVE;
@@ -734,9 +787,35 @@ void ZMainUI::ZSlotMove2Up()
         }
         gGblPara.usedSema->release();
     }
+#endif
+#if 0//absolute move
+    if(gGblPara.freeSema->tryAcquire())
+    {
+        gGblPara.PPMPositionMethod=PPM_POSITION_ABSOLUTE;
+        switch(gGblPara.m_iStepMode)
+        {
+        case 0:
+            gGblPara.pixelDiffX=gGblPara.m_servoCurPos[1];
+            gGblPara.pixelDiffY=gGblPara.m_servoCurPos[0]+10000;
+            break;
+        case 1:
+            gGblPara.pixelDiffX=gGblPara.m_servoCurPos[1];
+            gGblPara.pixelDiffY=gGblPara.m_servoCurPos[0]+3000;
+            break;
+        case 2:
+            gGblPara.pixelDiffX=gGblPara.m_servoCurPos[1];
+            gGblPara.pixelDiffY=gGblPara.m_servoCurPos[0]+1000;
+            break;
+        default:
+            break;
+        }
+        gGblPara.usedSema->release();
+    }
+#endif
 }
 void ZMainUI::ZSlotMove2Down()
 {
+#if 1//relative move
     if(gGblPara.freeSema->tryAcquire())
     {
         gGblPara.PPMPositionMethod=PPM_POSITION_RELATIVE;
@@ -759,6 +838,31 @@ void ZMainUI::ZSlotMove2Down()
         }
         gGblPara.usedSema->release();
     }
+#endif
+#if 0//absolute move
+    if(gGblPara.freeSema->tryAcquire())
+    {
+        gGblPara.PPMPositionMethod=PPM_POSITION_ABSOLUTE;
+        switch(gGblPara.m_iStepMode)
+        {
+        case 0:
+            gGblPara.pixelDiffX=gGblPara.m_servoCurPos[1];
+            gGblPara.pixelDiffY=gGblPara.m_servoCurPos[0]-10000;
+            break;
+        case 1:
+            gGblPara.pixelDiffX=gGblPara.m_servoCurPos[1];
+            gGblPara.pixelDiffY=gGblPara.m_servoCurPos[0]-3000;
+            break;
+        case 2:
+            gGblPara.pixelDiffX=gGblPara.m_servoCurPos[1];
+            gGblPara.pixelDiffY=gGblPara.m_servoCurPos[0]-1000;
+            break;
+        default:
+            break;
+        }
+        gGblPara.usedSema->release();
+    }
+#endif
 }
 void ZMainUI::ZSlotHome()
 {

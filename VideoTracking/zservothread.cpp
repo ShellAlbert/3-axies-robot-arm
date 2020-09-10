@@ -37,8 +37,8 @@ extern "C"
 #define STATUS_SERVO_ENABLE_BIT (0x04)
 
 
-#define RANGE_LIMIT_MAX  20000
-#define RANGE_LIMIT_MIN  -20000
+#define RANGE_LIMIT_MAX  28000
+#define RANGE_LIMIT_MIN  -28000
 
 //master status define.
 enum
@@ -467,38 +467,61 @@ void ZServoThread::run()
                     switch(PPMPositionMethod)
                     {
                     case PPM_POSITION_ABSOLUTE:
-                        //minimum & maximum limit.
-                        if(pos0>=RANGE_LIMIT_MIN && pos0<=RANGE_LIMIT_MAX && pos1>=RANGE_LIMIT_MIN && pos1<=RANGE_LIMIT_MAX)
+                        //slave-0 minimum & maximum limit.
+                        if(pos0<RANGE_LIMIT_MIN)
                         {
-                            EC_WRITE_S32(domainOutput_pd+targetPosition[0],pos0);
-                            EC_WRITE_S32(domainOutput_pd+targetPosition[1],pos1);
-                            emit this->ZSigLog(false,QString("5:set target absolute position(%1,%2).").arg(pos0).arg(pos1));
-                        }else{
-                            emit this->ZSigLog(true,QString("5:absolute reach boundary,abs_pos=(%1,%2).").arg(pos0).arg(pos1));
-                            bOverflow=1;
+                            pos0=RANGE_LIMIT_MIN;
+                            emit this->ZSigLog(true,QString("5:s0 absolute position minimum limit."));
+                        }else if(pos0>RANGE_LIMIT_MAX)
+                        {
+                            pos0=RANGE_LIMIT_MAX;
+                            emit this->ZSigLog(true,QString("5:s0 absolute position maximum limit."));
                         }
+                        //slave-1 minimum & maximum limit.
+                        if(pos1<RANGE_LIMIT_MIN)
+                        {
+                            pos1=RANGE_LIMIT_MIN;
+                            emit this->ZSigLog(true,QString("5:s1 absolute position minimum limit."));
+                        }else if(pos1>RANGE_LIMIT_MAX)
+                        {
+                            pos1=RANGE_LIMIT_MAX;
+                            emit this->ZSigLog(true,QString("5:s1 absolute position maximum limit."));
+                        }
+
+                        EC_WRITE_S32(domainOutput_pd+targetPosition[0],pos0);
+                        EC_WRITE_S32(domainOutput_pd+targetPosition[1],pos1);
+                        emit this->ZSigLog(false,QString("5:set target absolute position(%1,%2).").arg(pos0).arg(pos1));
                         break;
                     case PPM_POSITION_RELATIVE:
                         s0_cur_pos=EC_READ_S32(domainInput_pd + actPosition[0]);
                         s1_cur_pos=EC_READ_S32(domainInput_pd + actPosition[1]);
-                        //minimum & maximum limit.
-                        if((pos0+s0_cur_pos)>=RANGE_LIMIT_MIN && (pos0+s0_cur_pos)<=RANGE_LIMIT_MAX && (pos1+s1_cur_pos)>=RANGE_LIMIT_MIN && (pos1+s1_cur_pos)<=RANGE_LIMIT_MAX)
+                        //slave-0 minimum & maximum limit.
+                        if((pos0+s0_cur_pos)<RANGE_LIMIT_MIN)
                         {
-                            EC_WRITE_S32(domainOutput_pd+targetPosition[0],pos0);
-                            EC_WRITE_S32(domainOutput_pd+targetPosition[1],pos1);
-                            emit this->ZSigLog(false,QString("5:set target relative position (%1,%2).").arg(pos0).arg(pos1));
-                        }else{
-                            emit this->ZSigLog(false,QString("5:relative reach boundary,abs_pos=(%1,%2) -> (%3,%4).").arg(pos0).arg(pos1).arg(pos0+s0_cur_pos).arg(pos1+s1_cur_pos));
-                            bOverflow=1;
+                            pos0=RANGE_LIMIT_MIN-s0_cur_pos;
+                            emit this->ZSigLog(true,QString("5:s0 absolute position minimum limit."));
+                        }else if((pos0+s0_cur_pos)>RANGE_LIMIT_MAX)
+                        {
+                            pos0=RANGE_LIMIT_MAX-s0_cur_pos;
+                            emit this->ZSigLog(true,QString("5:s0 absolute position maximum limit."));
                         }
+                        //slave-1 minimum & maximum limit.
+                        if((pos1+s1_cur_pos)<RANGE_LIMIT_MIN)
+                        {
+                            pos1=RANGE_LIMIT_MIN-s1_cur_pos;
+                            emit this->ZSigLog(true,QString("5:s1 absolute position minimum limit."));
+                        }else if((pos1+s1_cur_pos)>RANGE_LIMIT_MAX)
+                        {
+                            pos1=RANGE_LIMIT_MAX-s1_cur_pos;
+                            emit this->ZSigLog(true,QString("5:s1 absolute position maximum limit."));
+                        }
+
+                        EC_WRITE_S32(domainOutput_pd+targetPosition[0],pos0);
+                        EC_WRITE_S32(domainOutput_pd+targetPosition[1],pos1);
+                        emit this->ZSigLog(false,QString("5:set target relative position (%1,%2).").arg(pos0).arg(pos1));
                         break;
                     }
-                    if(bOverflow)
-                    {
-                        iTickCnt=10;
-                    }else{
-                        iTickCnt++;
-                    }
+                    iTickCnt++;
                 }
             }
                 break;
@@ -621,6 +644,7 @@ int ZServoThread::ZMapPixel2Servo(int servoID,int diff)
         break;
     case Track_Mode:
     {
+#if 1
         //PID:servo_relative_move_step=k*x+b.
         int servo_relative_move_step=0;
         float k=1.0;
@@ -717,6 +741,7 @@ int ZServoThread::ZMapPixel2Servo(int servoID,int diff)
             break;
         }
         return servo_relative_move_step;
+#endif
     }
         break;
     }
