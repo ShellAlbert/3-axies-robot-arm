@@ -31,7 +31,7 @@ public:
     bool ZDoInit();
 public slots:
     void ZSlotUpdateImg(const QImage &img);
-    void ZSlotPDO(qint32 iSlave,qint32 iActPos,qint32 iTarPos,qint32 iActVel);
+    void ZSlotPDO(int servoID,int statusWord,int velocity,int position);
     void ZSlotLog(bool bErrFlag,QString log);
     void ZSlotModeChanged();
     void ZSlotLocked(bool,QRect rect);
@@ -62,21 +62,6 @@ private:
     void ZDrawROIMask(QPainter &p,QImage &img);
     qint32 getFps();
 private:
-
-    //slave 0 Position Actual Value.
-    qint32 m_iS0PosActVal;
-    //slave 0 Target Position.
-    qint32 m_iS0TarPos;
-    //slave 0 Actual Velocity.
-    qint32 m_iS0ActVel;
-
-    //slave 1 Position Actual Value.
-    qint32 m_iS1PosActVal;
-    //slave 1 Target Position.
-    qint32 m_iS1TarPos;
-    //slave 1 Actual Velocity.
-    qint32 m_iS1ActVel;
-
     //the top ctrl bar.
     ZCtrlBar *m_ctrlBar;
     QHBoxLayout *m_hLayCtrlBar;
@@ -85,7 +70,6 @@ private:
     QVBoxLayout *m_vLayMain;
 private:
     QImage m_img;
-
 private:
     //select ROI.
     bool m_bSelectROI;
@@ -99,6 +83,10 @@ private:
     int m_diffX;
     int m_diffY;
 private:
+    qint32 m_statusWord[2];
+    qint32 m_velocity[2];
+    qint32 m_position[2];
+private:
     QVector<ZVectorLog> m_vecLog;
 
 private:
@@ -106,7 +94,6 @@ private:
 private:
     QTimer m_timerLost;
     qint32 m_iLostTimeout;
-
 };
 
 #endif // ZMAINUI_H

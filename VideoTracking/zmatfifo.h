@@ -8,9 +8,9 @@
 class ZMatFIFO
 {
 public:
-    ZMatFIFO(qint32 iSize,bool bDropFrame=true);
-    void ZAddFrame(const cv::Mat &frame);
-    cv::Mat ZGetFrame();
+    ZMatFIFO(qint32 iSize);
+    bool ZAddFrame(const cv::Mat &frame);
+    bool ZGetFrame(cv::Mat &frame);
     void ZClearFIFO();
     qint32 ZGetSize();
 private:
@@ -18,10 +18,7 @@ private:
     QQueue<cv::Mat> m_queue;
     QSemaphore *m_freeSema;
     QSemaphore *m_usedSema;
-    QSemaphore *m_clearFIFO1;
-    QSemaphore *m_clearFIFO2;
     qint32 m_iSize;
-    bool m_bDropFrame;
 };
 
 #endif // ZMATFIFO_H

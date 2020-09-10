@@ -51,7 +51,10 @@ void ZCaptureThread::run()
         {
             if(iSkipFrm++>=5)
             {
-                this->m_fifo->ZAddFrame(mat);
+                if(this->m_fifo->ZAddFrame(mat))
+                {
+                    qDebug()<<"put to fifo okay";
+                }
                 iSkipFrm=0;
             }
         }

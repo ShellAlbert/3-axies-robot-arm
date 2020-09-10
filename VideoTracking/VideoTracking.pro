@@ -4,7 +4,7 @@
 #
 #-------------------------------------------------
 
-QT       += core gui
+QT       += core gui network
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -34,7 +34,7 @@ SOURCES += \
     zdirectionbar.cpp \
     zpidcalc.cpp \
     zdialoghome.cpp \
-    zrdservooutthread.cpp
+    zservothread.cpp
 
 HEADERS += \
         zmainui.h \
@@ -46,7 +46,7 @@ HEADERS += \
     zdirectionbar.h \
     zpidcalc.h \
     zdialoghome.h \
-    zrdservooutthread.h
+    zservothread.h
 
 
 #openCV 4.1.1
@@ -82,6 +82,10 @@ LIBS += -lopencv_cudabgsegm \
 -lopencv_core \
 -lopencv_cudev \
 -lopencv_tracking
+
+#ethernet
+INCLUDEPATH += -I/opt/ethercat/include
+LIBS += -lethercat
 
 RESOURCES += \
     resource/style1.qrc

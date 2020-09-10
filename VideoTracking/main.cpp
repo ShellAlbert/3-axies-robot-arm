@@ -3,7 +3,7 @@
 #include "zcapturethread.h"
 #include "zmatfifo.h"
 #include "zprocessingthread.h"
-#include "zrdservooutthread.h"
+#include <zservothread.h>
 #include <QFile>
 #include <QDebug>
 #include <zgblpara.h>
@@ -25,53 +25,35 @@ int main(int argc, char *argv[])
         app.setStyleSheet(skinQss);
         fileSkin.close();
     }
-    //TechServo FIFO.
-    //open read mode side first.
-    qDebug()<<"opening server.fifo.out ...";
-    if((gGblPara.m_fdServoFIFOOut=open(SERVO_FIFO_OUT,O_RDONLY))<0)
-    {
-        qDebug()<<"failed to open read fifo:"<<SERVO_FIFO_OUT;
-        return -1;
-    }
-    qDebug()<<"open server.fifo.out okay";
 
-    //open write mode side second.
-    qDebug()<<"opening server.fifo.in ...";
-    if((gGblPara.m_fdServoFIFOIn=open(SERVO_FIFO_IN,O_WRONLY))<0)
-    {
-        qDebug()<<"failed to open write fifo:"<<SERVO_FIFO_IN;
-        return -1;
-    }
-    qDebug()<<"open server.fifo.in okay";
-
-    ZMatFIFO fifoCap1(25,false);
+    //create thread & UI.
+    ZMatFIFO fifoCap1(25);
     ZCaptureThread cap1("192.168.137.12",&fifoCap1);
     ZProcessingThread proc1(&fifoCap1);
-    ZRdServoOutThread servoOut;
+    ZServoThread servoThread;
     ZMainUI win;
 
+    //make connections.
     QObject::connect(&cap1,SIGNAL(ZSigNewImg(QImage)),&win,SLOT(ZSlotUpdateImg(QImage)));
     QObject::connect(&proc1,SIGNAL(ZSigInitBox(QImage)),&win,SLOT(ZSlotInitBox(QImage)));
     QObject::connect(&proc1,SIGNAL(ZSigLocked(bool,QRect)),&win,SLOT(ZSlotLocked(bool,QRect)));
     QObject::connect(&proc1,SIGNAL(ZSigDiffXY(int,int)),&win,SLOT(ZSlotDiffXY(int,int)));
+    QObject::connect(&servoThread,SIGNAL(ZSigLog(bool,QString)),&win,SLOT(ZSlotLog(bool,QString)));
+    QObject::connect(&servoThread,SIGNAL(ZSigPDO(int,int,int,int)),&win,SLOT(ZSlotPDO(int,int,int,int)));
     if(!win.ZDoInit())
     {
+        qDebug()<<"main UI initial failed.";
         return -1;
     }
     win.showMaximized();
     //win.showFullScreen();
     cap1.start();
     proc1.start();
-    servoOut.start();
+    servoThread.start();
 
     qint32 ret=app.exec();
     cap1.wait();
     proc1.wait();
-    servoOut.wait();
-
-    //close FIFOs.
-    close(gGblPara.m_fdServoFIFOIn);
-    close(gGblPara.m_fdServoFIFOOut);
-
+    servoThread.wait();
     return ret;
 }

@@ -44,7 +44,12 @@ void ZProcessingThread::run()
     int iDiffY_Old=0;
     while(!gGblPara.m_bExitFlag)
     {
-        cv::Mat mat=this->m_fifo->ZGetFrame();
+        cv::Mat mat;
+        if(!this->m_fifo->ZGetFrame(mat))
+        {
+            continue;
+        }
+        qDebug()<<"get from fifo okay";
         //we do ImgProc on gray.
         //cv::cvtColor(mat,mat,cv::COLOR_RGB2GRAY);
 
@@ -108,7 +113,13 @@ void ZProcessingThread::run()
                 {
                     emit this->ZSigDiffXY(diffX,diffY);
 
-#if 1
+                    gGblPara.freeSema->acquire();
+                    gGblPara.PPMPositionMethod=PPM_POSITION_RELATIVE;
+                    gGblPara.pixelDiffX=diffX;
+                    gGblPara.pixelDiffY=diffY;
+                    qDebug()<<"imp update diff xy:"<<diffX<<diffY;
+                    gGblPara.usedSema->release();
+#if 0
                     //processing result.
                     char buffer_x[256];
                     if(diffX>0)
@@ -157,7 +168,7 @@ void ZProcessingThread::run()
                     write(gGblPara.m_fdServoFIFOIn,(void*)&len,sizeof(len));
                     write(gGblPara.m_fdServoFIFOIn,(void*)buffer_x,len);
 #endif
-#if 1
+#if 0
                     char buffer_y[256];
                     if(diffY>0)
                     {

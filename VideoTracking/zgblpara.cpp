@@ -23,6 +23,10 @@ ZGblPara::ZGblPara()
 
     //mapping pixel coordinate to motor move coordinate.
     this->m_CalibrateFSM=FSM_Calibrate_Start;
+
+    //initial semaphore.
+    this->freeSema=new QSemaphore(1);
+    this->usedSema=new QSemaphore(0);
 }
 ZGblPara gGblPara;
 

@@ -5,6 +5,7 @@
 #include <QVector>
 #include <QPoint>
 #include <QMutex>
+#include <QSemaphore>
 #include <opencv4/opencv2/core.hpp>
 enum{
     FSM_Calibrate_Start,
@@ -93,21 +94,12 @@ public:
     QPoint m_ptPixBtm;
     QPoint m_ptEncBtm;
 
-
-    //TechServo fifo in fd.
-    int m_fdServoFIFOIn;
-    //TechServo fifo out fd.
-    int m_fdServoFIFOOut;
-
-    //servo-0.
-    int servo0_statusWord;
-    int servo0_velocity;
-    int servo0_position;
-
-    //servo-1.
-    int servo1_statusWord;
-    int servo1_velocity;
-    int servo1_position;
+    //transfer diffX & diffY to servo thread.
+    QSemaphore *freeSema;
+    QSemaphore *usedSema;
+    int pixelDiffX;
+    int pixelDiffY;
+    int PPMPositionMethod;
 };
 extern ZGblPara gGblPara;
 
@@ -116,4 +108,13 @@ extern ZGblPara gGblPara;
 #include <opencv2/highgui.hpp>
 extern QImage cvMat2QImage(const cv::Mat &mat);
 
+
+//Profile Position Mode.
+//Absolute Position.
+//Relative Position.+/-.
+enum
+{
+    PPM_POSITION_ABSOLUTE,
+    PPM_POSITION_RELATIVE,
+};
 #endif // ZGBLPARA_H

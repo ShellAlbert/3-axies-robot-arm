@@ -5,27 +5,29 @@
 #include "zgblpara.h"
 #include "zdialoghome.h"
 #include <unistd.h>
-#include <fcntl.h>
 #include <stdlib.h>
 #include <time.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
+#include <sched.h>
+#include <sys/mman.h>
+#include <errno.h>
+#include <sys/resource.h>
+#include <time.h>
+#include <sys/types.h>
+#include <arpa/inet.h>
+#include <signal.h>
+#include <fcntl.h>
 ZMainUI::ZMainUI(QWidget *parent)
     : QWidget(parent)
 {
-    //slave 0 Position Actual Value.
-    this->m_iS0PosActVal=0;
-    //slave 0 Target Position.
-    this->m_iS0TarPos=0;
-    //slave 0 Actual Velocity.
-    this->m_iS0ActVel=0;
-
-    //slave 1 Position Actual Value.
-    this->m_iS1PosActVal=0;
-    //slave 1 Target Position.
-    this->m_iS1TarPos=0;
-    //slave 1 Actual Velocity.
-    this->m_iS1ActVel=0;
+    for(qint32 i=0;i<2;i++)
+    {
+        this->m_statusWord[i]=0;
+        this->m_velocity[i]=0;
+        this->m_position[i]=0;
+    }
 
     //reset frame counter.
     this->m_iFrmCounter=0;
@@ -78,6 +80,7 @@ bool ZMainUI::ZDoInit()
     QObject::connect(&this->m_timerLost,SIGNAL(timeout()),this,SLOT(ZSlotLostTimeout()));
     return true;
 }
+
 QSize ZMainUI::sizeHint() const
 {
     return QSize(800,600);
@@ -102,7 +105,10 @@ void ZMainUI::paintEvent(QPaintEvent *e)
         //if image is invalid,draw a black background.
         painter.fillRect(QRectF(0,0,this->width(),this->height()),Qt::black);
         painter.setPen(QPen(Qt::yellow,2));
-        QString strTips("video lost,check connection!");
+        QFont font=painter.font();
+        font.setPixelSize(60);
+        painter.setFont(font);
+        QString strTips("Video lost,check connection!");
         QRect rectTips((this->width()-painter.fontMetrics().width(strTips))/2,///< x
                        (this->height()-painter.fontMetrics().height())/2,///< y
                        painter.fontMetrics().width(strTips)*2,///<width
@@ -122,7 +128,10 @@ void ZMainUI::paintEvent(QPaintEvent *e)
     this->ZDrawCircleIndicator(p,this->m_img);
 
     //draw split lines on image.
-    this->ZDrawSplitGrid(p,this->m_img);
+    //this->ZDrawSplitGrid(p,this->m_img);
+    p.setPen(QPen(Qt::white,4));
+    p.drawLine(QPointF(0,this->m_img.height()/2),QPointF(this->m_img.width(),this->m_img.height()/2));
+    p.drawLine(QPointF(this->m_img.width()/2,0),QPointF(this->m_img.width()/2,this->m_img.height()));
 
     switch(gGblPara.m_appMode)
     {
@@ -205,10 +214,10 @@ void ZMainUI::paintEvent(QPaintEvent *e)
 
 
     //draw the Axies0,Axies1 on the bottom.
-    QString strS0Pos=QString::number(gGblPara.servo0_position);
-    QString strS0Vel=QString::number(gGblPara.servo0_velocity);
-    QString strS1Pos=QString::number(gGblPara.servo1_position);
-    QString strS1Vel=QString::number(gGblPara.servo1_velocity);
+    QString strS0Pos=QString::number(this->m_position[0]);
+    QString strS0Vel=QString::number(this->m_velocity[0]);
+    QString strS1Pos=QString::number(this->m_position[1]);
+    QString strS1Vel=QString::number(this->m_velocity[1]);
     QFont fontAxies=painter.font();
     fontAxies.setPixelSize(36);
     painter.setFont(fontAxies);
@@ -241,6 +250,29 @@ void ZMainUI::paintEvent(QPaintEvent *e)
     painter.setPen(QPen(Qt::yellow,2));
     painter.drawText(rectS0Vel,strS0Vel);
     painter.drawText(rectS1Vel,strS1Vel);
+
+    //draw dynamic logs.
+    if(1)
+    {
+        QFont font=painter.font();
+        font.setPixelSize(26);
+        painter.setFont(font);
+
+        // 10 lines log.
+        //draw from bottom to top.
+        QPointF ptLog(10,this->height()-painter.fontMetrics().height());
+        for(qint32 i=this->m_vecLog.size()-1;i>=0;i--)
+        {
+            if(this->m_vecLog.at(i).bErrFlag)
+            {
+                painter.setPen(QPen(Qt::red,2));
+            }else{
+                painter.setPen(QPen(Qt::white,2));
+            }
+            ptLog.setY(ptLog.y()-painter.fontMetrics().height());
+            painter.drawText(ptLog,this->m_vecLog.at(i).log);
+        }
+    }
 }
 void ZMainUI::ZDrawRectangleIndicator(QPainter &p,QImage &img)
 {
@@ -373,21 +405,19 @@ void ZMainUI::ZDrawROIMask(QPainter &p,QImage &img)
     p.fillRect(QRect(this->m_ptStart,this->m_ptEnd),QColor(255,0,0,100));
     p.restore();
 }
-void ZMainUI::ZSlotPDO(qint32 iSlave,qint32 iActPos,qint32 iTarPos,qint32 iActVel)
+void ZMainUI::ZSlotPDO(int servoID,int statusWord,int velocity,int position)
 {
-    switch(iSlave)
+    switch(servoID)
     {
     case 0:
-        this->m_iS0PosActVal=iActPos;
-        this->m_iS0TarPos=iTarPos;
-        this->m_iS0ActVel=iActVel;
+        this->m_statusWord[0]=statusWord;
+        this->m_velocity[0]=velocity;
+        this->m_position[0]=position;
         break;
     case 1:
-        this->m_iS1PosActVal=iActPos;
-        this->m_iS1TarPos=iTarPos;
-        this->m_iS1ActVel=iActVel;
-        break;
-    default:
+        this->m_statusWord[1]=statusWord;
+        this->m_velocity[1]=velocity;
+        this->m_position[1]=position;
         break;
     }
 }
@@ -522,6 +552,101 @@ void ZMainUI::ZSlotDiffXY(int diffX,int diffY)
 {
     this->m_diffX=diffX;
     this->m_diffY=diffY;
+#if 1
+    //processing result.
+    char buffer_x[256];
+    if(diffX>0)
+    {
+        if(diffX>200)
+        {
+            strcpy(buffer_x,"rel_pos=0,-200\n");
+        }else if(diffX>100 && diffX<=200)
+        {
+            strcpy(buffer_x,"rel_pos=0,-100\n");
+        }else if(diffX>50 && diffX<=100)
+        {
+            strcpy(buffer_x,"rel_pos=0,-50\n");
+        }else if(diffX>20 && diffX<=50)
+        {
+            strcpy(buffer_x,"rel_pos=0,-10\n");
+        }else if(diffX>10 && diffX<=20)
+        {
+            strcpy(buffer_x,"rel_pos=0,-5\n");
+        }else{
+            strcpy(buffer_x,"rel_pos=0,-1\n");
+        }
+    }else if(diffX<0)
+    {
+        if(diffX<-200)
+        {
+            strcpy(buffer_x,"rel_pos=0,+200\n");
+        }else if(diffX<-100 && diffX>=-200)
+        {
+            strcpy(buffer_x,"rel_pos=0,+100\n");
+        }else if(diffX<-50 && diffX>=-100)
+        {
+            strcpy(buffer_x,"rel_pos=0,+50\n");
+        }else if(diffX<-20 && diffX>=-50)
+        {
+            strcpy(buffer_x,"rel_pos=0,+10\n");
+        }else if(diffX<-10 && diffX>=-20)
+        {
+            strcpy(buffer_x,"rel_pos=0,+5\n");
+        }else{
+            strcpy(buffer_x,"rel_pos=0,+1\n");
+        }
+    }
+    //qDebug()<<buffer_x;
+    int len_x=strlen(buffer_x);
+    int len_x2=htonl(len_x);
+#endif
+#if 1
+    char buffer_y[256];
+    if(diffY>0)
+    {
+        if(diffY>200)
+        {
+            strcpy(buffer_y,"rel_pos=+200,0\n");
+        }else if(diffY>100 && diffY<=200)
+        {
+            strcpy(buffer_y,"rel_pos=+100,0\n");
+        }else if(diffY>50 && diffX<=100)
+        {
+            strcpy(buffer_y,"rel_pos=+50,0\n");
+        }else if(diffY>20 && diffY<=50)
+        {
+            strcpy(buffer_y,"rel_pos=+20,0\n");
+        }else if(diffY>10 && diffY<=20)
+        {
+            strcpy(buffer_y,"rel_pos=+5,0\n");
+        }else{
+            strcpy(buffer_y,"rel_pos=+1,0\n");
+        }
+    }else if(diffY<0)
+    {
+        if(diffY<-200)
+        {
+            strcpy(buffer_y,"rel_pos=-200,0\n");
+        }else if(diffY<-100 && diffY>=-200)
+        {
+            strcpy(buffer_y,"rel_pos=-100,0\n");
+        }else if(diffY<-50 && diffY>=-100)
+        {
+            strcpy(buffer_y,"rel_pos=-50,0\n");
+        }else if(diffY<-20 && diffY>=-50)
+        {
+            strcpy(buffer_y,"rel_pos=-10,0\n");
+        }else if(diffY<-10 && diffY>=-20)
+        {
+            strcpy(buffer_y,"rel_pos=-5,0\n");
+        }else{
+            strcpy(buffer_y,"rel_pos=-1,0\n");
+        }
+    }
+    //qDebug()<<buffer_y;
+    int len_y=strlen(buffer_y);
+    int len_y2=htonl(len_y);
+#endif
 }
 void ZMainUI::ZSlotLog(bool bErrFlag,QString log)
 {
@@ -537,110 +662,132 @@ void ZMainUI::ZSlotLog(bool bErrFlag,QString log)
 
 void ZMainUI::ZSlotMove2Left()
 {
-    int len;
-    char buffer[256];
-
-    switch(gGblPara.m_iStepMode)
+    if(gGblPara.freeSema->tryAcquire())
     {
-    case 0:
-        sprintf(buffer,"rel_pos=0,%d\n",-2000);
-        break;
-    case 1:
-        sprintf(buffer,"rel_pos=0,%d\n",-1000);
-        break;
-    case 2:
-        sprintf(buffer,"rel_pos=0,%d\n",-100);
-        break;
-    default:
-        break;
+        gGblPara.PPMPositionMethod=PPM_POSITION_RELATIVE;
+        switch(gGblPara.m_iStepMode)
+        {
+        case 0:
+            gGblPara.pixelDiffX=0;
+            gGblPara.pixelDiffY=-5000;
+            break;
+        case 1:
+            gGblPara.pixelDiffX=0;
+            gGblPara.pixelDiffY=-1000;
+            break;
+        case 2:
+            gGblPara.pixelDiffX=0;
+            gGblPara.pixelDiffY=-100;
+            break;
+        default:
+            break;
+        }
+        gGblPara.usedSema->release();
     }
-
-    len=strlen(buffer);
-    write(gGblPara.m_fdServoFIFOIn,(void*)&len,sizeof(len));
-    write(gGblPara.m_fdServoFIFOIn,(void*)buffer,len);
 }
 void ZMainUI::ZSlotMove2Right()
 {
-    int len;
-    char buffer[256];
-
-    switch(gGblPara.m_iStepMode)
+    if(gGblPara.freeSema->tryAcquire())
     {
-    case 0:
-        sprintf(buffer,"rel_pos=0,%d\n",+2000);
-        break;
-    case 1:
-        sprintf(buffer,"rel_pos=0,%d\n",+1000);
-        break;
-    case 2:
-        sprintf(buffer,"rel_pos=0,%d\n",+100);
-        break;
-    default:
-        break;
+        gGblPara.PPMPositionMethod=PPM_POSITION_RELATIVE;
+        switch(gGblPara.m_iStepMode)
+        {
+        case 0:
+            gGblPara.pixelDiffX=0;
+            gGblPara.pixelDiffY=+5000;
+            break;
+        case 1:
+            gGblPara.pixelDiffX=0;
+            gGblPara.pixelDiffY=+1000;
+            break;
+        case 2:
+            gGblPara.pixelDiffX=0;
+            gGblPara.pixelDiffY=+100;
+            break;
+        default:
+            break;
+        }
+        gGblPara.usedSema->release();
     }
-
-    len=strlen(buffer);
-    write(gGblPara.m_fdServoFIFOIn,(void*)&len,sizeof(len));
-    write(gGblPara.m_fdServoFIFOIn,(void*)buffer,len);
 }
 void ZMainUI::ZSlotMove2Up()
 {
-    int len;
-    char buffer[256];
-
-    switch(gGblPara.m_iStepMode)
+    if(gGblPara.freeSema->tryAcquire())
     {
-    case 0:
-        sprintf(buffer,"rel_pos=%d,0\n",+2000);
-        break;
-    case 1:
-        sprintf(buffer,"rel_pos=%d,0\n",+1000);
-        break;
-    case 2:
-        sprintf(buffer,"rel_pos=%d,0\n",+100);
-        break;
-    default:
-        break;
+        gGblPara.PPMPositionMethod=PPM_POSITION_RELATIVE;
+        switch(gGblPara.m_iStepMode)
+        {
+        case 0:
+            gGblPara.pixelDiffX=+5000;
+            gGblPara.pixelDiffY=0;
+            break;
+        case 1:
+            gGblPara.pixelDiffX=+1000;
+            gGblPara.pixelDiffY=0;
+            break;
+        case 2:
+            gGblPara.pixelDiffX=+100;
+            gGblPara.pixelDiffY=0;
+            break;
+        default:
+            break;
+        }
+        gGblPara.usedSema->release();
     }
-
-    len=strlen(buffer);
-    write(gGblPara.m_fdServoFIFOIn,(void*)&len,sizeof(len));
-    write(gGblPara.m_fdServoFIFOIn,(void*)buffer,len);
 }
 void ZMainUI::ZSlotMove2Down()
 {
-    int len;
-    char buffer[256];
-
-    switch(gGblPara.m_iStepMode)
+    if(gGblPara.freeSema->tryAcquire())
     {
-    case 0:
-        sprintf(buffer,"rel_pos=%d,0\n",-2000);
-        break;
-    case 1:
-        sprintf(buffer,"rel_pos=%d,0\n",-1000);
-        break;
-    case 2:
-        sprintf(buffer,"rel_pos=%d,0\n",-100);
-        break;
-    default:
-        break;
+        gGblPara.PPMPositionMethod=PPM_POSITION_RELATIVE;
+        switch(gGblPara.m_iStepMode)
+        {
+        case 0:
+            gGblPara.pixelDiffX=-5000;
+            gGblPara.pixelDiffY=0;
+            break;
+        case 1:
+            gGblPara.pixelDiffX=-1000;
+            gGblPara.pixelDiffY=0;
+            break;
+        case 2:
+            gGblPara.pixelDiffX=-100;
+            gGblPara.pixelDiffY=0;
+            break;
+        default:
+            break;
+        }
+        gGblPara.usedSema->release();
     }
-
-    len=strlen(buffer);
-    write(gGblPara.m_fdServoFIFOIn,(void*)&len,sizeof(len));
-    write(gGblPara.m_fdServoFIFOIn,(void*)buffer,len);
 }
 void ZMainUI::ZSlotHome()
 {
-//    ZDialogHome diaHome(this);
-//    diaHome.setGeometry(0,0,600,300);
-//    diaHome.show();
+    //    ZDialogHome diaHome(this);
+    //    diaHome.setGeometry(0,0,600,300);
+    //    diaHome.show();
 
-    char *buffer="abs_pos=0,0\n";
-    int len=strlen(buffer);
-    write(gGblPara.m_fdServoFIFOIn,(void*)&len,sizeof(len));
-    write(gGblPara.m_fdServoFIFOIn,(void*)buffer,len);
+    if(gGblPara.freeSema->tryAcquire())
+    {
+        gGblPara.PPMPositionMethod=PPM_POSITION_ABSOLUTE;
+        switch(gGblPara.m_iStepMode)
+        {
+        case 0:
+            gGblPara.pixelDiffX=0;
+            gGblPara.pixelDiffY=0;
+            break;
+        case 1:
+            gGblPara.pixelDiffX=0;
+            gGblPara.pixelDiffY=0;
+            break;
+        case 2:
+            gGblPara.pixelDiffX=0;
+            gGblPara.pixelDiffY=0;
+            break;
+        default:
+            break;
+        }
+        gGblPara.usedSema->release();
+    }
 }
 void ZMainUI::ZSlotScan()
 {
