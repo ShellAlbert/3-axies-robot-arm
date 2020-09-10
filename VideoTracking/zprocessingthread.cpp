@@ -19,10 +19,10 @@ void ZProcessingThread::run()
     bool bInit=false;
 
     //use CSRT when you need higher object tracking accuracy and can tolerate slower FPS throughput.
-    //cv::Ptr<Tracker> tracker=cv::TrackerCSRT::create();
+    cv::Ptr<Tracker> tracker=cv::TrackerCSRT::create();
 
     //use KCF when you need faster FPS throughtput but can handle slightly lower object tracking accuracy.
-    cv::Ptr<Tracker> tracker=TrackerKCF::create();
+    //cv::Ptr<Tracker> tracker=TrackerKCF::create();
 
     //use MOSSE when you need pure speed.
     //cv::Ptr<Tracker> tracker=TrackerMOSSE::create();
@@ -68,7 +68,8 @@ void ZProcessingThread::run()
             rectROI.height=gGblPara.m_rectROI.height/2;
             //initial.
             tracker->clear();
-            tracker=TrackerKCF::create();
+            //tracker=TrackerKCF::create();
+            tracker=cv::TrackerCSRT::create();
             if(tracker->init(mat,rectROI))
             {
                 qDebug()<<"track Init okay";

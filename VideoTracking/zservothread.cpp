@@ -483,7 +483,7 @@ void ZServoThread::run()
                         //minimum & maximum limit.
                         if((pos0+s0_cur_pos)>=RANGE_LIMIT_MIN && (pos0+s0_cur_pos)<=RANGE_LIMIT_MAX && (pos1+s1_cur_pos)>=RANGE_LIMIT_MIN && (pos1+s1_cur_pos)<=RANGE_LIMIT_MAX)
                         {
-                            //EC_WRITE_S32(domainOutput_pd+targetPosition[0],pos0);
+                            EC_WRITE_S32(domainOutput_pd+targetPosition[0],pos0);
                             EC_WRITE_S32(domainOutput_pd+targetPosition[1],pos1);
                             emit this->ZSigLog(false,QString("5:set target relative position (%1,%2).").arg(pos0).arg(pos1));
                         }else{
@@ -536,7 +536,7 @@ void ZServoThread::run()
                 break;
             case 7://set point acknowledge.
             {
-                static int iTimeout=1000;
+                static int iTimeout=100;
                 uint16_t status1,status2;
                 status1 = EC_READ_U16(domainInput_pd + statusWord[0]);
                 status2 = EC_READ_U16(domainInput_pd + statusWord[1]);
@@ -549,7 +549,7 @@ void ZServoThread::run()
                     iTimeout--;
                     if(iTimeout==0)
                     {
-                        iTimeout=1000;
+                        iTimeout=100;
                         iTickCnt=10;
                         emit this->ZSigLog(false,"7:set point reset.");
                     }
@@ -624,7 +624,7 @@ int ZServoThread::ZMapPixel2Servo(int servoID,int diff)
     float b=0.0;
     switch(servoID)
     {
-    case 0://x axies.
+    case 0://slave-0: y axies.
         if(diff>300)
         {
             servo_relative_move_step=+300;
@@ -668,42 +668,42 @@ int ZServoThread::ZMapPixel2Servo(int servoID,int diff)
             servo_relative_move_step=-1;
         }
         break;
-    case 1://y axies.
+    case 1://slave-1:x axies.
         if(diff>300)
         {
-            servo_relative_move_step=-300;
+            servo_relative_move_step=-1000;
         }else if(diff>200 && diff<=300)
         {
-            servo_relative_move_step=-200;
+            servo_relative_move_step=-500;
         }else if(diff>100 && diff<=200)
         {
-            servo_relative_move_step=-100;
+            servo_relative_move_step=-300;
         }else if(diff>50 && diff<=100)
         {
-            servo_relative_move_step=-50;
+            servo_relative_move_step=-200;
         }else if(diff>20 && diff<=50)
         {
-            servo_relative_move_step=-10;
+            servo_relative_move_step=-100;
         }else if(diff>10 && diff<=20)
         {
-            servo_relative_move_step=-5;
+            servo_relative_move_step=-10;
         }else if(diff>0){
             servo_relative_move_step=-1;
         }else if(diff<-300)
         {
-            servo_relative_move_step=+300;
+            servo_relative_move_step=+1000;
         }else if(diff<-200 && diff>=-300)
         {
-            servo_relative_move_step=+200;
+            servo_relative_move_step=+500;
         }else if(diff<-100 && diff>=-200)
         {
-            servo_relative_move_step=+100;
+            servo_relative_move_step=+300;
         }else if(diff<-50 && diff>=-100)
         {
-            servo_relative_move_step=+50;
+            servo_relative_move_step=+200;
         }else if(diff<-20 && diff>=-50)
         {
-            servo_relative_move_step=+20;
+            servo_relative_move_step=+100;
         }else if(diff<-10 && diff>=-20)
         {
             servo_relative_move_step=+10;
