@@ -635,6 +635,28 @@ void ZServoThread::run()
 }
 int ZServoThread::ZMapPixel2Servo(int servoID,int diff)
 {
+    const ZPix2MovTable table_up_down[]={
+        {0,5,+1},//<min,max,step.
+        {5,10,+10},
+        {10,20,+30},
+        {20,50,+50},
+        {50,100,+250},
+        {100,200,+500},
+        {200,300,+1000},
+        {300,500,+1500},
+        {500,9999,+2000},
+    };
+    const ZPix2MovTable table_left_right[]={
+        {0,5,+1},//<min,max,step.
+        {5,10,+10},
+        {10,20,+30},
+        {20,50,+50},
+        {50,100,+250},
+        {100,200,+500},
+        {200,300,+1000},
+        {300,500,+1500},
+        {500,9999,+2000},
+    };
     switch(gGblPara.m_appMode)
     {
     case Free_Mode:
@@ -647,168 +669,63 @@ int ZServoThread::ZMapPixel2Servo(int servoID,int diff)
         break;
     case Track_Mode:
     {
-#if 1
-        const ZPix2MovTable table_positive[]={
-            {0,5,+1},//<min,max,step.
-            {5,10,+10},
-            {10,20,+30},
-            {20,50,+50},
-            {50,100,+250},
-            {100,200,+500},
-            {200,300,+1000},
-            {300,500,+1500},
-            {500,9999,+2000},
-        };
-        const ZPix2MovTable table_negative[]={
-            {-9999,-500,-2000},//<min,max,step.
-            {-500,-300,-1500},
-            {-300,-200,-1000},
-            {-200,-100,-500},
-            {-100,-50,-250},
-            {-50,-20,-50},
-            {-20,-10,-30},
-            {-10,-5,-10},
-            {-5,0,-1},
-        };
         //PID:servo_relative_move_step=k*x+b.
         int servo_relative_move_step=0;
         float k=1.0;
         float b=0.0;
         switch(servoID)
         {
-        case 0://slave-0: y axies.
+        case 0://slave-0: y axies,up-down.
             if(diff>0)
             {
-                for(qint32 i=0;i<sizeof(table_positive)/sizeof(table_positive[0]);i++)
+                for(qint32 i=0;i<sizeof(table_up_down)/sizeof(table_up_down[0]);i++)
                 {
-                    if((diff>table_positive[i].pixel_min) && (diff<=table_positive[i].pixel_max))
+                    if((diff>table_up_down[i].pixel_min) && (diff<=table_up_down[i].pixel_max))
                     {
-                        servo_relative_move_step=table_positive[i].move_step;
+                        servo_relative_move_step=table_up_down[i].move_step;
                         break;
                     }
                 }
             }else if(diff<0)
             {
-                for(qint32 i=0;i<sizeof(table_negative)/sizeof(table_negative[0]);i++)
+                for(qint32 i=0;i<sizeof(table_up_down)/sizeof(table_up_down[0]);i++)
                 {
-                    if((diff>=table_negative[i].pixel_min) && (diff<table_negative[i].pixel_max))
+                    //attention here.we add - before min&max and reverse min & max.
+                    if((diff >= -table_up_down[i].pixel_max) && (diff < -table_up_down[i].pixel_min))
                     {
-                        servo_relative_move_step=table_negative[i].move_step;
+                        servo_relative_move_step=-table_up_down[i].move_step;
                         break;
                     }
                 }
             }
-            //            if(diff>300)
-            //            {
-            //                servo_relative_move_step=+600;
-            //            }else if(diff>200 && diff<=300)
-            //            {
-            //                servo_relative_move_step=+300;
-            //            }else if(diff>100 && diff<=200)
-            //            {
-            //                servo_relative_move_step=+200;
-            //            }else if(diff>50 && diff<=100)
-            //            {
-            //                servo_relative_move_step=+50;
-            //            }else if(diff>20 && diff<=50)
-            //            {
-            //                servo_relative_move_step=+10;
-            //            }else if(diff>10 && diff<=20)
-            //            {
-            //                servo_relative_move_step=+5;
-            //            }else if(diff>0){
-            //                servo_relative_move_step=+1;
-            //            }else if(diff<-300)
-            //            {
-            //                servo_relative_move_step=-600;
-            //            }else if(diff<-200 && diff>=-300)
-            //            {
-            //                servo_relative_move_step=-300;
-            //            }else if(diff<-100 && diff>=-200)
-            //            {
-            //                servo_relative_move_step=-200;
-            //            }else if(diff<-50 && diff>=-100)
-            //            {
-            //                servo_relative_move_step=-50;
-            //            }else if(diff<-20 && diff>=-50)
-            //            {
-            //                servo_relative_move_step=-20;
-            //            }else if(diff<-10 && diff>=-20)
-            //            {
-            //                servo_relative_move_step=-10;
-            //            }else if(diff<0 && diff>=-10)
-            //            {
-            //                servo_relative_move_step=-1;
-            //            }
+
             break;
         case 1://slave-1:x axies.
             if(diff>0)
             {
-                for(qint32 i=0;i<sizeof(table_positive)/sizeof(table_positive[0]);i++)
+                for(qint32 i=0;i<sizeof(table_left_right)/sizeof(table_left_right[0]);i++)
                 {
-                    if((diff>table_positive[i].pixel_min) && (diff<=table_positive[i].pixel_max))
+                    if((diff>table_left_right[i].pixel_min) && (diff<=table_left_right[i].pixel_max))
                     {
-                        servo_relative_move_step=-table_positive[i].move_step;
+                        servo_relative_move_step=-table_left_right[i].move_step;
                         break;
                     }
                 }
             }else if(diff<0)
             {
-                for(qint32 i=0;i<sizeof(table_negative)/sizeof(table_negative[0]);i++)
+                for(qint32 i=0;i<sizeof(table_left_right)/sizeof(table_left_right[0]);i++)
                 {
-                    if((diff>=table_negative[i].pixel_min) && (diff<table_negative[i].pixel_max))
+                    //attention here.we add - before min&max and reverse min & max.
+                    if((diff >= -table_left_right[i].pixel_max) && (diff < -table_left_right[i].pixel_min))
                     {
-                        servo_relative_move_step=-table_negative[i].move_step;
+                        servo_relative_move_step=table_left_right[i].move_step;
                         break;
                     }
                 }
             }
-            //            if(diff>300)
-            //            {
-            //                servo_relative_move_step=-600;
-            //            }else if(diff>200 && diff<=300)
-            //            {
-            //                servo_relative_move_step=-400;
-            //            }else if(diff>100 && diff<=200)
-            //            {
-            //                servo_relative_move_step=-200;
-            //            }else if(diff>50 && diff<=100)
-            //            {
-            //                servo_relative_move_step=-50;
-            //            }else if(diff>20 && diff<=50)
-            //            {
-            //                servo_relative_move_step=-10;
-            //            }else if(diff>10 && diff<=20)
-            //            {
-            //                servo_relative_move_step=-5;
-            //            }else if(diff>0){
-            //                servo_relative_move_step=-1;
-            //            }else if(diff<-300)
-            //            {
-            //                servo_relative_move_step=+600;
-            //            }else if(diff<-200 && diff>=-300)
-            //            {
-            //                servo_relative_move_step=+400;
-            //            }else if(diff<-100 && diff>=-200)
-            //            {
-            //                servo_relative_move_step=+200;
-            //            }else if(diff<-50 && diff>=-100)
-            //            {
-            //                servo_relative_move_step=+50;
-            //            }else if(diff<-20 && diff>=-50)
-            //            {
-            //                servo_relative_move_step=+50;
-            //            }else if(diff<-10 && diff>=-20)
-            //            {
-            //                servo_relative_move_step=+10;
-            //            }else if(diff<0 && diff>=-10)
-            //            {
-            //                servo_relative_move_step=+1;
-            //            }
             break;
         }
         return servo_relative_move_step;
-#endif
     }
         break;
     }
