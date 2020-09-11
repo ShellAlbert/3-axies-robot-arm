@@ -14,6 +14,7 @@
 #include <QVector>
 #include "zctrlbar.h"
 #include "zdirectionbar.h"
+#include "zdifffifo.h"
 #include <QLabel>
 #include <QTimer>
 typedef struct{
@@ -25,7 +26,7 @@ class ZMainUI : public QWidget
     Q_OBJECT
 
 public:
-    ZMainUI(QWidget *parent = 0);
+    ZMainUI(ZDiffFIFO *fifoDIFF,QWidget *parent = 0);
     ~ZMainUI();
 
     bool ZDoInit();
@@ -37,6 +38,8 @@ public slots:
     void ZSlotLocked(bool,QRect rect);
     void ZSlotInitBox(const QImage &img);
     void ZSlotDiffXY(int diffX,int diffY);
+    void ZSlotDiffAvailable(int nums);
+    void ZSlotMatAvailable(int nums);
 public slots:
     void ZSlotMove2Left();
     void ZSlotMove2Right();
@@ -94,6 +97,10 @@ private:
 private:
     QTimer m_timerLost;
     qint32 m_iLostTimeout;
+private:
+    ZDiffFIFO *m_fifoDIFF;
+    int m_diffAvailableNums;
+    int m_matAvailableNums;
 };
 
 #endif // ZMAINUI_H

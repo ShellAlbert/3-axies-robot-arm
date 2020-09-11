@@ -116,4 +116,10 @@ enum
     PPM_POSITION_ABSOLUTE,
     PPM_POSITION_RELATIVE,
 };
+
+typedef struct{
+    int diff_x;
+    int diff_y;
+    int move_mode;
+}ZDiffResult;
 #endif // ZGBLPARA_H

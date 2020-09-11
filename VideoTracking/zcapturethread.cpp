@@ -49,11 +49,14 @@ void ZCaptureThread::run()
         //put cvMat to FIFO under track mode.
         if(gGblPara.m_appMode==Track_Mode)
         {
+            //25fps/2=12fps.
             if(iSkipFrm++>=5)
             {
-                if(this->m_fifo->ZAddFrame(mat))
+                if(this->m_fifo->ZTryPutMat(mat,100))
                 {
-                    qDebug()<<"put to fifo okay";
+                    //qDebug()<<"put to fifo okay";
+                }else{
+                    qDebug()<<"put into fifo timeout";
                 }
                 iSkipFrm=0;
             }

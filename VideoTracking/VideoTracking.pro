@@ -34,7 +34,8 @@ SOURCES += \
     zdirectionbar.cpp \
     zpidcalc.cpp \
     zdialoghome.cpp \
-    zservothread.cpp
+    zservothread.cpp \
+    zdifffifo.cpp
 
 HEADERS += \
         zmainui.h \
@@ -46,7 +47,8 @@ HEADERS += \
     zdirectionbar.h \
     zpidcalc.h \
     zdialoghome.h \
-    zservothread.h
+    zservothread.h \
+    zdifffifo.h
 
 
 #openCV 4.1.1

@@ -216,9 +216,9 @@ void check_slave_config_state(void)
     sc_copley_state[1]=s1;
 }
 
-ZServoThread::ZServoThread()
+ZServoThread::ZServoThread(ZDiffFIFO *fifoDIFF)
 {
-
+    this->m_fifoDIFF=fifoDIFF;
 }
 void ZServoThread::run()
 {
@@ -321,8 +321,9 @@ void ZServoThread::run()
 
     g_SysFSM=SYS_WORKING_SAFE_MODE;
     //signal(SIGINT,g_SignalHandler);
-    int pixelDiffX,pixelDiffY;
-    int PPMPositionMethod;
+
+    //save the diff x&y fetched from Diff FIFO.
+    ZDiffResult diffRet;
     while(!gGblPara.m_bExitFlag)
     {
         //1000us=1ms.
@@ -406,11 +407,11 @@ void ZServoThread::run()
                     //Profile Velocity.
                     ecrt_slave_config_sdo32(sc_copley[i],0x6081,0x00,500000);
                     //Profile Acceleration.
-                    ecrt_slave_config_sdo32(sc_copley[i],0x6083,0x00,5000);
+                    ecrt_slave_config_sdo32(sc_copley[i],0x6083,0x00,50000);
                     //Profile Deceleration.
-                    ecrt_slave_config_sdo32(sc_copley[i],0x6084,0x00,5000);
+                    ecrt_slave_config_sdo32(sc_copley[i],0x6084,0x00,50000);
                     //Quick Stop Deceleration.
-                    ecrt_slave_config_sdo32(sc_copley[i],0x6085,0x00,5000);
+                    ecrt_slave_config_sdo32(sc_copley[i],0x6085,0x00,50000);
                     //Motion Profile Type=T.
                     ecrt_slave_config_sdo16(sc_copley[i],0x6086,0x00,0);
                 }
@@ -441,92 +442,93 @@ void ZServoThread::run()
                 break;
             case 5://Set Target Position.
             {
-                //100ms.
-                if(gGblPara.usedSema->tryAcquire(1,1000))
-                {
-                    int s0_cur_pos,s1_cur_pos;
-                    int bOverflow=0;
+                int s0_cur_pos,s1_cur_pos;
+                int s0_tar_pos,s1_tar_pos;
 
-                    pixelDiffX=gGblPara.pixelDiffX;
-                    pixelDiffY=gGblPara.pixelDiffY;
-                    PPMPositionMethod=gGblPara.PPMPositionMethod;
-                    gGblPara.freeSema->release();
-                    QString str=QString("5:get new target position (%1,%2).").arg(pixelDiffX).arg(pixelDiffY);
+                //try to fetch diff x&y from diff FIFO.
+                if(this->m_fifoDIFF->ZTryGetDiff(diffRet,100))
+                {
+                    emit this->ZSigDiffAvailable(this->m_fifoDIFF->ZGetUsedNums());
+
+                    QString str=QString("5:get new target position (%1,%2).").arg(diffRet.diff_x).arg(diffRet.diff_y);
                     emit this->ZSigLog(false,str);
 
                     /***********convert pixel diff to encoder value to archieve fast move***********/
-                    //slave0:up-down direction.
+                    //slave0:up-down direction -> y.
                     //so here relate pixelDiffY with slave0.
-                    int pos0=this->ZMapPixel2Servo(0,pixelDiffY);
+                    s0_tar_pos=this->ZMapPixel2Servo(0,diffRet.diff_y);
 
-                    //slave1:left-right direction.
+                    //slave1:left-right direction -> x.
                     //so here relate pixelDiffX with slave1.
-                    int pos1=this->ZMapPixel2Servo(1,pixelDiffX);
+                    s1_tar_pos=this->ZMapPixel2Servo(1,diffRet.diff_x);
 
                     /***********convert pixel diff to encoder value to archieve fast move***********/
-                    switch(PPMPositionMethod)
+
+                    switch(diffRet.move_mode)
                     {
                     case PPM_POSITION_ABSOLUTE:
                         //slave-0 minimum & maximum limit.
-                        if(pos0<RANGE_LIMIT_MIN)
+                        if(s0_tar_pos<RANGE_LIMIT_MIN)
                         {
-                            pos0=RANGE_LIMIT_MIN;
+                            s0_tar_pos=RANGE_LIMIT_MIN;
                             emit this->ZSigLog(true,QString("5:s0 absolute position minimum limit."));
-                        }else if(pos0>RANGE_LIMIT_MAX)
+                        }else if(s0_tar_pos>RANGE_LIMIT_MAX)
                         {
-                            pos0=RANGE_LIMIT_MAX;
+                            s0_tar_pos=RANGE_LIMIT_MAX;
                             emit this->ZSigLog(true,QString("5:s0 absolute position maximum limit."));
                         }
                         //slave-1 minimum & maximum limit.
-                        if(pos1<RANGE_LIMIT_MIN)
+                        if(s1_tar_pos<RANGE_LIMIT_MIN)
                         {
-                            pos1=RANGE_LIMIT_MIN;
+                            s1_tar_pos=RANGE_LIMIT_MIN;
                             emit this->ZSigLog(true,QString("5:s1 absolute position minimum limit."));
-                        }else if(pos1>RANGE_LIMIT_MAX)
+                        }else if(s1_tar_pos>RANGE_LIMIT_MAX)
                         {
-                            pos1=RANGE_LIMIT_MAX;
+                            s1_tar_pos=RANGE_LIMIT_MAX;
                             emit this->ZSigLog(true,QString("5:s1 absolute position maximum limit."));
                         }
 
-                        EC_WRITE_S32(domainOutput_pd+targetPosition[0],pos0);
-                        EC_WRITE_S32(domainOutput_pd+targetPosition[1],pos1);
-                        emit this->ZSigLog(false,QString("5:set target absolute position(%1,%2).").arg(pos0).arg(pos1));
+                        EC_WRITE_S32(domainOutput_pd+targetPosition[0],s0_tar_pos);
+                        EC_WRITE_S32(domainOutput_pd+targetPosition[1],s1_tar_pos);
+                        emit this->ZSigLog(false,QString("5:set target absolute position(%1,%2).").arg(s0_tar_pos).arg(s1_tar_pos));
                         break;
                     case PPM_POSITION_RELATIVE:
                         s0_cur_pos=EC_READ_S32(domainInput_pd + actPosition[0]);
                         s1_cur_pos=EC_READ_S32(domainInput_pd + actPosition[1]);
                         //slave-0 minimum & maximum limit.
-                        if((pos0+s0_cur_pos)<RANGE_LIMIT_MIN)
+                        if((s0_tar_pos+s0_cur_pos)<RANGE_LIMIT_MIN)
                         {
-                            pos0=RANGE_LIMIT_MIN-s0_cur_pos;
+                            s0_tar_pos=RANGE_LIMIT_MIN-s0_cur_pos;
                             emit this->ZSigLog(true,QString("5:s0 absolute position minimum limit."));
-                        }else if((pos0+s0_cur_pos)>RANGE_LIMIT_MAX)
+                        }else if((s0_tar_pos+s0_cur_pos)>RANGE_LIMIT_MAX)
                         {
-                            pos0=RANGE_LIMIT_MAX-s0_cur_pos;
+                            s0_tar_pos=RANGE_LIMIT_MAX-s0_cur_pos;
                             emit this->ZSigLog(true,QString("5:s0 absolute position maximum limit."));
                         }
                         //slave-1 minimum & maximum limit.
-                        if((pos1+s1_cur_pos)<RANGE_LIMIT_MIN)
+                        if((s1_tar_pos+s1_cur_pos)<RANGE_LIMIT_MIN)
                         {
-                            pos1=RANGE_LIMIT_MIN-s1_cur_pos;
+                            s1_tar_pos=RANGE_LIMIT_MIN-s1_cur_pos;
                             emit this->ZSigLog(true,QString("5:s1 absolute position minimum limit."));
-                        }else if((pos1+s1_cur_pos)>RANGE_LIMIT_MAX)
+                        }else if((s1_tar_pos+s1_cur_pos)>RANGE_LIMIT_MAX)
                         {
-                            pos1=RANGE_LIMIT_MAX-s1_cur_pos;
+                            s1_tar_pos=RANGE_LIMIT_MAX-s1_cur_pos;
                             emit this->ZSigLog(true,QString("5:s1 absolute position maximum limit."));
                         }
 
-                        EC_WRITE_S32(domainOutput_pd+targetPosition[0],pos0);
-                        EC_WRITE_S32(domainOutput_pd+targetPosition[1],pos1);
-                        emit this->ZSigLog(false,QString("5:set target relative position (%1,%2).").arg(pos0).arg(pos1));
+                        EC_WRITE_S32(domainOutput_pd+targetPosition[0],s0_tar_pos);
+                        EC_WRITE_S32(domainOutput_pd+targetPosition[1],s1_tar_pos);
+                        emit this->ZSigLog(false,QString("5:set target relative position (%1,%2).").arg(s0_tar_pos).arg(s1_tar_pos));
                         break;
                     }
+
+                    //finite state machine to next state.
                     iTickCnt++;
                 }
             }
                 break;
             case 6://Start Positioning.
-                switch(PPMPositionMethod)
+                switch(diffRet.move_mode)
                 {
                 case PPM_POSITION_ABSOLUTE:
                     for(int i=0;i<2;i++)
@@ -557,7 +559,7 @@ void ZServoThread::run()
                     emit this->ZSigLog(false,"7:set point acknowledge.");
                     iTickCnt++;
                 }else{
-                    emit this->ZSigLog(false,"7:set point not acknowledge.");
+                    //emit this->ZSigLog(false,"7:set point not acknowledge.");
                     iTimeout--;
                     if(iTimeout==0)
                     {

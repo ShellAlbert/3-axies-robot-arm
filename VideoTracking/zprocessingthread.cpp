@@ -10,9 +10,10 @@
 #include <time.h>
 #include <stdio.h>
 #include <string.h>
-ZProcessingThread::ZProcessingThread(ZMatFIFO *fifo)
+ZProcessingThread::ZProcessingThread(ZMatFIFO *fifo,ZDiffFIFO *fifoDIFF)
 {
     this->m_fifo=fifo;
+    this->m_fifoDIFF=fifoDIFF;
 }
 void ZProcessingThread::run()
 {
@@ -44,10 +45,11 @@ void ZProcessingThread::run()
     while(!gGblPara.m_bExitFlag)
     {
         cv::Mat mat;
-        if(!this->m_fifo->ZGetFrame(mat))
+        if(!this->m_fifo->ZTryGetMat(mat,100))
         {
             continue;
         }
+        emit this->ZSigMatAvailable(this->m_fifo->ZGetUsedNums());
 
         //we do ImgProc on gray.
         //cv::cvtColor(mat,mat,cv::COLOR_RGB2GRAY);
@@ -115,12 +117,17 @@ void ZProcessingThread::run()
                 {
                     emit this->ZSigDiffXY(diffX,diffY);
 
-                    gGblPara.freeSema->acquire();
-                    gGblPara.PPMPositionMethod=PPM_POSITION_RELATIVE;
-                    gGblPara.pixelDiffX=diffX;
-                    gGblPara.pixelDiffY=diffY;
-                    //qDebug()<<"imp update diff xy:"<<diffX<<diffY;
-                    gGblPara.usedSema->release();
+                    //add diff x&y to difference FIFO for ServoThread.
+                    ZDiffResult diffRet;
+                    diffRet.diff_x=diffX;
+                    diffRet.diff_y=diffY;
+                    diffRet.move_mode=PPM_POSITION_RELATIVE;
+                    if(this->m_fifoDIFF->ZTryPutDiff(diffRet,100))
+                    {
+                        //put to fifo successfully.
+                    }else{
+                        qDebug()<<"Warning,put diff x&y timeout";
+                    }
                 }
             }else{
                 //tracking failed.

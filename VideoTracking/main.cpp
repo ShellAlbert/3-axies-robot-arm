@@ -2,6 +2,7 @@
 #include <QApplication>
 #include "zcapturethread.h"
 #include "zmatfifo.h"
+#include "zdifffifo.h"
 #include "zprocessingthread.h"
 #include <zservothread.h>
 #include <QFile>
@@ -28,10 +29,11 @@ int main(int argc, char *argv[])
 
     //create thread & UI.
     ZMatFIFO fifoCap1(25);
+    ZDiffFIFO diffFIFO(25);
     ZCaptureThread cap1("192.168.137.12",&fifoCap1);
-    ZProcessingThread proc1(&fifoCap1);
-    ZServoThread servoThread;
-    ZMainUI win;
+    ZProcessingThread proc1(&fifoCap1,&diffFIFO);
+    ZServoThread servoThread(&diffFIFO);
+    ZMainUI win(&diffFIFO);
 
     //make connections.
     QObject::connect(&cap1,SIGNAL(ZSigNewImg(QImage)),&win,SLOT(ZSlotUpdateImg(QImage)));
@@ -40,6 +42,8 @@ int main(int argc, char *argv[])
     QObject::connect(&proc1,SIGNAL(ZSigDiffXY(int,int)),&win,SLOT(ZSlotDiffXY(int,int)));
     QObject::connect(&servoThread,SIGNAL(ZSigLog(bool,QString)),&win,SLOT(ZSlotLog(bool,QString)));
     QObject::connect(&servoThread,SIGNAL(ZSigPDO(int,int,int,int)),&win,SLOT(ZSlotPDO(int,int,int,int)));
+    QObject::connect(&servoThread,SIGNAL(ZSigDiffAvailable(int)),&win,SLOT(ZSlotDiffAvailable(int)));
+    QObject::connect(&proc1,SIGNAL(ZSigMatAvailable(int)),&win,SLOT(ZSlotMatAvailable(int)));
     if(!win.ZDoInit())
     {
         qDebug()<<"main UI initial failed.";

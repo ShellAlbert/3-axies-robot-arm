@@ -19,9 +19,11 @@
 #include <arpa/inet.h>
 #include <signal.h>
 #include <fcntl.h>
-ZMainUI::ZMainUI(QWidget *parent)
+ZMainUI::ZMainUI(ZDiffFIFO *fifoDIFF,QWidget *parent)
     : QWidget(parent)
 {
+    this->m_fifoDIFF=fifoDIFF;
+
     for(qint32 i=0;i<2;i++)
     {
         this->m_statusWord[i]=0;
@@ -34,6 +36,10 @@ ZMainUI::ZMainUI(QWidget *parent)
 
     this->m_bLocked=false;
     this->m_bSelectROI=false;
+
+
+    this->m_diffAvailableNums=0;
+    this->m_matAvailableNums=0;
 }
 
 ZMainUI::~ZMainUI()
@@ -144,7 +150,7 @@ void ZMainUI::paintEvent(QPaintEvent *e)
 
         //draw FreeMode.
         QPoint ptFree(0,0+p.fontMetrics().height());
-        p.drawText(ptFree,QString("Free mode"));
+        p.drawText(ptFree,QString("FREE"));
     }
         break;
     case SelectROI_Mode:
@@ -156,7 +162,7 @@ void ZMainUI::paintEvent(QPaintEvent *e)
 
         //draw SelectROI.
         QPoint ptROI(0,0+p.fontMetrics().height());
-        p.drawText(ptROI,QString("Select ROI"));
+        p.drawText(ptROI,QString("SELECT ROI"));
 
         //draw a rectangle mask on the image.
         this->ZDrawROIMask(p,this->m_img);
@@ -200,18 +206,30 @@ void ZMainUI::paintEvent(QPaintEvent *e)
     painter.drawImage(QRectF(0,0,this->width(),this->height()),this->m_img);
 
 
-    //draw frame counter & fps.
-    painter.setPen(QPen(Qt::red,2));
-    QString strFrmCount=QString::number(this->getFps());
-    //we keep 10 pixels space.
+    //draw UI flush fps on right-top corner.
+    painter.setPen(QPen(Qt::yellow,2));
     QFont fontFrm=painter.font();
-    fontFrm.setPixelSize(66);
+    fontFrm.setPixelSize(50);
     painter.setFont(fontFrm);
-    QPoint pt;
-    pt.setX(this->width()-painter.fontMetrics().width(strFrmCount)-10);
-    pt.setY(painter.fontMetrics().height()+10);
-    painter.drawText(pt,strFrmCount);
 
+    QString strFps=QString::number(this->getFps())+QString("FPS");
+    QPoint ptFps;
+    ptFps.setX(this->width()-painter.fontMetrics().width(strFps)-10);
+    ptFps.setY(painter.fontMetrics().height()+10);
+    painter.drawText(ptFps,strFps);
+
+    //draw diff FIFO available nums.
+    QString strDiffAvailableNums=QString("DF:")+QString::number(this->m_diffAvailableNums);
+    QPoint ptDiffAvailable;
+    ptDiffAvailable.setX(this->width()-painter.fontMetrics().width(strDiffAvailableNums)-10);
+    ptDiffAvailable.setY(painter.fontMetrics().height()*2+10);
+    painter.drawText(ptDiffAvailable,strDiffAvailableNums);
+    //draw cvMat FIFO available nums.
+    QString strMatAvailableNums=QString("MF:")+QString::number(this->m_matAvailableNums);
+    QPoint ptMatAvailable;
+    ptMatAvailable.setX(this->width()-painter.fontMetrics().width(strMatAvailableNums)-10);
+    ptMatAvailable.setY(painter.fontMetrics().height()*3+10);
+    painter.drawText(ptMatAvailable,strMatAvailableNums);
 
     //draw the Axies0,Axies1 on the bottom.
     QString strS0Pos=QString::number(this->m_position[0]);
@@ -552,101 +570,14 @@ void ZMainUI::ZSlotDiffXY(int diffX,int diffY)
 {
     this->m_diffX=diffX;
     this->m_diffY=diffY;
-#if 1
-    //processing result.
-    char buffer_x[256];
-    if(diffX>0)
-    {
-        if(diffX>200)
-        {
-            strcpy(buffer_x,"rel_pos=0,-200\n");
-        }else if(diffX>100 && diffX<=200)
-        {
-            strcpy(buffer_x,"rel_pos=0,-100\n");
-        }else if(diffX>50 && diffX<=100)
-        {
-            strcpy(buffer_x,"rel_pos=0,-50\n");
-        }else if(diffX>20 && diffX<=50)
-        {
-            strcpy(buffer_x,"rel_pos=0,-10\n");
-        }else if(diffX>10 && diffX<=20)
-        {
-            strcpy(buffer_x,"rel_pos=0,-5\n");
-        }else{
-            strcpy(buffer_x,"rel_pos=0,-1\n");
-        }
-    }else if(diffX<0)
-    {
-        if(diffX<-200)
-        {
-            strcpy(buffer_x,"rel_pos=0,+200\n");
-        }else if(diffX<-100 && diffX>=-200)
-        {
-            strcpy(buffer_x,"rel_pos=0,+100\n");
-        }else if(diffX<-50 && diffX>=-100)
-        {
-            strcpy(buffer_x,"rel_pos=0,+50\n");
-        }else if(diffX<-20 && diffX>=-50)
-        {
-            strcpy(buffer_x,"rel_pos=0,+10\n");
-        }else if(diffX<-10 && diffX>=-20)
-        {
-            strcpy(buffer_x,"rel_pos=0,+5\n");
-        }else{
-            strcpy(buffer_x,"rel_pos=0,+1\n");
-        }
-    }
-    //qDebug()<<buffer_x;
-    int len_x=strlen(buffer_x);
-    int len_x2=htonl(len_x);
-#endif
-#if 1
-    char buffer_y[256];
-    if(diffY>0)
-    {
-        if(diffY>200)
-        {
-            strcpy(buffer_y,"rel_pos=+200,0\n");
-        }else if(diffY>100 && diffY<=200)
-        {
-            strcpy(buffer_y,"rel_pos=+100,0\n");
-        }else if(diffY>50 && diffX<=100)
-        {
-            strcpy(buffer_y,"rel_pos=+50,0\n");
-        }else if(diffY>20 && diffY<=50)
-        {
-            strcpy(buffer_y,"rel_pos=+20,0\n");
-        }else if(diffY>10 && diffY<=20)
-        {
-            strcpy(buffer_y,"rel_pos=+5,0\n");
-        }else{
-            strcpy(buffer_y,"rel_pos=+1,0\n");
-        }
-    }else if(diffY<0)
-    {
-        if(diffY<-200)
-        {
-            strcpy(buffer_y,"rel_pos=-200,0\n");
-        }else if(diffY<-100 && diffY>=-200)
-        {
-            strcpy(buffer_y,"rel_pos=-100,0\n");
-        }else if(diffY<-50 && diffY>=-100)
-        {
-            strcpy(buffer_y,"rel_pos=-50,0\n");
-        }else if(diffY<-20 && diffY>=-50)
-        {
-            strcpy(buffer_y,"rel_pos=-10,0\n");
-        }else if(diffY<-10 && diffY>=-20)
-        {
-            strcpy(buffer_y,"rel_pos=-5,0\n");
-        }else{
-            strcpy(buffer_y,"rel_pos=-1,0\n");
-        }
-    }
-    //qDebug()<<buffer_y;
-    int len_y=strlen(buffer_y);
-    int len_y2=htonl(len_y);
-#endif
+}
+void ZMainUI::ZSlotDiffAvailable(int nums)
+{
+    this->m_diffAvailableNums=nums;
+}
+void ZMainUI::ZSlotMatAvailable(int nums)
+{
+    this->m_matAvailableNums=nums;
 }
 void ZMainUI::ZSlotLog(bool bErrFlag,QString log)
 {
@@ -662,207 +593,95 @@ void ZMainUI::ZSlotLog(bool bErrFlag,QString log)
 
 void ZMainUI::ZSlotMove2Left()
 {
-#if 1//relative move
-    if(gGblPara.freeSema->tryAcquire())
+    ZDiffResult ret;
+    ret.move_mode=PPM_POSITION_RELATIVE;
+    switch(gGblPara.m_iStepMode)
     {
-        gGblPara.PPMPositionMethod=PPM_POSITION_RELATIVE;
-        switch(gGblPara.m_iStepMode)
-        {
-        case 0:
-            gGblPara.pixelDiffX=-10000;
-            gGblPara.pixelDiffY=0;
-            break;
-        case 1:
-            gGblPara.pixelDiffX=-3000;
-            gGblPara.pixelDiffY=0;
-            break;
-        case 2:
-            gGblPara.pixelDiffX=-1000;
-            gGblPara.pixelDiffY=0;
-            break;
-        default:
-            break;
-        }
-        gGblPara.usedSema->release();
+    case 0:
+        ret.diff_x=-10000;
+        ret.diff_y=0;
+        break;
+    case 1:
+        ret.diff_x=-3000;
+        ret.diff_y=0;
+        break;
+    case 2:
+        ret.diff_x=-1000;
+        ret.diff_y=0;
+        break;
+    default:
+        break;
     }
-#endif
-#if 0//absolute move
-    if(gGblPara.freeSema->tryAcquire())
-    {
-        gGblPara.PPMPositionMethod=PPM_POSITION_ABSOLUTE;
-        switch(gGblPara.m_iStepMode)
-        {
-        case 0:
-            gGblPara.pixelDiffX=gGblPara.m_servoCurPos[1]-10000;
-            gGblPara.pixelDiffY=gGblPara.m_servoCurPos[0];
-            break;
-        case 1:
-            gGblPara.pixelDiffX=gGblPara.m_servoCurPos[1]-3000;
-            gGblPara.pixelDiffY=gGblPara.m_servoCurPos[0];
-            break;
-        case 2:
-            gGblPara.pixelDiffX=gGblPara.m_servoCurPos[1]-1000;
-            gGblPara.pixelDiffY=gGblPara.m_servoCurPos[0];
-            break;
-        default:
-            break;
-        }
-        gGblPara.usedSema->release();
-    }
-#endif
+    this->m_fifoDIFF->ZTryPutDiff(ret,100);
 }
 void ZMainUI::ZSlotMove2Right()
 {
-#if 1//relative move
-    if(gGblPara.freeSema->tryAcquire())
+    ZDiffResult ret;
+    ret.move_mode=PPM_POSITION_RELATIVE;
+    switch(gGblPara.m_iStepMode)
     {
-        gGblPara.PPMPositionMethod=PPM_POSITION_RELATIVE;
-        switch(gGblPara.m_iStepMode)
-        {
-        case 0:
-            gGblPara.pixelDiffX=+10000;
-            gGblPara.pixelDiffY=0;
-            break;
-        case 1:
-            gGblPara.pixelDiffX=+3000;
-            gGblPara.pixelDiffY=0;
-            break;
-        case 2:
-            gGblPara.pixelDiffX=+1000;
-            gGblPara.pixelDiffY=0;
-            break;
-        default:
-            break;
-        }
-        gGblPara.usedSema->release();
+    case 0:
+        ret.diff_x=+10000;
+        ret.diff_y=0;
+        break;
+    case 1:
+        ret.diff_x=+3000;
+        ret.diff_y=0;
+        break;
+    case 2:
+        ret.diff_x=+1000;
+        ret.diff_y=0;
+        break;
+    default:
+        break;
     }
-#endif
-#if 0//absolute move
-    if(gGblPara.freeSema->tryAcquire())
-    {
-        gGblPara.PPMPositionMethod=PPM_POSITION_ABSOLUTE;
-        switch(gGblPara.m_iStepMode)
-        {
-        case 0:
-            gGblPara.pixelDiffX=gGblPara.m_servoCurPos[1]+10000;
-            gGblPara.pixelDiffY=gGblPara.m_servoCurPos[0];
-            break;
-        case 1:
-            gGblPara.pixelDiffX=gGblPara.m_servoCurPos[1]+3000;
-            gGblPara.pixelDiffY=gGblPara.m_servoCurPos[0];
-            break;
-        case 2:
-            gGblPara.pixelDiffX=gGblPara.m_servoCurPos[1]+1000;
-            gGblPara.pixelDiffY=gGblPara.m_servoCurPos[0];
-            break;
-        default:
-            break;
-        }
-        gGblPara.usedSema->release();
-    }
-#endif
+    this->m_fifoDIFF->ZTryPutDiff(ret,100);
 }
 void ZMainUI::ZSlotMove2Up()
 {
-#if 1//relative move
-    if(gGblPara.freeSema->tryAcquire())
+    ZDiffResult ret;
+    ret.move_mode=PPM_POSITION_RELATIVE;
+    switch(gGblPara.m_iStepMode)
     {
-        gGblPara.PPMPositionMethod=PPM_POSITION_RELATIVE;
-        switch(gGblPara.m_iStepMode)
-        {
-        case 0:
-            gGblPara.pixelDiffX=0;
-            gGblPara.pixelDiffY=+10000;
-            break;
-        case 1:
-            gGblPara.pixelDiffX=0;
-            gGblPara.pixelDiffY=+3000;
-            break;
-        case 2:
-            gGblPara.pixelDiffX=0;
-            gGblPara.pixelDiffY=+1000;
-            break;
-        default:
-            break;
-        }
-        gGblPara.usedSema->release();
+    case 0:
+        ret.diff_x=0;
+        ret.diff_y=+10000;
+        break;
+    case 1:
+        ret.diff_x=0;
+        ret.diff_y=+3000;
+        break;
+    case 2:
+        ret.diff_x=0;
+        ret.diff_y=+1000;
+        break;
+    default:
+        break;
     }
-#endif
-#if 0//absolute move
-    if(gGblPara.freeSema->tryAcquire())
-    {
-        gGblPara.PPMPositionMethod=PPM_POSITION_ABSOLUTE;
-        switch(gGblPara.m_iStepMode)
-        {
-        case 0:
-            gGblPara.pixelDiffX=gGblPara.m_servoCurPos[1];
-            gGblPara.pixelDiffY=gGblPara.m_servoCurPos[0]+10000;
-            break;
-        case 1:
-            gGblPara.pixelDiffX=gGblPara.m_servoCurPos[1];
-            gGblPara.pixelDiffY=gGblPara.m_servoCurPos[0]+3000;
-            break;
-        case 2:
-            gGblPara.pixelDiffX=gGblPara.m_servoCurPos[1];
-            gGblPara.pixelDiffY=gGblPara.m_servoCurPos[0]+1000;
-            break;
-        default:
-            break;
-        }
-        gGblPara.usedSema->release();
-    }
-#endif
+    this->m_fifoDIFF->ZTryPutDiff(ret,100);
 }
 void ZMainUI::ZSlotMove2Down()
 {
-#if 1//relative move
-    if(gGblPara.freeSema->tryAcquire())
+    ZDiffResult ret;
+    ret.move_mode=PPM_POSITION_RELATIVE;
+    switch(gGblPara.m_iStepMode)
     {
-        gGblPara.PPMPositionMethod=PPM_POSITION_RELATIVE;
-        switch(gGblPara.m_iStepMode)
-        {
-        case 0:
-            gGblPara.pixelDiffX=0;
-            gGblPara.pixelDiffY=-10000;
-            break;
-        case 1:
-            gGblPara.pixelDiffX=0;
-            gGblPara.pixelDiffY=-3000;
-            break;
-        case 2:
-            gGblPara.pixelDiffX=0;
-            gGblPara.pixelDiffY=-1000;
-            break;
-        default:
-            break;
-        }
-        gGblPara.usedSema->release();
+    case 0:
+        ret.diff_x=0;
+        ret.diff_y=-10000;
+        break;
+    case 1:
+        ret.diff_x=0;
+        ret.diff_y=-3000;
+        break;
+    case 2:
+        ret.diff_x=0;
+        ret.diff_y=-1000;
+        break;
+    default:
+        break;
     }
-#endif
-#if 0//absolute move
-    if(gGblPara.freeSema->tryAcquire())
-    {
-        gGblPara.PPMPositionMethod=PPM_POSITION_ABSOLUTE;
-        switch(gGblPara.m_iStepMode)
-        {
-        case 0:
-            gGblPara.pixelDiffX=gGblPara.m_servoCurPos[1];
-            gGblPara.pixelDiffY=gGblPara.m_servoCurPos[0]-10000;
-            break;
-        case 1:
-            gGblPara.pixelDiffX=gGblPara.m_servoCurPos[1];
-            gGblPara.pixelDiffY=gGblPara.m_servoCurPos[0]-3000;
-            break;
-        case 2:
-            gGblPara.pixelDiffX=gGblPara.m_servoCurPos[1];
-            gGblPara.pixelDiffY=gGblPara.m_servoCurPos[0]-1000;
-            break;
-        default:
-            break;
-        }
-        gGblPara.usedSema->release();
-    }
-#endif
+    this->m_fifoDIFF->ZTryPutDiff(ret,100);
 }
 void ZMainUI::ZSlotHome()
 {
@@ -870,28 +689,26 @@ void ZMainUI::ZSlotHome()
     //    diaHome.setGeometry(0,0,600,300);
     //    diaHome.show();
 
-    if(gGblPara.freeSema->tryAcquire())
+    ZDiffResult ret;
+    ret.move_mode=PPM_POSITION_ABSOLUTE;
+    switch(gGblPara.m_iStepMode)
     {
-        gGblPara.PPMPositionMethod=PPM_POSITION_ABSOLUTE;
-        switch(gGblPara.m_iStepMode)
-        {
-        case 0:
-            gGblPara.pixelDiffX=0;
-            gGblPara.pixelDiffY=0;
-            break;
-        case 1:
-            gGblPara.pixelDiffX=0;
-            gGblPara.pixelDiffY=0;
-            break;
-        case 2:
-            gGblPara.pixelDiffX=0;
-            gGblPara.pixelDiffY=0;
-            break;
-        default:
-            break;
-        }
-        gGblPara.usedSema->release();
+    case 0:
+        ret.diff_x=0;
+        ret.diff_y=0;
+        break;
+    case 1:
+        ret.diff_x=0;
+        ret.diff_y=0;
+        break;
+    case 2:
+        ret.diff_x=0;
+        ret.diff_y=0;
+        break;
+    default:
+        break;
     }
+    this->m_fifoDIFF->ZTryPutDiff(ret,100);
 }
 void ZMainUI::ZSlotScan()
 {

@@ -9,16 +9,15 @@ class ZMatFIFO
 {
 public:
     ZMatFIFO(qint32 iSize);
-    bool ZAddFrame(const cv::Mat &frame);
-    bool ZGetFrame(cv::Mat &frame);
-    void ZClearFIFO();
-    qint32 ZGetSize();
+    bool ZTryPutMat(const cv::Mat &mat,int milliseconds=1000);
+    bool ZTryGetMat(cv::Mat &mat,int milliseconds=1000);
+    int ZGetUsedNums();
+    int ZGetFreeNums();
+    ~ZMatFIFO();
 private:
-    QMutex m_mutex;
     QQueue<cv::Mat> m_queue;
     QSemaphore *m_freeSema;
     QSemaphore *m_usedSema;
-    qint32 m_iSize;
 };
 
 #endif // ZMATFIFO_H
