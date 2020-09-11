@@ -3,6 +3,11 @@
 
 #include <QThread>
 #include "zdifffifo.h"
+typedef struct{
+    int pixel_min;
+    int pixel_max;
+    int move_step;
+}ZPix2MovTable;
 class ZServoThread : public QThread
 {
     Q_OBJECT

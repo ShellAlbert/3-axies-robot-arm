@@ -25,6 +25,19 @@ bool ZDiffFIFO::ZTryGetDiff(ZDiffResult &diff,int milliseconds)
     }
     return false;
 }
+bool ZDiffFIFO::ZTryGetLastDiff(ZDiffResult &diff,int milliseconds)
+{
+    if(this->m_usedSema->tryAcquire(1,milliseconds))
+    {
+        while(!this->m_queue.isEmpty())
+        {
+            diff=this->m_queue.dequeue();
+        }
+        this->m_freeSema->release();
+        return true;
+    }
+    return false;
+}
 ZDiffFIFO::~ZDiffFIFO()
 {
 

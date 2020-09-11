@@ -10,6 +10,7 @@ public:
     ZDiffFIFO(qint32 iSize);
     bool ZTryPutDiff(const ZDiffResult &diff,int milliseconds=1000);
     bool ZTryGetDiff(ZDiffResult &diff,int milliseconds=1000);
+    bool ZTryGetLastDiff(ZDiffResult &diff,int milliseconds=1000);
     int ZGetUsedNums();
     int ZGetFreeNums();
     ~ZDiffFIFO();
