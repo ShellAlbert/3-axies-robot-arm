@@ -135,9 +135,6 @@ void ZMainUI::paintEvent(QPaintEvent *e)
 
     //draw split lines on image.
     //this->ZDrawSplitGrid(p,this->m_img);
-    p.setPen(QPen(Qt::green,2));
-    p.drawLine(QPointF(0,this->m_img.height()/2),QPointF(this->m_img.width(),this->m_img.height()/2));
-    p.drawLine(QPointF(this->m_img.width()/2,0),QPointF(this->m_img.width()/2,this->m_img.height()));
 
     switch(gGblPara.m_appMode)
     {
@@ -295,16 +292,73 @@ void ZMainUI::paintEvent(QPaintEvent *e)
 void ZMainUI::ZDrawRectangleIndicator(QPainter &p,QImage &img)
 {
     //draw a rectangle indicator.
-    //    ___       ___
-    //   |             |
-    //
-    //
-    //   |             |
-    //    ___       ___
+    //    ___   |    ___
+    //   |      |      |
+    //          |
+    //--------------------------
+    //          |
+    //   |      |      |
+    //    ___   |   ___
     p.save();
     //move the (0,0) to the center of image.
     p.translate(img.width()/2,img.height()/2);
-    p.setPen(QPen(Qt::green,4));
+
+    //set different color.
+    if(gGblPara.m_appMode==Track_Mode)
+    {
+        if(this->m_diffX>=-5 && this->m_diffX<=5 && this->m_diffY>=-5 && this->m_diffY<=5)
+        {
+            p.setPen(QPen(Qt::green,2));
+        }else if(this->m_diffX>=-20 && this->m_diffX<=20 && this->m_diffY>=-20 && this->m_diffY<=20)
+        {
+            p.setPen(QPen(Qt::yellow,2));
+        }else{
+            p.setPen(QPen(Qt::red,2));
+        }
+
+        //draw diff x&y.
+        QFont font=p.font();
+        font.setPixelSize(26);
+        p.setFont(font);
+        if(this->m_diffX>0)
+        {
+            //draw diff x on the right part.
+            QString strDiffX=QString::number(this->m_diffX);
+            QPoint pt(100,-p.fontMetrics().height());
+            p.drawText(pt,strDiffX);
+        }else if(this->m_diffX<0)
+        {
+            //draw diff x on the left part.
+            QString strDiffX=QString::number(this->m_diffX);
+            QPoint pt(-100-p.fontMetrics().width(strDiffX),-p.fontMetrics().height());
+            p.drawText(pt,strDiffX);
+        }
+        if(this->m_diffY>0)
+        {
+            //draw diff y on the top part.
+            QString strDiffY=QString::number(this->m_diffY);
+            QPoint pt(0,-50-p.fontMetrics().height());
+            p.drawText(pt,strDiffY);
+        }else if(this->m_diffY<0)
+        {
+            //draw diff x on the bottom part.
+            QString strDiffY=QString::number(this->m_diffY);
+            QPoint pt(0,50);
+            p.drawText(pt,strDiffY);
+        }
+    }else{
+        //Free mode & Select ROI mode.
+        p.setPen(QPen(Qt::green,2));
+    }
+
+    //draw the cross + two lines.
+    p.drawLine(QPointF(-img.width()/2,0),QPointF(img.width()/2,0));
+    p.drawLine(QPointF(0,-img.height()/2),QPointF(0,img.height()/2));
+
+    //draw the rectangle.
+    QPen pen=p.pen();
+    pen.setWidth(4);
+    p.setPen(pen);
     p.drawLine(QPointF(70,-50),QPointF(100,-50));
     p.drawLine(QPointF(100,-50),QPointF(100,-20));
     ///
@@ -323,8 +377,8 @@ void ZMainUI::ZDrawRectangleIndicator(QPainter &p,QImage &img)
     p.drawEllipse(QPoint(0,0),100,50);
     p.setBrush(QBrush(QColor(255,0,0,255)));
     p.drawEllipse(QPoint(0,0),6,6);
-    p.restore();
 
+    p.restore();
 }
 void ZMainUI::ZDrawCircleIndicator(QPainter &p,QImage &img)
 {
