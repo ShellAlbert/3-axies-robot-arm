@@ -318,32 +318,32 @@ void ZMainUI::ZDrawRectangleIndicator(QPainter &p,QImage &img)
 
         //draw diff x&y.
         QFont font=p.font();
-        font.setPixelSize(26);
+        font.setPixelSize(30);
         p.setFont(font);
         if(this->m_diffX>0)
         {
             //draw diff x on the right part.
             QString strDiffX=QString::number(this->m_diffX);
-            QPoint pt(100,-p.fontMetrics().height());
+            QPoint pt(100+10,-p.fontMetrics().height());
             p.drawText(pt,strDiffX);
         }else if(this->m_diffX<0)
         {
             //draw diff x on the left part.
             QString strDiffX=QString::number(this->m_diffX);
-            QPoint pt(-100-p.fontMetrics().width(strDiffX),-p.fontMetrics().height());
+            QPoint pt(-100-10-p.fontMetrics().width(strDiffX),-p.fontMetrics().height());
             p.drawText(pt,strDiffX);
         }
         if(this->m_diffY>0)
         {
             //draw diff y on the top part.
             QString strDiffY=QString::number(this->m_diffY);
-            QPoint pt(0,-50-p.fontMetrics().height());
+            QPoint pt(0,-50-10-p.fontMetrics().height());
             p.drawText(pt,strDiffY);
         }else if(this->m_diffY<0)
         {
             //draw diff x on the bottom part.
             QString strDiffY=QString::number(this->m_diffY);
-            QPoint pt(0,50);
+            QPoint pt(0,50+10);
             p.drawText(pt,strDiffY);
         }
     }else{

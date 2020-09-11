@@ -643,8 +643,9 @@ int ZServoThread::ZMapPixel2Servo(int servoID,int diff)
         {50,100,+250},
         {100,200,+500},
         {200,300,+1000},
-        {300,500,+1500},
-        {500,9999,+2000},
+        {300,400,+1500},
+        {400,500,+2000},
+        {500,9999,+3500},
     };
     const ZPix2MovTable table_left_right[]={
         {0,5,+1},//<min,max,step.
@@ -654,8 +655,9 @@ int ZServoThread::ZMapPixel2Servo(int servoID,int diff)
         {50,100,+250},
         {100,200,+500},
         {200,300,+1000},
-        {300,500,+1500},
-        {500,9999,+2000},
+        {300,400,+1500},
+        {400,500,+2000},
+        {500,9999,+3500},
     };
     switch(gGblPara.m_appMode)
     {
