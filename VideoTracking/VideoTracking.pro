@@ -4,7 +4,7 @@
 #
 #-------------------------------------------------
 
-QT       += core gui network
+QT       += core gui network serialport
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -35,7 +35,8 @@ SOURCES += \
     zpidcalc.cpp \
     zdialoghome.cpp \
     zservothread.cpp \
-    zdifffifo.cpp
+    zdifffifo.cpp \
+    zgyroscopethread.cpp
 
 HEADERS += \
         zmainui.h \
@@ -48,7 +49,8 @@ HEADERS += \
     zpidcalc.h \
     zdialoghome.h \
     zservothread.h \
-    zdifffifo.h
+    zdifffifo.h \
+    zgyroscopethread.h
 
 
 #openCV 4.1.1

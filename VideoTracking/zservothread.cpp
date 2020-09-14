@@ -637,9 +637,9 @@ int ZServoThread::ZMapPixel2Servo(int servoID,int diff)
 {
     const ZPix2MovTable table_up_down[]={
         {0,5,+1},//<min,max,step.
-        {5,10,+10},
-        {10,20,+30},
-        {20,50,+50},
+        {5,10,+20},
+        {10,20,+50},
+        {20,50,+100},
         {50,100,+250},
         {100,200,+500},
         {200,300,+1000},
@@ -649,9 +649,9 @@ int ZServoThread::ZMapPixel2Servo(int servoID,int diff)
     };
     const ZPix2MovTable table_left_right[]={
         {0,5,+1},//<min,max,step.
-        {5,10,+10},
-        {10,20,+30},
-        {20,50,+50},
+        {5,10,+20},
+        {10,20,+50},
+        {20,50,+100},
         {50,100,+250},
         {100,200,+500},
         {200,300,+1000},
