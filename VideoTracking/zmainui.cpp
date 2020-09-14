@@ -182,7 +182,18 @@ void ZMainUI::paintEvent(QPaintEvent *e)
         if(this->m_bLocked)
         {
             //draw the locked rectangle.
+            p.save();
+            if(this->m_diffX<=5 && this->m_diffX>=-5 && this->m_diffY<=5 && this->m_diffY>=-5)
+            {
+                p.setPen(QPen(Qt::green,4));
+            }else if(this->m_diffX<=20 && this->m_diffX>=-20 && this->m_diffY<=20 && this->m_diffY>=-20)
+            {
+                p.setPen(QPen(Qt::yellow,4));
+            }else{
+                p.setPen(QPen(Qt::red,4));
+            }
             p.drawRect(this->m_rectLocked);
+            p.restore();
 
             QPoint ptLocked(0,200+p.fontMetrics().height());
             p.drawText(ptLocked,QString("Locked"));
@@ -318,7 +329,7 @@ void ZMainUI::ZDrawRectangleIndicator(QPainter &p,QImage &img)
 
         //draw diff x&y.
         QFont font=p.font();
-        font.setPixelSize(30);
+        font.setPixelSize(38);
         p.setFont(font);
         if(this->m_diffX>0)
         {

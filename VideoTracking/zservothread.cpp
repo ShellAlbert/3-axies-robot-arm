@@ -44,8 +44,10 @@ extern "C"
 enum
 {
     SYS_WORKING_POWER_ON,
-    SYS_WORKING_SAFE_MODE,
-    SYS_WORKING_OPMODE,
+    SYS_WORKING_SAFE_OP,
+    SYS_WORKING_PPM_MODE,
+    SYS_WORKING_CSP_MODE,
+    SYS_WORKING_CSP_LOOP,
     SYS_WORKING_UPDATE_POSITION,
 };
 int g_SysFSM=SYS_WORKING_POWER_ON;
@@ -96,11 +98,11 @@ const static ec_pdo_entry_reg_t domainInput_regs[]=
 {
     { CopleySlavePos, Copley_VID_PID, 0x6041, 0, &statusWord[0], NULL },
     { CopleySlavePos, Copley_VID_PID, 0x606C, 0, &actVelocity[0], NULL },
-    { CopleySlavePos, Copley_VID_PID, 0x6064, 0, &actPosition[0], NULL },
+    { CopleySlavePos, Copley_VID_PID, 0x6063, 0, &actPosition[0], NULL },
 
     { CopleySlavePos2, Copley_VID_PID, 0x6041, 0, &statusWord[1], NULL },
     { CopleySlavePos2, Copley_VID_PID, 0x606C, 0, &actVelocity[1], NULL },
-    { CopleySlavePos2, Copley_VID_PID, 0x6064, 0, &actPosition[1], NULL },
+    { CopleySlavePos2, Copley_VID_PID, 0x6063, 0, &actPosition[1], NULL },
     {}
 };
 
@@ -118,7 +120,7 @@ static ec_pdo_info_t copley_pdos_1600[] = {
 static ec_pdo_entry_info_t copley_pdo_entries_input[] = {
     { 0x6041, 0x00, 16 }, /*Status Word,uint16*/
     { 0x606C, 0x00, 32 }, /*actual velocity,uint32*/
-    { 0x6064, 0x00, 32 }, /*actual position,uint32*/
+    { 0x6063, 0x00, 32 }, /*actual position,uint32*/
 };
 //define RxPDO itself.
 static ec_pdo_info_t copley_pdos_1a00[] = {
@@ -291,6 +293,20 @@ void ZServoThread::run()
     }
     emit this->ZSigLog(false,"PDO entry registration done.");
 
+
+//    //Mode of Operation.
+//    //(0x6060,0)=8 CSP:Cyclic Synchronous Position mode
+//    for(int i=0;i<2;i++)
+//    {
+//        ecrt_slave_config_sdo8(sc_copley[i],0x6060,0,8);
+//        ecrt_slave_config_sdo8(sc_copley[i],0x60c2,1,1);
+//        ecrt_slave_config_sdo32(sc_copley[i],0x6081,0,500000);
+//        ecrt_slave_config_sdo32(sc_copley[i],0x6083,0,50000);
+//        ecrt_slave_config_sdo32(sc_copley[i],0x6084,0,50000);
+//        ecrt_slave_config_sdo32(sc_copley[i],0x6085,0,50000);
+//    }
+
+
     //Finishes the configuration phase and prepares for cyclic operation.
     //This function tells the master that the configuration phase is finished and the realtime operation will begin.
     //The function allocates internal memory for the domains and calculates the logical FMMU addresses for domain members.
@@ -319,18 +335,20 @@ void ZServoThread::run()
     gTechServo.s0_login_zero=0;
     gTechServo.s1_login_zero=0;
 
-    g_SysFSM=SYS_WORKING_SAFE_MODE;
+    g_SysFSM=SYS_WORKING_SAFE_OP;
     //signal(SIGINT,g_SignalHandler);
 
     //save the diff x&y fetched from Diff FIFO.
     ZDiffResult diffRet;
+
+#if 1
     while(!gGblPara.m_bExitFlag)
     {
         //1000us=1ms.
         //usleep(1000000/TASK_FREQUENCY);
         //if the time is less, the motor has no time to run.
         //so we set the time longer to wait for the motor executed the previous command.
-        usleep(1000);
+        usleep(3000);
         //usleep(8000);
         //usleep(10000);
         //usleep(20000);
@@ -352,7 +370,7 @@ void ZServoThread::run()
 
         switch(g_SysFSM)
         {
-        case SYS_WORKING_SAFE_MODE:
+        case SYS_WORKING_SAFE_OP:
             //check if master is in OP mode,if not then turn to OP mode.
             if((master_state.al_states&ETHERCAT_STATUS_OP))
             {
@@ -367,12 +385,12 @@ void ZServoThread::run()
                 }
                 if(tmp)
                 {
-                    g_SysFSM=SYS_WORKING_OPMODE;
-                    emit this->ZSigLog(false,"FSM -> SYS_WORKING_OPMODE");
+                    g_SysFSM=SYS_WORKING_PPM_MODE;
+                    emit this->ZSigLog(false,"FSM -> SYS_WORKING_PPM_MODE");
                 }
             }
             break;
-        case SYS_WORKING_OPMODE:
+        case SYS_WORKING_PPM_MODE:
         {
             static int iTickCnt=0;
             switch(iTickCnt)
@@ -446,7 +464,6 @@ void ZServoThread::run()
                 int s0_tar_pos,s1_tar_pos;
 
                 //try to fetch diff x&y from diff FIFO.
-                //if(this->m_fifoDIFF->ZTryGetDiff(diffRet,100))
                 if(this->m_fifoDIFF->ZTryGetLastDiff(diffRet,100))
                 {
                     emit this->ZSigDiffAvailable(this->m_fifoDIFF->ZGetUsedNums());
@@ -626,11 +643,152 @@ void ZServoThread::run()
         ecrt_domain_queue(domainInput);
         ecrt_master_send(master);
     }
+#else
+    //CSP mode.
+    int ecstate=0;
+    static int curpos=0,curpos2=0;
+    int tarpos0,tarpos1;
+    while(!gGblPara.m_bExitFlag)
+    {
+        //1000us=1ms.
+        //usleep(1000000/TASK_FREQUENCY);
+        //if the time is less, the motor has no time to run.
+        //so we set the time longer to wait for the motor executed the previous command.
+        usleep(2000);
+        //usleep(8000);
+        //usleep(10000);
+        //usleep(20000);
 
+        /*receive EtherCAT frames*/
+        ecrt_master_receive(master);
+        ecrt_domain_process(domainOutput);
+        ecrt_domain_process(domainInput);
+        check_domain_state();
+
+        check_master_state();
+        check_slave_config_state();
+
+        switch(g_SysFSM)
+        {
+        case SYS_WORKING_SAFE_OP:
+            //check if master is in OP mode,if not then turn to OP mode.
+            if((master_state.al_states&ETHERCAT_STATUS_OP))
+            {
+                int tmp=1;
+                if(sc_copley_state[0].al_state!=ETHERCAT_STATUS_OP)
+                {
+                    tmp=0;
+                }
+                if(sc_copley_state[1].al_state!=ETHERCAT_STATUS_OP)
+                {
+                    tmp=0;
+                }
+                if(tmp)
+                {
+                    ecstate=0;
+                    g_SysFSM=SYS_WORKING_CSP_MODE;
+                    emit this->ZSigLog(false,"FSM -> SYS_WORKING_CSP_MODE");
+                }
+            }
+            break;
+        case SYS_WORKING_CSP_MODE:
+            ecstate++;
+            if(ecstate<=16)
+            {
+                switch(ecstate)
+                {
+                case 1:
+                    //bit7=1.
+                    //Reset Fault.A low-to-high transition of this bit makes the amplifier attempt to clear any latched fault condition.
+                    EC_WRITE_U16(domainOutput_pd+ctrlWord[0],0x80);
+                    EC_WRITE_U16(domainOutput_pd+ctrlWord[1],0x80);
+                    break;
+                case 7:
+                    //write current position to target position
+                    curpos=EC_READ_S32(domainInput_pd+actPosition[0]);
+                    EC_WRITE_S32(domainOutput_pd+targetPosition[0],EC_READ_S32(domainInput_pd+actPosition[0]));
+                    printf("slave 0: current position:%d\n",curpos);
+
+                    curpos2=EC_READ_S32(domainInput_pd+actPosition[1]);
+                    EC_WRITE_S32(domainOutput_pd+targetPosition[1],EC_READ_S32(domainInput_pd+actPosition[1]));
+                    printf("slave 1: current position:%d\n",curpos2);
+                    break;
+                case 9:
+                    //0x06=0000,0110.
+                    EC_WRITE_U16(domainOutput_pd+ctrlWord[0],0x06);
+                    EC_WRITE_U16(domainOutput_pd+ctrlWord[1],0x06);
+                    break;
+                case 11:
+                    //0x07=0000,0111.
+                    EC_WRITE_U16(domainOutput_pd+ctrlWord[0],0x07);
+                    EC_WRITE_U16(domainOutput_pd+ctrlWord[1],0x07);
+                    break;
+                case 13:
+                    //0x0F=0000,1111.
+                    EC_WRITE_U16(domainOutput_pd+ctrlWord[0],0x0F);
+                    EC_WRITE_U16(domainOutput_pd+ctrlWord[1],0x0F);
+                    break;
+                default:
+                    break;
+                }
+            }else{
+                int tmp=true;
+                if((EC_READ_U16(domainInput_pd+statusWord[0])&(STATUS_SERVO_ENABLE_BIT))==0)
+                {
+                    tmp=false;
+                }
+                if((EC_READ_U16(domainInput_pd+statusWord[1])&(STATUS_SERVO_ENABLE_BIT))==0)
+                {
+                    tmp=false;
+                }
+                if(tmp)
+                {
+                    ecstate=0;
+                    g_SysFSM=SYS_WORKING_CSP_LOOP;
+                    emit this->ZSigLog(false,"FSM -> SYS_WORKING_CSP_LOOP");
+                }
+            }
+            break;
+        case SYS_WORKING_CSP_LOOP:
+
+            //try to fetch diff x&y from diff FIFO.
+            if(this->m_fifoDIFF->ZTryGetLastDiff(diffRet,100))
+            {
+                emit this->ZSigDiffAvailable(this->m_fifoDIFF->ZGetUsedNums());
+
+                QString str=QString("5:get new target position (%1,%2).").arg(diffRet.diff_x).arg(diffRet.diff_y);
+                emit this->ZSigLog(false,str);
+
+
+                //curpos+=200;//clockwise direction.
+                //curpos-=200;//anti-clockwise direction.
+                //if this value is set bigger,will cause error.
+                //we can check status word to see what happened exactly.
+                //curpos+=100;
+                //curpos-=100;
+                //curpos-=10;
+                EC_WRITE_S32(domainOutput_pd+targetPosition[0],curpos);
+
+                curpos2-=20;
+                EC_WRITE_S32(domainOutput_pd+targetPosition[1],curpos2);
+            }
+
+
+            break;
+        }
+        //update PDOs.
+        this->ZUpdatePDO();
+
+        /*send process data*/
+        ecrt_domain_queue(domainOutput);
+        ecrt_domain_queue(domainInput);
+        ecrt_master_send(master);
+    }
+#endif
     ecrt_release_master(master);
     master=NULL;
 
-    qDebug("Copley slave test end.\n");
+    emit this->ZSigLog(true,"ServoThread end.");
     return;
 }
 int ZServoThread::ZMapPixel2Servo(int servoID,int diff)

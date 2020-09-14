@@ -64,13 +64,6 @@ static ec_slave_config_t *sc_copley[2]={NULL,NULL};
 static ec_slave_config_state_t sc_copley_state[2]={};
 
 /*PDO entries offsets*/
-static struct{
-    unsigned int ctrlWord;
-    unsigned int targetPosition;
-    unsigned int statusWord;
-    unsigned int actVelocity;
-    unsigned int actPosition;
-}offset[2];
 static unsigned int ctrlWord[2];
 static unsigned int targetPosition[2];
 static unsigned int statusWord[2];
@@ -230,17 +223,6 @@ void cyclic_task()
 {
 
     static int curpos=0,curpos2=0;
-    if(gSysRunning.m_gWorkStatus==SYS_WORKING_POWER_ON)
-    {
-        return;
-    }
-    static int cycle_counter=0;
-    cycle_counter++;
-    if(cycle_counter>=1000*2)
-    {
-        cycle_counter=0;
-    }
-
 
     /*receive EtherCAT frames*/
     ecrt_master_receive(master);
@@ -248,19 +230,13 @@ void cyclic_task()
     ecrt_domain_process(domainInput);
     check_domain_state();
 
-    //500ms.
-    if(!(cycle_counter%100))
-    {
-        check_master_state();
-        check_slave_config_state();
-    }
+    check_master_state();
+    check_slave_config_state();
 
     switch(gSysRunning.m_gWorkStatus)
     {
     case SYS_WORKING_SAFE_MODE:
         //check if master is in OP mode,if not then turn to OP mode.
-        check_master_state();
-        check_slave_config_state();
         if((master_state.al_states&ETHERCAT_STATUS_OP))
         {
             int tmp=true;
@@ -341,7 +317,7 @@ void cyclic_task()
     default:
     {
 
-        if(!(cycle_counter%100))
+        if(0/*!(cycle_counter%100)*/)
         {
 
             uint16_t status;
@@ -368,11 +344,11 @@ void cyclic_task()
         //if this value is set bigger,will cause error.
         //we can check status word to see what happened exactly.
         //curpos+=100;
-        curpos-=100;
+        //curpos-=100;
         //curpos-=10;
         EC_WRITE_S32(domainOutput_pd+targetPosition[0],curpos);
 
-        curpos2-=100;
+        curpos2-=20;
         EC_WRITE_S32(domainOutput_pd+targetPosition[1],curpos2);
     }
         break;
@@ -561,10 +537,10 @@ int main(int argc, char **argv)
         //usleep(1000000/TASK_FREQUENCY);
         //if the time is less, the motor has no time to run.
         //so we set the time longer to wait for the motor executed the previous command.
-        usleep(3000);
+        //usleep(3000);
         //usleep(8000);
         //usleep(10000);
-        //usleep(20000);
+        usleep(20000);
         cyclic_task();
     }
 
