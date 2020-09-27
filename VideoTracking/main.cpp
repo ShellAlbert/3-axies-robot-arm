@@ -5,6 +5,7 @@
 #include "zdifffifo.h"
 #include "zprocessingthread.h"
 #include <zservothread.h>
+#include "zgyroscopethread.h"
 #include <QFile>
 #include <QDebug>
 #include <zgblpara.h>
@@ -34,6 +35,7 @@ int main(int argc, char *argv[])
     ZProcessingThread proc1(&fifoCap1,&diffFIFO);
     ZServoThread servoThread(&diffFIFO);
     ZMainUI win(&diffFIFO);
+    ZGyroscopeThread gyro;
 
     //make connections.
     QObject::connect(&cap1,SIGNAL(ZSigNewImg(QImage)),&win,SLOT(ZSlotUpdateImg(QImage)));
@@ -49,11 +51,12 @@ int main(int argc, char *argv[])
         qDebug()<<"main UI initial failed.";
         return -1;
     }
-    win.showMaximized();
+//    win.showMaximized();
     //win.showFullScreen();
-    cap1.start();
-    proc1.start();
-    servoThread.start();
+//    cap1.start();
+//    proc1.start();
+//    servoThread.start();
+    gyro.start();
 
     qint32 ret=app.exec();
     cap1.wait();

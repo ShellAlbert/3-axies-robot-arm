@@ -294,17 +294,17 @@ void ZServoThread::run()
     emit this->ZSigLog(false,"PDO entry registration done.");
 
 
-//    //Mode of Operation.
-//    //(0x6060,0)=8 CSP:Cyclic Synchronous Position mode
-//    for(int i=0;i<2;i++)
-//    {
-//        ecrt_slave_config_sdo8(sc_copley[i],0x6060,0,8);
-//        ecrt_slave_config_sdo8(sc_copley[i],0x60c2,1,1);
-//        ecrt_slave_config_sdo32(sc_copley[i],0x6081,0,500000);
-//        ecrt_slave_config_sdo32(sc_copley[i],0x6083,0,50000);
-//        ecrt_slave_config_sdo32(sc_copley[i],0x6084,0,50000);
-//        ecrt_slave_config_sdo32(sc_copley[i],0x6085,0,50000);
-//    }
+    //    //Mode of Operation.
+    //    //(0x6060,0)=8 CSP:Cyclic Synchronous Position mode
+    //    for(int i=0;i<2;i++)
+    //    {
+    //        ecrt_slave_config_sdo8(sc_copley[i],0x6060,0,8);
+    //        ecrt_slave_config_sdo8(sc_copley[i],0x60c2,1,1);
+    //        ecrt_slave_config_sdo32(sc_copley[i],0x6081,0,500000);
+    //        ecrt_slave_config_sdo32(sc_copley[i],0x6083,0,50000);
+    //        ecrt_slave_config_sdo32(sc_copley[i],0x6084,0,50000);
+    //        ecrt_slave_config_sdo32(sc_copley[i],0x6085,0,50000);
+    //    }
 
 
     //Finishes the configuration phase and prepares for cyclic operation.
@@ -395,28 +395,34 @@ void ZServoThread::run()
             static int iTickCnt=0;
             switch(iTickCnt)
             {
-            case 0://Reset.
+            case 0://set Operation Mode.
+                //(0x6060,0)=1 PP:Profile Position mode.
+                for(int i=0;i<2;i++)
+                {
+                    ecrt_slave_config_sdo8(sc_copley[i],0x6060,0,1);
+                }
+                emit this->ZSigLog(false,"0:Set Operation mode.");
+                iTickCnt++;
+                break;
+            case 1:
+                iTickCnt++;
+                break;
+            case 2://Reset.
                 //bit7=1.
                 //Reset Fault.A low-to-high transition of this bit makes the amplifier attempt to clear any latched fault condition.
                 for(int i=0;i<2;i++)
                 {
                     EC_WRITE_U16(domainOutput_pd+ctrlWord[i],0x80);
                 }
-                emit this->ZSigLog(false,"0:Reset.");
+                emit this->ZSigLog(false,"2:Reset.");
                 iTickCnt++;
                 break;
-
-            case 1://set Operation Mode.
-                //(0x6060,0)=1 PP:Profile Position mode.
-                for(int i=0;i<2;i++)
-                {
-                    ecrt_slave_config_sdo8(sc_copley[i],0x6060,0,1);
-                }
-                emit this->ZSigLog(false,"1:Set Operation mode.");
+            case 3:
+            case 4:
+            case 5:
                 iTickCnt++;
                 break;
-
-            case 2://Set Parameter.
+            case 6://Set Parameters.
                 for(int i=0;i<2;i++)
                 {
                     //Sync Manager2,Synchronization Type=0:Free Run.
@@ -433,12 +439,11 @@ void ZServoThread::run()
                     //Motion Profile Type=T.
                     ecrt_slave_config_sdo16(sc_copley[i],0x6086,0x00,0);
                 }
-
-                emit this->ZSigLog(false,"2:Set Parameters.");
+                emit this->ZSigLog(false,"6:Set Parameters.");
                 iTickCnt++;
                 break;
 
-            case 3://Enable Device.
+            case 7://Enable Device.
                 for(int i=0;i<2;i++)
                 {
                     //0x06=0000,0110.
@@ -446,19 +451,19 @@ void ZServoThread::run()
                     //0x0F=0000,1111.
                     EC_WRITE_U16(domainOutput_pd+ctrlWord[i],0x0F);
                 }
-                emit this->ZSigLog(false,"3:Enable Device.");
+                emit this->ZSigLog(false,"7:Enable Device.");
                 iTickCnt++;
                 break;
 
-            case 4://Set Target Position to 0 at start up.
+            case 8://Set Target Position to 0 at start up.
                 EC_WRITE_S32(domainOutput_pd+targetPosition[0],gTechServo.s0_login_zero);
                 EC_WRITE_S32(domainOutput_pd+targetPosition[1],gTechServo.s1_login_zero);
                 emit this->ZSigLog(false,"4:Set Initial target position to 0.");
-                //here we skip step 5.
+                //here we skip step 9.
                 iTickCnt++;
                 iTickCnt++;
                 break;
-            case 5://Set Target Position.
+            case 9://Set Target Position.
             {
                 int s0_cur_pos,s1_cur_pos;
                 int s0_tar_pos,s1_tar_pos;
@@ -545,7 +550,7 @@ void ZServoThread::run()
                 }
             }
                 break;
-            case 6://Start Positioning.
+            case 10://Start Positioning.
                 switch(diffRet.move_mode)
                 {
                 case PPM_POSITION_ABSOLUTE:
@@ -563,10 +568,10 @@ void ZServoThread::run()
                     }
                     break;
                 }
-                emit this->ZSigLog(false,"6:Start positioning.");
+                emit this->ZSigLog(false,"10:Start positioning.");
                 iTickCnt++;
                 break;
-            case 7://set point acknowledge.
+            case 11://set point acknowledge.
             {
                 static int iTimeout=1000;
                 uint16_t status1,status2;
@@ -574,30 +579,33 @@ void ZServoThread::run()
                 status2 = EC_READ_U16(domainInput_pd + statusWord[1]);
                 if((status1&(0x1<<12)) && (status2&(0x1<<12)))
                 {
-                    emit this->ZSigLog(false,"7:set point acknowledge.");
+                    emit this->ZSigLog(false,"11:set point acknowledge.");
                     iTickCnt++;
                 }else{
-                    //emit this->ZSigLog(false,"7:set point not acknowledge.");
+                    //emit this->ZSigLog(false,"11:set point not acknowledge.");
                     iTimeout--;
                     if(iTimeout==0)
                     {
                         iTimeout=1000;
-                        emit this->ZSigLog(false,"7:set point reset.");
-                        iTickCnt=10;
+                        emit this->ZSigLog(false,"11:set point reset.");
+                        iTickCnt=12;
                     }
                 }
             }
                 break;
-            case 8://RESET.
+            case 12://RESET.
                 for(int i=0;i<2;i++)
                 {
                     //0x0F=0000,1111.
                     EC_WRITE_U16(domainOutput_pd+ctrlWord[i],0x0F);
                 }
-                emit this->ZSigLog(false,"8:Reset");
+                emit this->ZSigLog(false,"12:Reset");
                 iTickCnt++;
                 break;
-            case 9://Target reached ?
+            case 13:
+                iTickCnt++;
+                break;
+            case 14://Target reached ?
             {
                 uint16_t status0,status1;
                 int velocity0,velocity1;
@@ -616,16 +624,16 @@ void ZServoThread::run()
 
                 if((status0&(0x1<<10)) && (status1&(0x1<<10)))
                 {
-                    emit this->ZSigLog(false,QString("9:Target reached,position=(%1,%2)").arg(curPos0).arg(curPos1));
+                    emit this->ZSigLog(false,QString("14:Target reached,position=(%1,%2)").arg(curPos0).arg(curPos1));
                     iTickCnt++;
                 }else{
                     //printf("Target not reached,position=%d,%d\n",curPos0,curPos1);
                 }
             }
                 break;
-            case 10:
-                emit this->ZSigLog(false,"10:Finish.");
-                iTickCnt=5;
+            case 15:
+                emit this->ZSigLog(false,"15:Finish.");
+                iTickCnt=9;
                 break;
             default:
                 break;

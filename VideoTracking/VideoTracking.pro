@@ -36,7 +36,8 @@ SOURCES += \
     zdialoghome.cpp \
     zservothread.cpp \
     zdifffifo.cpp \
-    zgyroscopethread.cpp
+    zgyroscopethread.cpp \
+    jy901.cpp
 
 HEADERS += \
         zmainui.h \
@@ -50,7 +51,8 @@ HEADERS += \
     zdialoghome.h \
     zservothread.h \
     zdifffifo.h \
-    zgyroscopethread.h
+    zgyroscopethread.h \
+    jy901.h
 
 
 #openCV 4.1.1
