@@ -2,6 +2,7 @@
 //www.wit-motion.com
 //WT901B
 //date:2020/9/25 +8613522296239.
+//gcc gyro_ttyusb0.c -o gyro_ttyusb0.bin -lpthread
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -25,6 +26,8 @@ struct Angle0x53{
     float temperature;
 };
 
+//roll,pitch,yaw will be written to /tmp/gyro.fifo file.
+//[length(4 bytes),data(N bytes)].
 #define FIFO_NAME   "/tmp/gyro.fifo"
 
 typedef struct{
@@ -99,17 +102,18 @@ void parse_gyro_protocol(int fd_fifo,const char *buffer,int len)
         gyroDev.data_angle.z_yaw=z_angle/32768.0*180.0;
         gyroDev.data_angle.temperature=temperature/100.0;
 
-        printf("Roll:%.2f° Pitch:%.2f° Yaw:%.2f°  T:%.2f℃\n",///<
-               gyroDev.data_angle.x_roll,///<
-               gyroDev.data_angle.y_pitch,///<
-               gyroDev.data_angle.z_yaw,///<
-               gyroDev.data_angle.temperature );
-
         //only process if changed.
         if( (gyroDev.data_angle.x_roll!=gyroDev.data_angle_old.x_roll) ||
                 (gyroDev.data_angle.y_pitch!=gyroDev.data_angle_old.y_pitch) ||
                 (gyroDev.data_angle.z_yaw!=gyroDev.data_angle_old.z_yaw) )
         {
+            //print out if changed.
+            printf("Roll:%.2f° Pitch:%.2f° Yaw:%.2f°  T:%.2f℃\n",///<
+                   gyroDev.data_angle.x_roll,///<
+                   gyroDev.data_angle.y_pitch,///<
+                   gyroDev.data_angle.z_yaw,///<
+                   gyroDev.data_angle.temperature );
+
             //overwrite old values with new values.
             gyroDev.data_angle_old.x_roll=gyroDev.data_angle.x_roll;
             gyroDev.data_angle_old.y_pitch=gyroDev.data_angle.y_pitch;
